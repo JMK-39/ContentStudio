@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.xyat.contentstudio.villager.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "contentstudio.mixins.refmap.json",
+  "mixins": [
+    "MerchantOfferMixin",
+    "VillagerTweaksMixin",
+    "WanderingTraderTweaksMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
