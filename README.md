@@ -519,16 +519,6 @@ The generated script also acts as the rule database that Tooltip Editor reads ba
 - Append
 - Delete this rule
 
-### Building from Source
-
-- Minecraft: `1.20.1`
-- Java: `17`
-- ForgeGradle: `6.0.24`
-- Gradle: the project is pinned to the `8.1.1` Wrapper; do not import it with Gradle 9 directly.
-- Local development JARs are controlled by `local_libs_dir` and can be overridden in `gradle.properties` or with a project property.
-- Typical build command: `gradlew.bat build` on Windows or `./gradlew build` on Linux/macOS.
-- Development and release artifacts use `contentstudio` as the current project identifier.
-
 ## 简体中文
 
 ### 模组定位
@@ -1100,13 +1090,3 @@ kubejs/client_scripts/tooltipadd.js
 - 覆盖
 - 追加
 - 删除此规则
-
-### 从源码构建
-
-- Minecraft：`1.20.1`
-- Java：`17`
-- ForgeGradle：`6.0.24`
-- Gradle：项目固定使用 `8.1.1` Wrapper，请不要使用 Gradle 9 直接导入。
-- 默认本地依赖目录由 `local_libs_dir` 控制，可在 `gradle.properties` 或命令行参数中覆盖。
-- 常用构建命令：`gradlew.bat build`（Windows）或 `./gradlew build`（Linux/macOS）。
-- 生成的开发/发布文件以 `contentstudio` 作为当前工程标识。
