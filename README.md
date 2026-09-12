@@ -19,12 +19,11 @@ The project is designed around in-game administration. Where a feature changes s
 - Search, filtering, item return/inspection and preview workflows through KineticCore.
 - Optional JEI, EMI and REI interoperability for item/recipe discovery.
 
-### Requirements and Compatibility
+### Dependencies
 
 | Type | Dependency |
 |---|---|
-| Required | Minecraft 1.20.1 |
-| Required | Minecraft Forge 47+ |
+| Required | Forge 47.4.0+ |
 | Required | KineticCore 26.9.8+ |
 | Optional | JEI 15.20+ |
 | Optional | EMI |
@@ -241,7 +240,7 @@ The current source project uses:
 
 - ForgeGradle 6.0.24
 - Official Mappings
-- Java 17 toolchain
+- Forge 47.4.0+ toolchain
 
 Default local dependency directory:
 
@@ -547,12 +546,11 @@ The generated script also acts as the rule database that Tooltip Editor reads ba
 - 通过 KineticCore 提供搜索、筛选、物品返回/识别与预览流程。
 - 可选兼容 JEI、EMI 与 REI，用于物品和配方检索。
 
-### 运行环境与兼容
+### 依赖
 
 | 类型 | 依赖 |
 |---|---|
-| 必需 | Minecraft 1.20.1 |
-| 必需 | Minecraft Forge 47+ |
+| 必需 | Forge 47.4.0+ |
 | 必需 | KineticCore 26.9.8+ |
 | 可选 | JEI 15.20+ |
 | 可选 | EMI |

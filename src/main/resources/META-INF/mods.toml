@@ -14,7 +14,7 @@ Visual content authoring tools for recipes, loot, villager trades, and item tool
 [[dependencies.contentstudio]]
 modId="forge"
 mandatory=true
-versionRange="[47,)"
+versionRange="[47.4.0,)"
 ordering="NONE"
 side="BOTH"
 
