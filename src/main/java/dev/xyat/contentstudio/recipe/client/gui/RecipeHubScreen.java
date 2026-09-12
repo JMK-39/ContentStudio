@@ -18,8 +18,8 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
 
     public RecipeHubScreen(RecipeMenu recipeMenu, Inventory inv, Component title) {
         super(recipeMenu, inv, title);
-        this.imageWidth = 176;
-        this.imageHeight = 130;
+        this.imageWidth = 460;
+        this.imageHeight = 250;
         this.inventoryLabelY = 1000;
         this.titleLabelY = 10;
 
@@ -35,22 +35,24 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
         super.init();
         RecipePreviewState.returnToPreview = false;
 
-        int btnSize = 28;
-        int padding = 8;
+        int buttonW = 128;
+        int buttonH = 38;
+        int paddingX = 10;
+        int paddingY = 10;
         int columns = 3;
 
-        int totalWidth = (columns * btnSize) + ((columns - 1) * padding);
+        int totalWidth = columns * buttonW + (columns - 1) * paddingX;
         int startX = this.leftPos + (this.imageWidth - totalWidth) / 2;
-        int startY = this.topPos + 30;
+        int startY = this.topPos + 42;
 
         int i = 0;
         for (RecipeRegistry.EditorType type : RecipeRegistry.EditorType.values()) {
             int col = i % columns;
             int row = i / columns;
-            int x = startX + (col * (btnSize + padding));
-            int y = startY + (row * (btnSize + padding));
+            int x = startX + col * (buttonW + paddingX);
+            int y = startY + row * (buttonH + paddingY);
 
-            this.addRenderableWidget(new IconButton(x, y, btnSize, btnSize, type, button -> {
+            this.addRenderableWidget(new IconButton(x, y, buttonW, buttonH, type, button -> {
                 if (Minecraft.getInstance().player != null) {
                     RecipeNetwork.CHANNEL.sendToServer(
                             new RecipeNetwork.RequestEditPacket("", type.name(), -1)
@@ -60,11 +62,14 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
             i++;
         }
 
-        int bottomBtnW = 82;
-        int bottomSpacing = 4;
-        int totalBottomWidth = bottomBtnW * 2 + bottomSpacing;
+        int bottomBtnW = 108;
+        int bottomSpacing = 8;
+        int bottomY = this.topPos + this.imageHeight - 34;
+        int totalBottomWidth = bottomBtnW * 3 + bottomSpacing * 2;
         int bottomStartX = this.leftPos + (this.imageWidth - totalBottomWidth) / 2;
-        int bottomY = this.topPos + this.imageHeight - 30;
+
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.recipe.recipehud.back"), b -> onClose())
+                .bounds(bottomStartX, bottomY, bottomBtnW, 20).build());
 
         this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.recipe.recipehud.btn.hub"), b -> {
             if (this.minecraft != null && this.minecraft.player != null) {
@@ -73,12 +78,12 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
                     RecipeNetwork.requestOpen();
                 });
             }
-        }).bounds(bottomStartX, bottomY, bottomBtnW, 20).build());
+        }).bounds(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW, 20).build());
 
         this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"), b -> {
             this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_recipes"));
             RecipeNetwork.requestRecipeRecords();
-        }).bounds(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW, 20).build());
+        }).bounds(bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW, 20).build());
     }
 
     @Override
@@ -125,7 +130,11 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
         @Override
         public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             super.renderWidget(graphics, mouseX, mouseY, partialTick);
-            graphics.renderFakeItem(new ItemStack(type.getIcon()), this.getX() + 6, this.getY() + 6);
+            graphics.renderFakeItem(new ItemStack(type.getIcon()), this.getX() + 8, this.getY() + 11);
+            Component label = type.getTitle();
+            int textX = this.getX() + 32;
+            int textY = this.getY() + (this.height - 8) / 2;
+            graphics.drawString(Minecraft.getInstance().font, label, textX, textY, 0xFFFFFFFF, false);
         }
     }
 }
