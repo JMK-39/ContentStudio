@@ -56,7 +56,7 @@ public class RecipePreviewScreen extends KineticScreen {
         super(Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"));
         this.parent = parent;
 
-        useCanvas(
+        useResponsiveCanvas(
                 640f,
                 360f,
                 6
@@ -155,63 +155,32 @@ public class RecipePreviewScreen extends KineticScreen {
         int refreshWidth = 60;
         int toolbarGap = 6;
 
-        addRenderableWidget(
-                Button.builder(
-                                Component.translatable(
+        addButton(sidePadding, buttonY, backWidth, Component.translatable(
                                         "gui.contentstudio.recipe.recipehud.back"
-                                ),
-                                button -> {
+                                ), null, button -> {
                                     if (minecraft == null) {
                                         return;
                                     }
 
                                     if (parent != null) {
-                                        minecraft.setScreen(parent);
+                                        navigateBack();
                                     } else if (minecraft.player != null) {
                                         RecipeNetwork.requestOpenHub();
                                     }
-                                }
-                        )
-                        .bounds(
-                                sidePadding,
-                                buttonY,
-                                backWidth,
-                                20
-                        )
-                        .build()
-        );
+                                });
 
         int refreshX =
-                canvasWidth
+                canvasWidth()
                         - sidePadding
                         - refreshWidth;
         int saveX = refreshX - toolbarGap - saveWidth;
 
-        saveButton = addRenderableWidget(
-                Button.builder(
-                                Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"),
-                                button -> savePendingDeletes()
-                        )
-                        .bounds(saveX, buttonY, saveWidth, 20)
-                        .build()
-        );
+        saveButton = addButton(saveX, buttonY, saveWidth, Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"), null, button -> savePendingDeletes());
         saveButton.active = !pendingDeletes.isEmpty();
 
-        addRenderableWidget(
-                Button.builder(
-                                Component.translatable(
+        addButton(refreshX, buttonY, refreshWidth, Component.translatable(
                                         "gui.contentstudio.recipe.recipehud.preview.refresh"
-                                ),
-                                button -> RecipeNetwork.requestRecipeRecords()
-                        )
-                        .bounds(
-                                refreshX,
-                                buttonY,
-                                refreshWidth,
-                                20
-                        )
-                        .build()
-        );
+                                ), null, button -> RecipeNetwork.requestRecipeRecords());
 
         int searchY;
         int searchX;
@@ -223,7 +192,7 @@ public class RecipePreviewScreen extends KineticScreen {
             searchWidth =
                     Math.max(
                             80,
-                            canvasWidth
+                            canvasWidth()
                                     - sidePadding * 2
                     );
             gridY = 59;
@@ -265,14 +234,7 @@ public class RecipePreviewScreen extends KineticScreen {
         }
 
         searchBox =
-                new EditBox(
-                        font,
-                        searchX,
-                        searchY,
-                        searchWidth,
-                        20,
-                        Component.empty()
-                );
+                addTextField(searchX, searchY, searchWidth, Component.empty());
 
         searchBox.setResponder(
                 this::onSearchUpdate
@@ -281,15 +243,12 @@ public class RecipePreviewScreen extends KineticScreen {
         searchBox.setValue(
                 RecipePreviewState.searchQuery
         );
-
-        addRenderableWidget(searchBox);
-
-        int scrollbarReserve = 10;
+int scrollbarReserve = 10;
 
         int availableGridWidth =
                 Math.max(
                         SLOT_SIZE,
-                        canvasWidth
+                        canvasWidth()
                                 - sidePadding * 2
                                 - scrollbarReserve
                 );
@@ -308,7 +267,7 @@ public class RecipePreviewScreen extends KineticScreen {
                 Math.max(
                         sidePadding,
                         (
-                                canvasWidth
+                                canvasWidth()
                                         - gridW
                                         - scrollbarReserve
                         ) / 2
@@ -319,7 +278,7 @@ public class RecipePreviewScreen extends KineticScreen {
         int availableGridHeight =
                 Math.max(
                         SLOT_SIZE,
-                        canvasHeight
+                        canvasHeight()
                                 - gridY
                                 - bottomPadding
                 );
@@ -431,8 +390,8 @@ public class RecipePreviewScreen extends KineticScreen {
         graphics.fill(
                 0,
                 0,
-                canvasWidth,
-                canvasHeight,
+                canvasWidth(),
+                canvasHeight(),
                 0xBB222222
         );
 
@@ -543,7 +502,7 @@ public class RecipePreviewScreen extends KineticScreen {
 
         }
 
-        graphics.disableScissor();
+        disableCanvasScissor(graphics);
 
         gridScroll.render(
                 graphics,
@@ -567,20 +526,11 @@ public class RecipePreviewScreen extends KineticScreen {
             int mouseY,
             float partialTick
     ) {
-        if (searchBox != null
-                && !searchBox.isFocused()
-                && searchBox.getValue().isEmpty()) {
-            graphics.drawString(
-                    font,
-                    Component.translatable(
-                            "gui.contentstudio.recipe.recipehud.search_hint"
-                    ),
-                    searchBox.getX() + 6,
-                    searchBox.getY() + 6,
-                    0xFFAAAAAA,
-                    false
-            );
-        }
+        renderTextFieldPlaceholder(
+                graphics,
+                searchBox,
+                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint")
+        );
     }
 
     @Override
@@ -659,7 +609,7 @@ public class RecipePreviewScreen extends KineticScreen {
                 )
         );
 
-        GuiOverlay.requestTooltip(tooltip, 260, mouseX, mouseY);
+        showTooltip(tooltip, 260);
     }
 
     private boolean sameRecord(RecipeRecord left, RecipeRecord right) {

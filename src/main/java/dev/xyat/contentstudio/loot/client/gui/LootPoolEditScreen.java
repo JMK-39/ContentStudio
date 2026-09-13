@@ -30,7 +30,7 @@ final class LootPoolEditScreen extends KineticScreen {
         this.parent = parent;
         this.poolIndex = poolIndex;
         this.workingPool = pool;
-        useCanvas(
+        useResponsiveCanvas(
                 WIDTH,
                 HEIGHT,
                 6
@@ -50,17 +50,9 @@ final class LootPoolEditScreen extends KineticScreen {
         bonusMaxBox = numericBox(324, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_max");
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.pool_editor.apply"), button -> applyChanges())
-                .bounds(196, 194, 70, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.apply")))
-                .build());
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.pool_editor.delete"), button -> openDeleteConfirm())
-                .bounds(272, 194, 70, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")))
-                .build());
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.pool_editor.cancel"), button -> closeToParent())
-                .bounds(348, 194, 70, 20)
-                .build());
+        addButton(196, 194, 70, Component.translatable("gui.contentstudio.loot.loots.pool_editor.apply"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.apply"), button -> applyChanges());
+        addButton(272, 194, 70, Component.translatable("gui.contentstudio.loot.loots.pool_editor.delete"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), button -> openDeleteConfirm());
+        addButton(348, 194, 70, Component.translatable("gui.contentstudio.loot.loots.pool_editor.cancel"), null, button -> closeToParent());
 
     }
 
@@ -72,7 +64,7 @@ final class LootPoolEditScreen extends KineticScreen {
     ) {
         EditBox box =
                 LootNumericField.create(
-                        font,
+                        this,
                         x,
                         84,
                         76,
@@ -81,7 +73,7 @@ final class LootPoolEditScreen extends KineticScreen {
                         tooltipKey
                 );
 
-        addRenderableWidget(box);
+        addControl(box, null);
         return box;
     }
 
@@ -111,7 +103,7 @@ final class LootPoolEditScreen extends KineticScreen {
     }
 
     private void closeToParent() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) navigateBack();
     }
 
     @Override

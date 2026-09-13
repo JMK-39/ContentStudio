@@ -1,6 +1,7 @@
 package dev.xyat.contentstudio.tooltip;
 
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
+import dev.xyat.kineticcore.api.client.text.KineticText;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
 import dev.xyat.kineticcore.config.client.KTConfigApi;
@@ -186,22 +187,13 @@ public class TooltipClientHandlers {
             int padding = 20;
             int topY = 15;
 
-            searchBox = new EditBox(
-                    font,
-                    padding,
-                    topY,
-                    150,
-                    20,
-                    Component.empty()
-            );
+            searchBox = addTextField(padding, topY, 150, Component.empty());
 
             searchBox.setValue(lastSearch);
             searchBox.setResponder(this::updateSearch);
-            addRenderableWidget(searchBox);
-
-            int btnW = 80;
+int btnW = 80;
             int backBtnX =
-                    canvasWidth - padding - btnW;
+                    canvasWidth() - padding - btnW;
 
             int addBtnX =
                     backBtnX - btnW - 5;
@@ -209,28 +201,13 @@ public class TooltipClientHandlers {
             int saveBtnX =
                     addBtnX - btnW - 5;
 
-            addRenderableWidget(
-                    Button.builder(
-                                    Component.translatable(
+            addButton(saveBtnX, topY, btnW, Component.translatable(
                                             "gui.contentstudio.tooltip.tooltipeditor.edit.save"
-                                    ),
-                                    button -> saveChanges()
-                            )
-                            .bounds(
-                                    saveBtnX,
-                                    topY,
-                                    btnW,
-                                    20
-                            )
-                            .build()
-            );
+                                    ), null, button -> saveChanges());
 
-            addRenderableWidget(
-                    Button.builder(
-                                    Component.translatable(
+            addButton(addBtnX, topY, btnW, Component.translatable(
                                             "gui.contentstudio.tooltip.tooltipeditor.hub.add"
-                                    ),
-                                    button ->
+                                    ), null, button ->
                                             ItemSearchIndex.prepareCache(
                                                     () ->
                                                             Minecraft.getInstance()
@@ -266,37 +243,16 @@ public class TooltipClientHandlers {
                                                                                     }
                                                                             )
                                                                     )
-                                            )
-                            )
-                            .bounds(
-                                    addBtnX,
-                                    topY,
-                                    btnW,
-                                    20
-                            )
-                            .build()
-            );
+                                            ));
 
-            addRenderableWidget(
-                    Button.builder(
-                                    Component.translatable(
+            addButton(backBtnX, topY, btnW, Component.translatable(
                                             "gui.contentstudio.tooltip.tooltipeditor.hub.close"
-                                    ),
-                                    button -> onClose()
-                            )
-                            .bounds(
-                                    backBtnX,
-                                    topY,
-                                    btnW,
-                                    20
-                            )
-                            .build()
-            );
+                                    ), null, button -> onClose());
 
             gridY = 50;
 
             int availableWidth =
-                    canvasWidth - padding * 2 - 10;
+                    canvasWidth() - padding * 2 - 10;
 
             columns = Math.max(
                     1,
@@ -307,10 +263,10 @@ public class TooltipClientHandlers {
                     columns * CELL_SIZE;
 
             gridX =
-                    (canvasWidth - gridW) / 2;
+                    (canvasWidth() - gridW) / 2;
 
             int availableHeight =
-                    canvasHeight - gridY - 15;
+                    canvasHeight() - gridY - 15;
 
             visibleRows =
                     Math.max(
@@ -397,15 +353,15 @@ public class TooltipClientHandlers {
             graphics.fill(
                     0,
                     0,
-                    canvasWidth,
-                    canvasHeight,
+                    canvasWidth(),
+                    canvasHeight(),
                     0xFF161616
             );
 
             graphics.drawCenteredString(
                     font,
                     title,
-                    canvasWidth / 2,
+                    canvasWidth() / 2,
                     5,
                     0xFFFFFF
             );
@@ -574,7 +530,7 @@ public class TooltipClientHandlers {
                 graphics.pose().popPose();
             }
 
-            graphics.disableScissor();
+            disableCanvasScissor(graphics);
 
             gridScroll.render(
                     graphics,
@@ -587,20 +543,11 @@ public class TooltipClientHandlers {
                     20
             );
 
-            if (searchBox != null
-                    && searchBox.getValue().isEmpty()
-                    && !searchBox.isFocused()) {
-                graphics.drawString(
-                        font,
-                        Component.translatable(
-                                "gui.contentstudio.tooltip.tooltipeditor.hub.search_hint"
-                        ),
-                        searchBox.getX() + 4,
-                        searchBox.getY() + 6,
-                        0x777777,
-                        false
-                );
-            }
+            renderTextFieldPlaceholder(
+                    graphics,
+                    searchBox,
+                    Component.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.search_hint")
+            );
         }
 
         @Override
@@ -902,12 +849,11 @@ public class TooltipClientHandlers {
 
         @Override
         protected void buildUi() {
-            this.clearWidgets();
             resetScrollableWidgets();
             widgets.clear();
 
             startX = 10;
-            listW = this.canvasWidth - 35; // 预留右侧独立轨道给滚动条
+            listW = this.canvasWidth() - 35; // 预留右侧独立轨道给滚动条
             listStartY = 80;
             infoX = 15;
 
@@ -916,24 +862,24 @@ public class TooltipClientHandlers {
             int btnW_Add = 60;
             int btnW_Back = 45;
 
-            int saveBtnX = this.canvasWidth - 15 - btnW_Save;
+            int saveBtnX = this.canvasWidth() - 15 - btnW_Save;
             int addBtnX = saveBtnX - btnW_Add - 5;
             int backBtnX = addBtnX - btnW_Back - 5;
 
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.back"), b -> {
+            addButton(backBtnX, btnY, btnW_Back, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.back"), null, b -> {
                 saveInputStates();
                 if (rules.isEmpty()) clientData.remove(itemId);
-                parent.buildUi();
-                Minecraft.getInstance().setScreen(parent);
-            }).bounds(backBtnX, btnY, btnW_Back, 20).build());
+                parent.rebuildUi();
+                navigateBack();
+            });
 
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.add_rule"), b -> {
+            addButton(addBtnX, btnY, btnW_Add, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.add_rule"), null, b -> {
                 saveInputStates();
                 rules.add(new TooltipManager.TooltipRule());
-                this.buildUi();
-            }).bounds(addBtnX, btnY, btnW_Add, 20).build());
+                this.rebuildUi();
+            });
 
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.save"), b -> {
+            addButton(saveBtnX, btnY, btnW_Save, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.save"), null, b -> {
                 saveInputStates();
                 for (TooltipManager.TooltipRule r : rules) {
                     if (r.text == null || r.text.trim().isEmpty()) {
@@ -942,9 +888,9 @@ public class TooltipClientHandlers {
                     }
                 }
                 sendSave(SaveIntent.EDIT);
-            }).bounds(saveBtnX, btnY, btnW_Save, 20).build());
+            });
 
-            int availableH = this.canvasHeight - listStartY - 15;
+            int availableH = this.canvasHeight() - listStartY - 15;
             visibleRows = availableH / ROW_HEIGHT;
             listH = visibleRows * ROW_HEIGHT;
             maxScroll = Math.max(0, rules.size() - visibleRows);
@@ -960,18 +906,28 @@ public class TooltipClientHandlers {
                 this.addScrollableWidget(w.delBtn, startX, listStartY, startX + listW, listStartY + listH, this::scrollPixelOffset);
             }
 
-            int curX = backBtnX - (8 * 16) - 15;
+            int swatchStep = COMPACT_CONTROL_HEIGHT + 2;
+            int curX = backBtnX - (8 * swatchStep) - 15;
             for (int i = 0; i < COLORS.length; i++) {
                 final String c = "§" + CODES[i];
                 int col = i % 8;
                 int row = i / 8;
-                Button btn = new ColorSmallButton(curX + col * 16, btnY - 2 + row * 13, 12, COLORS[i], b -> insertCode(c));
-                btn.setTooltip(Tooltip.create(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.color.insert", c)));
-                this.addRenderableWidget(btn);
+                addColorSwatchButton(
+                        curX + col * swatchStep,
+                        btnY - 2 + row * swatchStep,
+                        COLORS[i],
+                        Component.translatable("gui.contentstudio.tooltip.tooltipeditor.color.insert", c),
+                        () -> insertCode(c)
+                );
             }
-            this.addRenderableWidget(Button.builder(Component.literal("R"), b -> insertCode("§r"))
-                    .bounds(curX + 8 * 16, btnY + 4, 15, 15)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.color.reset"))).build());
+            addCompactButton(
+                    curX + 8 * swatchStep,
+                    btnY + 4,
+                    COMPACT_CONTROL_HEIGHT + 2,
+                    Component.literal("R"),
+                    Component.translatable("gui.contentstudio.tooltip.tooltipeditor.color.reset"),
+                    () -> insertCode("§r")
+            );
 
             updateWidgetPositions();
         }
@@ -1005,7 +961,7 @@ public class TooltipClientHandlers {
 
         @Override
         protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-            g.fill(0, 0, this.canvasWidth, this.canvasHeight, 0xFF161616);
+            g.fill(0, 0, this.canvasWidth(), this.canvasHeight(), 0xFF161616);
             GuiTheme.panel(g, startX - 2, listStartY - 2, listW + 4, listH + 4, 0x88555555, 0xFF666666);
             g.drawString(font, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.drag_hint"), startX, listStartY - 30, 0xFFFFFF);
         }
@@ -1082,12 +1038,26 @@ public class TooltipClientHandlers {
                 g.renderOutline(startX, ghostY, listW, ROW_HEIGHT - 2, 0xFF55FF55);
 
                 String displayTxt = rules.get(draggingIndex).text;
-                if (font.width(displayTxt) > listW - 140) {
-                    displayTxt = font.plainSubstrByWidth(displayTxt, listW - 150) + "...";
-                }
-
-                g.drawString(font, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_prefix"), startX + 10, ghostY + 4, 0xAAAAAA);
-                g.drawString(font, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_item", displayTxt), startX + 10, ghostY + 13, 0xFFFFFF);
+                KineticText.drawScrollingLeft(
+                        g,
+                        font,
+                        Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_prefix"),
+                        startX + 10,
+                        ghostY + 4,
+                        listW - 20,
+                        0xAAAAAA,
+                        false
+                );
+                KineticText.drawScrollingLeft(
+                        g,
+                        font,
+                        Component.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_item", displayTxt),
+                        startX + 10,
+                        ghostY + 13,
+                        listW - 20,
+                        0xFFFFFF,
+                        false
+                );
                 g.pose().popPose();
             }
         }
@@ -1147,7 +1117,7 @@ public class TooltipClientHandlers {
                 if (hoverTargetIndex != -1 && hoverTargetIndex != draggingIndex && hoverTargetIndex != draggingIndex + 1) {
                     TooltipManager.TooltipRule temp = rules.remove(draggingIndex);
                     rules.add(hoverTargetIndex > draggingIndex ? hoverTargetIndex - 1 : hoverTargetIndex, temp);
-                    this.buildUi();
+                    this.rebuildUi();
                 }
                 draggingIndex = -1;
                 hoverTargetIndex = -1;
@@ -1194,7 +1164,7 @@ public class TooltipClientHandlers {
         }
 
         private void returnToParentAfterSave() {
-            Minecraft.getInstance().setScreen(parent);
+            navigateBack();
         }
 
         private Style getStyleAtPos(String text, int index) {
@@ -1221,13 +1191,13 @@ public class TooltipClientHandlers {
 
             RuleWidget(TooltipManager.TooltipRule rule, int index, int startX, int listWidth) {
                 this.rule = rule;
-                modeBtn = Button.builder(getModeComp(), b -> {
+                modeBtn = addButton(startX, 0, 32, getModeComp(), Component.translatable("gui.contentstudio.tooltip.tooltipeditor.tooltip.mode"), b -> {
                     rule.mode = 1 - rule.mode;
                     b.setMessage(getModeComp());
                     updateLineBoxVisibility();
-                }).bounds(startX, 0, 32, 20).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.tooltip.mode"))).build();
+                });
 
-                lineBox = new EditBox(font, startX + 34, 0, 24, 20, Component.empty());
+                lineBox = addTextField(startX + 34, 0, 24, Component.empty());
                 lineBox.setValue(String.valueOf(rule.line));
                 lineBox.setMaxLength(2);
                 lineBox.setFilter(s -> s.matches("\\d*"));
@@ -1237,25 +1207,25 @@ public class TooltipClientHandlers {
                     }
                 });
 
-                keyBtn = Button.builder(getKeyComp(), b -> {
+                keyBtn = addButton(startX + 60, 0, 65, getKeyComp(), Component.translatable("gui.contentstudio.tooltip.tooltipeditor.tooltip.key"), b -> {
                     rule.keyCond = (rule.keyCond + 1) % 4;
                     b.setMessage(getKeyComp());
-                }).bounds(startX + 60, 0, 65, 20).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.tooltip.key"))).build();
+                });
 
                 int delBtnW = 20;
                 int delBtnX = startX + listWidth - delBtnW - 2;
 
-                textBox = new EditBox(font, startX + 127, 0, delBtnX - (startX + 127) - 4, 20, Component.empty());
+                textBox = addTextField(startX + 127, 0, delBtnX - (startX + 127) - 4, Component.empty());
                 textBox.setMaxLength(256);
                 textBox.setValue(rule.text);
                 textBox.setResponder(value -> rule.text = value);
                 textBox.setFormatter((string, idx) -> Component.literal(string).setStyle(getStyleAtPos(textBox.getValue(), idx)).getVisualOrderText());
 
-                delBtn = Button.builder(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.rule.delete.btn"), b -> {
+                delBtn = addButton(delBtnX, 0, delBtnW, Component.translatable("gui.contentstudio.tooltip.tooltipeditor.rule.delete.btn"), Component.translatable("gui.contentstudio.tooltip.tooltipeditor.rule.delete"), b -> {
                     saveInputStates();
                     rules.remove(index);
                     TooltipEditScreen.this.buildUi();
-                }).bounds(delBtnX, 0, delBtnW, 20).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.tooltip.tooltipeditor.rule.delete"))).build();
+                });
             }
 
             private void updateLineBoxVisibility() {
@@ -1291,23 +1261,5 @@ public class TooltipClientHandlers {
         }
     }
 
-    private static class ColorSmallButton extends Button {
-        private final int color;
-        public ColorSmallButton(int x, int y, int s, int color, OnPress p) {
-            super(x, y, s, s, Component.empty(), p, DEFAULT_NARRATION);
-            this.color = color;
-        }
 
-        @Override
-        public void renderWidget(@NotNull GuiGraphics g, int mx, int my, float pt) {
-            g.fill(getX(), getY(), getX() + width, getY() + height, 0xFF000000);
-            g.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, color | 0xFF000000);
-            if (color == 0x000000) {
-                g.renderOutline(getX(), getY(), width, height, 0xFF555555);
-            }
-            if (isHoveredOrFocused()) {
-                g.renderOutline(getX(), getY(), width, height, 0xFFFFFFFF);
-            }
-        }
-    }
 }

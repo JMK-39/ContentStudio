@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.kineticcore.api.client.text.KineticText;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 
 import com.google.gson.JsonObject;
@@ -110,7 +111,7 @@ final class LootEntryEditScreen extends KineticScreen {
         this.killedByPlayer = LootJsonEditUtil.killedByPlayer(workingEntry);
         this.requiresFire = LootJsonEditUtil.requiresFire(workingEntry);
         this.looting = LootJsonEditUtil.hasFunction(workingEntry, "looting_enchant");
-        useCanvas(
+        useResponsiveCanvas(
                 WIDTH,
                 screenHeight,
                 6
@@ -179,20 +180,11 @@ final class LootEntryEditScreen extends KineticScreen {
         fireRequiredButton.visible = entityMode;
         lootingButton.visible = entityMode;
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.entry.nbt"), button -> openNbtEditor())
-                .bounds(NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.entry.nbt")))
-                .build());
+        addButton(NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W, Component.translatable("gui.contentstudio.loot.loots.entry.nbt"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.nbt"), button -> openNbtEditor());
 
         int actionY = screenHeight - 38;
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.entry.apply"), button -> applyChanges())
-                .bounds(360, actionY, 64, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.entry.apply")))
-                .build());
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.entry.cancel"), button -> closeToParent())
-                .bounds(432, actionY, 64, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.entry.cancel")))
-                .build());
+        addButton(360, actionY, 64, Component.translatable("gui.contentstudio.loot.loots.entry.apply"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.apply"), button -> applyChanges());
+        addButton(432, actionY, 64, Component.translatable("gui.contentstudio.loot.loots.entry.cancel"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.cancel"), button -> closeToParent());
         updateToggleMessages();
     }
 
@@ -206,7 +198,7 @@ final class LootEntryEditScreen extends KineticScreen {
     ) {
         EditBox box =
                 LootNumericField.create(
-                        font,
+                        this,
                         x,
                         y,
                         width,
@@ -215,17 +207,13 @@ final class LootEntryEditScreen extends KineticScreen {
                         tooltipKey
                 );
 
-        addRenderableWidget(box);
+        addControl(box, null);
         return box;
     }
 
     private Button toggleButton(int x, int y, int width, String key, boolean initial, String tooltipKey, Runnable action) {
-        Button button = Button.builder(toggleText(key, initial), ignored -> action.run())
-                .bounds(x, y, width, 20)
-                .tooltip(Tooltip.create(Component.translatable(tooltipKey)))
-                .build();
-        this.addRenderableWidget(button);
-        return button;
+        Button button = addButton(x, y, width, toggleText(key, initial), Component.translatable(tooltipKey), ignored -> action.run());
+return button;
     }
 
     private Component toggleText(String key, boolean enabled) {
@@ -254,15 +242,15 @@ final class LootEntryEditScreen extends KineticScreen {
         damageableItem = itemEntry && itemStack().isDamageableItem();
         if (damageMinBox != null) {
             damageMinBox.active = damageableItem;
-            damageMinBox.setTooltip(Tooltip.create(Component.translatable(damageableItem
+            registerWidgetTooltip(damageMinBox, Component.translatable(damageableItem
                     ? "gui.contentstudio.loot.loots.tip.entry.damage_min"
-                    : "gui.contentstudio.loot.loots.tip.entry.damage_disabled")));
+                    : "gui.contentstudio.loot.loots.tip.entry.damage_disabled"));
         }
         if (damageMaxBox != null) {
             damageMaxBox.active = damageableItem;
-            damageMaxBox.setTooltip(Tooltip.create(Component.translatable(damageableItem
+            registerWidgetTooltip(damageMaxBox, Component.translatable(damageableItem
                     ? "gui.contentstudio.loot.loots.tip.entry.damage_max"
-                    : "gui.contentstudio.loot.loots.tip.entry.damage_disabled")));
+                    : "gui.contentstudio.loot.loots.tip.entry.damage_disabled"));
         }
     }
 
@@ -386,7 +374,7 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     private void closeToParent() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) navigateBack();
     }
 
     @Override
@@ -401,7 +389,7 @@ final class LootEntryEditScreen extends KineticScreen {
     protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
         g.drawString(font, getTitle(), 24, 21, 0xFFFFAA00, false);
-        g.drawString(font, trim(parent.selectedTableName().getString(), WIDTH - 194), 170, 21, 0xFFFFD75F, false);
+        KineticText.drawScrollingLeft(g, font, parent.selectedTableName(), 170, 21, WIDTH - 194, 0xFFFFD75F, false);
         drawItem(g, mx, my);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_min", 101);
@@ -412,14 +400,14 @@ final class LootEntryEditScreen extends KineticScreen {
             fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_max", 409);
         }
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, 0xFFFF55FF, false);
-        g.drawString(font, trim(Component.translatable("gui.contentstudio.loot.loots.entry.functions_help").getString(), 270), 94, FUNCTION_TITLE_Y, 0xFFAAAAAA, false);
+        KineticText.drawScrollingLeft(g, font, Component.translatable("gui.contentstudio.loot.loots.entry.functions_help"), 94, FUNCTION_TITLE_Y, 270, 0xFFAAAAAA, false);
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, 0xFFDD77FF, false);
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6,
                 damageableItem ? 0xFFFFD75F : 0xFF777777, false);
         Component damageHelp = Component.translatable(damageableItem
                 ? "gui.contentstudio.loot.loots.entry.damage_enabled"
                 : "gui.contentstudio.loot.loots.entry.damage_disabled");
-        g.drawString(font, trim(damageHelp.getString(), 124), 372, ENCHANT_FIELD_Y + 6,
+        KineticText.drawScrollingLeft(g, font, damageHelp, 372, ENCHANT_FIELD_Y + 6, 124,
                 damageableItem ? 0xFF55FF55 : 0xFF777777, false);
         if (entityMode) {
             g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, 0xFF55FFFF, false);
@@ -446,12 +434,12 @@ final class LootEntryEditScreen extends KineticScreen {
         }
         Component itemName = stack.isEmpty() ? original.name : stack.getHoverName();
         int itemTextWidth = NBT_BUTTON_X - 70;
-        g.drawString(font, trim(itemName.getString(), itemTextWidth), 62, ITEM_Y + 1, 0xFFFFAA00, false);
-        g.drawString(font, trim(selectedItemId, itemTextWidth), 62, ITEM_Y + 13, 0xFF55FFFF, false);
+        KineticText.drawScrollingLeft(g, font, itemName, 62, ITEM_Y + 1, itemTextWidth, 0xFFFFAA00, false);
+        KineticText.drawScrollingLeft(g, font, selectedItemId, 62, ITEM_Y + 13, itemTextWidth, 0xFF55FFFF, false);
         Component hint = Component.translatable(itemEntry
                 ? "gui.contentstudio.loot.loots.entry.item_hint"
                 : "gui.contentstudio.loot.loots.tip.entry.locked_type");
-        g.drawString(font, trim(hint.getString(), itemTextWidth), 62, ITEM_Y + 25, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
+        KineticText.drawScrollingLeft(g, font, hint, 62, ITEM_Y + 25, itemTextWidth, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
         if (mx >= ITEM_X && mx < WIDTH - 24 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE + 10) {
             deferredTooltip = stack.isEmpty()
                     ? List.of(Component.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
@@ -521,7 +509,7 @@ final class LootEntryEditScreen extends KineticScreen {
     @Override
     protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
-            GuiOverlay.requestTooltip(deferredTooltip, mx, my);
+            showTooltip(deferredTooltip);
         }
     }
 
@@ -530,10 +518,4 @@ final class LootEntryEditScreen extends KineticScreen {
         return String.format(java.util.Locale.ROOT, "%.4f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
-    private String trim(String text, int width) {
-        if (text == null || font.width(text) <= width) {
-            return text == null ? "" : text;
-        }
-        return font.plainSubstrByWidth(text, Math.max(4, width - font.width("..."))) + "...";
-    }
 }

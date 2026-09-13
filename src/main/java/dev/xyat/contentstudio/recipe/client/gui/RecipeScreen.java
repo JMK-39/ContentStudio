@@ -146,10 +146,8 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
     }
 
     @Override
-    protected void init() {
-        super.init();
-
-        if (menu.type == RecipeRegistry.EditorType.SMITHING) {
+    protected void buildUi() {
+if (menu.type == RecipeRegistry.EditorType.SMITHING) {
             this.outputUseNbt = false;
             this.titleLabelX = this.imageWidth - this.font.width(this.title) - 10;
             this.titleLabelY = 10;
@@ -161,26 +159,25 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
         int x = this.leftPos - bW - 6;
         int y = this.topPos + 5;
 
-        this.addRenderableWidget(new HighZButton(x, y, bW, bH, Component.translatable("gui.contentstudio.recipe.recipehud.back"),
-                b -> {
+        addHighZButton(x, y, bW, Component.translatable("gui.contentstudio.recipe.recipehud.back"), null, 200, b -> {
                     if (RecipePreviewState.returnToPreview && Minecraft.getInstance().player != null) {
                         Minecraft.getInstance().setScreen(new RecipePreviewScreen(null));
                         RecipeNetwork.requestRecipeRecords();
                     } else if (Minecraft.getInstance().player != null) {
                         RecipeNetwork.requestOpenHub();
                     }
-                }, null));
+                });
         y += bH + sp;
 
         if (menu.type == RecipeRegistry.EditorType.CRAFTING) {
-            this.addRenderableWidget(new HighZButton(x, y, bW, bH, getModeText(), b -> {
+            addHighZButton(x, y, bW, getModeText(), null, 200, b -> {
                 isShapeless = !isShapeless;
                 b.setMessage(getModeText());
-            }, null));
+            });
             y += bH + sp;
         }
 
-        saveButton = this.addRenderableWidget(new HighZButton(x, y, bW, bH, Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"), b -> handleSave(), null));
+        saveButton = addHighZButton(x, y, bW, Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"), null, 200, b -> handleSave());
 
         int outputSlotX;
         int outputSlotY;
@@ -198,25 +195,13 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
             draftCountText = countInput.getValue();
         }
 
-        countInput = NumericEditBox.integer(
-                this.font,
-                boxX + 4,
-                boxY + 2,
-                14,
-                10,
-                Component.empty(),
-                false,
-                1,
-                64
-        );
+        countInput = addIntegerField(boxX + 4, boxY + 2, 14, Component.empty(), false, 1, 64, null);
         countInput.setBordered(false);
         countInput.setMaxLength(2);
 
         countInput.setValue(draftCountText);
         countInput.setResponder(value -> draftCountText = value);
-
-        this.addRenderableWidget(countInput);
-    }
+}
 
     private Component getModeText() {
         return isShapeless
@@ -508,7 +493,7 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
             return;
         }
 
-        GuiOverlay.requestTooltip(tooltip, mouseX, mouseY);
+        showTooltip(tooltip);
     }
 
     private List<Component> buildOverlayTooltip(int virtualMouseX, int virtualMouseY) {

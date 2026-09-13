@@ -44,7 +44,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
         this.parent = parent;
         this.onSelected = onSelected;
 
-        useCanvas(
+        useResponsiveCanvas(
                 640f,
                 360f,
                 6
@@ -71,22 +71,13 @@ public class RecipeTagSelectionScreen extends KineticScreen {
 
     @Override
     protected void buildUi() {
-        listW = Math.max(100, Math.min(360, canvasWidth - 24));
-        listX = (canvasWidth - listW) / 2;
+        listW = Math.max(100, Math.min(360, canvasWidth() - 24));
+        listX = (canvasWidth() - listW) / 2;
 
-        searchBox = new EditBox(
-                font,
-                listX,
-                20,
-                listW,
-                20,
-                Component.empty()
-        );
+        searchBox = addTextField(listX, 20, listW, Component.empty());
         searchBox.setResponder(this::onSearchUpdate);
-        addRenderableWidget(searchBox);
-
-        listY = 50;
-        listH = Math.max(ITEM_HEIGHT, canvasHeight - listY - 40);
+listY = 50;
+        listH = Math.max(ITEM_HEIGHT, canvasHeight() - listY - 40);
         visibleRows = Math.max(1, listH / ITEM_HEIGHT);
 
         listScroll.update(
@@ -97,25 +88,13 @@ public class RecipeTagSelectionScreen extends KineticScreen {
         int btnW = 80;
         int btnH = 20;
 
-        addRenderableWidget(
-                Button.builder(
-                                Component.translatable(
+        addButton(canvasWidth() / 2 - btnW / 2, canvasHeight() - 30, btnW, Component.translatable(
                                         "gui.contentstudio.recipe.recipehud.back"
-                                ),
-                                button -> {
+                                ), null, button -> {
                                     if (minecraft != null) {
-                                        minecraft.setScreen(parent);
+                                        navigateBack();
                                     }
-                                }
-                        )
-                        .bounds(
-                                canvasWidth / 2 - btnW / 2,
-                                canvasHeight - 30,
-                                btnW,
-                                btnH
-                        )
-                        .build()
-        );
+                                });
     }
 
     private void onSearchUpdate(String query) {
@@ -137,7 +116,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
         graphics.drawCenteredString(
                 font,
                 title,
-                canvasWidth / 2,
+                canvasWidth() / 2,
                 5,
                 0xFFFFFF
         );
@@ -213,7 +192,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
             );
         }
 
-        graphics.disableScissor();
+        disableCanvasScissor(graphics);
 
         listScroll.render(
                 graphics,
@@ -234,20 +213,11 @@ public class RecipeTagSelectionScreen extends KineticScreen {
             int mouseY,
             float partialTick
     ) {
-        if (searchBox != null
-                && !searchBox.isFocused()
-                && searchBox.getValue().isEmpty()) {
-            graphics.drawString(
-                    font,
-                    Component.translatable(
-                            "gui.contentstudio.recipe.recipehud.search_hint"
-                    ),
-                    searchBox.getX() + 6,
-                    searchBox.getY() + 6,
-                    0xFFAAAAAA,
-                    false
-            );
-        }
+        renderTextFieldPlaceholder(
+                graphics,
+                searchBox,
+                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint")
+        );
     }
 
     @Override
@@ -294,7 +264,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
                 onSelected.accept(displayTags.get(index));
 
                 if (minecraft != null) {
-                    minecraft.setScreen(parent);
+                    navigateBack();
                 }
 
                 return true;

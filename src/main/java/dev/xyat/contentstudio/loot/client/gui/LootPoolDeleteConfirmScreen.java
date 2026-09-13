@@ -27,7 +27,7 @@ final class LootPoolDeleteConfirmScreen extends KineticScreen {
         this.parent = parent;
         this.cancelTarget = cancelTarget;
         this.poolIndex = poolIndex;
-        useCanvas(
+        useResponsiveCanvas(
                 WIDTH,
                 HEIGHT,
                 6
@@ -36,13 +36,8 @@ final class LootPoolDeleteConfirmScreen extends KineticScreen {
 
     @Override
     protected void buildUi() {
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.confirm.delete"), button -> confirmDelete())
-                .bounds(86, 112, 78, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")))
-                .build());
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.loot.loots.confirm.cancel"), button -> cancel())
-                .bounds(176, 112, 78, 20)
-                .build());
+        addButton(86, 112, 78, Component.translatable("gui.contentstudio.loot.loots.confirm.delete"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), button -> confirmDelete());
+        addButton(176, 112, 78, Component.translatable("gui.contentstudio.loot.loots.confirm.cancel"), null, button -> cancel());
     }
 
     private void confirmDelete() {
@@ -50,7 +45,7 @@ final class LootPoolDeleteConfirmScreen extends KineticScreen {
             GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.pool.deleted"));
         }
         if (minecraft != null) {
-            minecraft.setScreen(parent);
+            navigateBack();
         }
     }
 

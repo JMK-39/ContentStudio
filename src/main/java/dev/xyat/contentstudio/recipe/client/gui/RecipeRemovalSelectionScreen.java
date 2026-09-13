@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
+import dev.xyat.kineticcore.api.client.text.KineticText;
 import dev.xyat.kineticcore.api.client.screen.GuiSession;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
@@ -26,29 +27,29 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
                                  List<RecipeRemovalScreen.SelectionEntry> options, String query) {
         super(RecipeRemovalScreen.tr("rule_editor", mode.getDisplayName()));
         this.parent = parent; this.mode = mode; this.options = options; this.query = query;
-        useCanvas(640, 360, 6);
+        useStandardCanvas();
         GuiSession.setParent(this, parent);
     }
 
     private String prefix() { return mode == RemovalMode.MOD ? "@" : mode == RemovalMode.TAG ? "#" : ""; }
 
     @Override protected void buildUi() {
-        search = addRenderableWidget(new AutoCompleteBox(font, 16, 42, 440, 20,
-                RecipeRemovalScreen.tr("rule_search", prefix()), () -> options.stream().map(entry -> prefix() + entry.value).toList()));
+        search = addAutoCompleteField(16, 42, 440, RecipeRemovalScreen.tr("rule_search", prefix()),
+                () -> options.stream().map(entry -> prefix() + entry.value).toList(), null);
         search.setValue(query);
         search.setResponder(value -> { query = value; filter(); scroll.setOffset(0); });
-        addRenderableWidget(Button.builder(RecipeRemovalScreen.tr("toggle_visible"), button -> {
+        addButton(564, 42, 60, RecipeRemovalScreen.tr("toggle_visible"), null, button -> {
             boolean select = visible.stream().anyMatch(entry -> !entry.isSelected);
             visible.forEach(entry -> entry.isSelected = select);
-        }).bounds(564, 42, 60, 20).build());
-        addRenderableWidget(Button.builder(RecipeRemovalScreen.tr("back"), button -> onClose()).bounds(498, 328, 60, 20).build());
-        addRenderableWidget(Button.builder(RecipeRemovalScreen.tr("confirm_rules"), button -> {
+        });
+        addButton(498, 328, 60, RecipeRemovalScreen.tr("back"), null, button -> onClose());
+        addButton(564, 328, 60, RecipeRemovalScreen.tr("confirm_rules"), null, button -> {
             for (var entry : options) {
                 if (entry.isSelected && !entry.alreadyExists) parent.addEntryFromSelection(mode, entry.value);
                 else if (!entry.isSelected && entry.alreadyExists) parent.removeEntryDirectly(mode, entry.value);
             }
             onClose();
-        }).bounds(564, 328, 60, 20).build());
+        });
         filter();
     }
 
@@ -73,18 +74,20 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
             graphics.fill(16, y + 1, 624, y + 19, GuiTheme.current().panelAlt());
             graphics.renderOutline(16, y + 1, 608, 18, entry.isSelected ? 0xFFFFD740 : hover ? 0xFF55AAFF : GuiTheme.current().border());
             String label = (entry.isSelected ? "☑ " : "☐ ") + prefix() + entry.value;
-            graphics.drawString(font, font.plainSubstrByWidth(label, 584), 24, y + 6, GuiTheme.current().text(), false);
+            KineticText.drawScrollingLeft(graphics, font, label, 24, y + 6, 584, GuiTheme.current().text(), false);
         }
         if (visible.isEmpty()) graphics.drawString(font, RecipeRemovalScreen.tr("empty"), 24, 82, GuiTheme.current().mutedText(), false);
-        graphics.disableScissor();
+        disableCanvasScissor(graphics);
         var theme = GuiTheme.current();
         scroll.render(graphics, mouseX, mouseY, 628, 72, 4, 240, 16, theme.scrollTrack(), theme.scrollThumb(), theme.scrollThumbHover());
     }
 
     @Override protected void renderCanvasForeground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        if (search.getValue().isEmpty() && !search.isFocused()) {
-            graphics.drawString(font, RecipeRemovalScreen.tr("rule_search", prefix()), 20, 48, GuiTheme.current().mutedText(), false);
-        }
+        renderTextFieldPlaceholder(
+                graphics,
+                search,
+                RecipeRemovalScreen.tr("rule_search", prefix())
+        );
         search.renderSuggestions(graphics, mouseX, mouseY);
     }
 

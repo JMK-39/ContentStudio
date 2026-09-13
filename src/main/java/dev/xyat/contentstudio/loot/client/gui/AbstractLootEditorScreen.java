@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.kineticcore.api.client.text.KineticText;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -314,31 +315,23 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         this.parentScreen = parentScreen;
         this.allEntries = new ArrayList<>(entries);
         this.displayEntries = new ArrayList<>(this.allEntries);
-        useCanvas(
+        useResponsiveCanvas(
                 V_WIDTH,
                 V_HEIGHT,
                 6
         );
-        this.scaleMultiplier = 1.0f;
-    }
+}
 
     @Override
     protected void buildUi() {
         // EditBox 会在设定边界外多绘制 1 点边框，这样它的可见边缘才与列表描边完全对齐。
-        searchBox = new EditBox(this.font, LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2, 20, Component.empty());
+        searchBox = addTextField(LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2, Component.empty());
         searchBox.setMaxLength(256);
         searchBox.setValue(searchQuery);
         searchBox.setResponder(this::onSearchChanged);
-        searchBox.setTooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.search")));
-        this.addRenderableWidget(searchBox);
-
-        Button closeButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.back"), button -> onClose())
-                .bounds(RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.back")))
-                .build();
-        this.addRenderableWidget(closeButton);
-
-        initEditWidgets();
+        registerWidgetTooltip(searchBox, Component.translatable("gui.contentstudio.loot.loots.tip.search"));
+Button closeButton = addButton(RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.back"), Component.translatable("gui.contentstudio.loot.loots.tip.back"), button -> onClose());
+initEditWidgets();
         if (usesGroupedLayout()) {
             initGroupedWidgets();
         }
@@ -366,29 +359,23 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private void initResetConfirmButtons() {
-        confirmResetButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.reset.confirm.yes"), button -> {
+        confirmResetButton = addButton(V_WIDTH / 2 - 82, V_HEIGHT / 2 + 22, 78, Component.translatable("gui.contentstudio.loot.loots.reset.confirm.yes"), Component.translatable("gui.contentstudio.loot.loots.tip.reset_confirm_yes"), button -> {
             showResetConfirm = false;
             setResetConfirmButtons(false);
             resetCurrentJson();
-        }).bounds(V_WIDTH / 2 - 82, V_HEIGHT / 2 + 22, 78, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.reset_confirm_yes")))
-                .build();
-        cancelResetButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.reset.confirm.cancel"), button -> {
+        });
+        cancelResetButton = addButton(V_WIDTH / 2 + 4, V_HEIGHT / 2 + 22, 78, Component.translatable("gui.contentstudio.loot.loots.reset.confirm.cancel"), Component.translatable("gui.contentstudio.loot.loots.tip.reset_confirm_cancel"), button -> {
             showResetConfirm = false;
             setResetConfirmButtons(false);
-        }).bounds(V_WIDTH / 2 + 4, V_HEIGHT / 2 + 22, 78, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.reset_confirm_cancel")))
-                .build();
+        });
         setResetConfirmButtons(false);
-        this.addRenderableWidget(confirmResetButton);
-        this.addRenderableWidget(cancelResetButton);
-    }
+}
 
     private void initEditWidgets() {
         int x0 = RIGHT_X + 10;
-        itemBox = new EditBox(this.font, -1000, -1000, 1, 1, Component.empty());
+        itemBox = addTextField(-1000, -1000, 1, Component.empty());
         itemBox.setMaxLength(256);
-        itemBox.setTooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.item_id")));
+        registerWidgetTooltip(itemBox, Component.translatable("gui.contentstudio.loot.loots.tip.item_id"));
 
         int fieldY = EDIT_Y + 26;
         chanceBox = numberBox(x0 + 48, fieldY, "gui.contentstudio.loot.loots.tip.chance", "1", NumericInputType.PROBABILITY);
@@ -400,59 +387,30 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         lootingMaxBox = numberBox(x0 + 312, fieldY, "gui.contentstudio.loot.loots.tip.looting_max", "0", NumericInputType.WHOLE_NUMBER);
 
         int by = EDIT_Y + 48;
-        killedButton = Button.builder(getKilledText(), button -> {
+        killedButton = addButton(x0, by, 44, getKilledText(), Component.translatable("gui.contentstudio.loot.loots.tip.killed"), button -> {
             requirePlayerKill = !requirePlayerKill;
             killedButton.setMessage(getKilledText());
-        }).bounds(x0, by, 44, 18).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.killed"))).build();
-        lootingButton = Button.builder(getLootingText(), button -> {
+        });
+        lootingButton = addButton(x0 + 48, by, 44, getLootingText(), Component.translatable("gui.contentstudio.loot.loots.tip.looting"), button -> {
             enableLooting = !enableLooting;
             lootingButton.setMessage(getLootingText());
-        }).bounds(x0 + 48, by, 44, 18).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.looting"))).build();
-        fireButton = Button.builder(getFireText(), button -> {
+        });
+        fireButton = addButton(x0 + 96, by, 44, getFireText(), Component.translatable("gui.contentstudio.loot.loots.tip.fire"), button -> {
             enableFireSmelt = !enableFireSmelt;
             fireButton.setMessage(getFireText());
-        }).bounds(x0 + 96, by, 44, 18).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.fire"))).build();
+        });
         int modeButtonX = modeButtonX(x0);
         int actionButtonX = actionButtonX(x0);
-        overrideModeButton = Button.builder(getOverrideModeText(), button -> toggleOverrideMode())
-                .bounds(modeButtonX, by, 58, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.override_mode")))
-                .build();
-        this.addRenderableWidget(killedButton);
-        this.addRenderableWidget(lootingButton);
-        this.addRenderableWidget(fireButton);
-        this.addRenderableWidget(overrideModeButton);
-
-        applyButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.apply_drop"), button -> applyEditToSelected())
-                .bounds(actionButtonX, by, 38, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.apply_drop")))
-                .build();
-        addButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.add_drop"), button -> addDrop())
-                .bounds(actionButtonX + 42, by, 38, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.add_drop")))
-                .build();
-        deleteButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.delete_drop"), button -> deleteSelectedDrop())
-                .bounds(actionButtonX + 84, by, 38, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.delete_drop")))
-                .build();
-        saveButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.save"), button -> saveCurrentJson())
-                .bounds(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.save")))
-                .build();
-        resetButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.reset"), button -> {
+        overrideModeButton = addButton(modeButtonX, by, 58, getOverrideModeText(), Component.translatable("gui.contentstudio.loot.loots.tip.override_mode"), button -> toggleOverrideMode());
+applyButton = addButton(actionButtonX, by, 38, Component.translatable("gui.contentstudio.loot.loots.apply_drop"), Component.translatable("gui.contentstudio.loot.loots.tip.apply_drop"), button -> applyEditToSelected());
+        addButton = addButton(actionButtonX + 42, by, 38, Component.translatable("gui.contentstudio.loot.loots.add_drop"), Component.translatable("gui.contentstudio.loot.loots.tip.add_drop"), button -> addDrop());
+        deleteButton = addButton(actionButtonX + 84, by, 38, Component.translatable("gui.contentstudio.loot.loots.delete_drop"), Component.translatable("gui.contentstudio.loot.loots.tip.delete_drop"), button -> deleteSelectedDrop());
+        saveButton = addButton(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.save"), Component.translatable("gui.contentstudio.loot.loots.tip.save"), button -> saveCurrentJson());
+        resetButton = addButton(RIGHT_X + RIGHT_W - 148, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.reset"), Component.translatable("gui.contentstudio.loot.loots.tip.reset"), button -> {
                     showResetConfirm = true;
                     setResetConfirmButtons(true);
-                })
-                .bounds(RIGHT_X + RIGHT_W - 148, RIGHT_Y + 10, 44, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.reset")))
-                .build();
-        this.addRenderableWidget(applyButton);
-        this.addRenderableWidget(addButton);
-        this.addRenderableWidget(deleteButton);
-        this.addRenderableWidget(saveButton);
-        this.addRenderableWidget(resetButton);
-
-        if (!showEntityEditControls()) {
+                });
+if (!showEntityEditControls()) {
             killedButton.visible = false;
             lootingButton.visible = false;
             fireButton.visible = false;
@@ -489,13 +447,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private void initGroupedWidgets() {
-        addPoolHeaderButton = Button.builder(Component.translatable("gui.contentstudio.loot.loots.pool.add"), button -> addGroupedPool())
-                .bounds(RIGHT_X + RIGHT_W - 276, RIGHT_Y + 10, 58, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.add")))
-                .build();
-        this.addRenderableWidget(addPoolHeaderButton);
-
-        groupArrowButtons = new Button[GROUP_BUTTON_SLOTS];
+        addPoolHeaderButton = addButton(RIGHT_X + RIGHT_W - 276, RIGHT_Y + 10, 58, Component.translatable("gui.contentstudio.loot.loots.pool.add"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.add"), button -> addGroupedPool());
+groupArrowButtons = new Button[GROUP_BUTTON_SLOTS];
         groupAddButtons = new Button[GROUP_BUTTON_SLOTS];
         groupPoolEditButtons = new Button[GROUP_BUTTON_SLOTS];
         groupPoolDeleteButtons = new Button[GROUP_BUTTON_SLOTS];
@@ -503,37 +456,13 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         groupEntryEditButtons = new Button[GROUP_BUTTON_SLOTS];
         for (int i = 0; i < GROUP_BUTTON_SLOTS; i++) {
             int slot = i;
-            groupArrowButtons[i] = Button.builder(Component.literal("▶"), button -> toggleGroupedPool(slot))
-                    .bounds(RIGHT_X + 10, -1000, 18, 18)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.expand")))
-                    .build();
-            groupAddButtons[i] = Button.builder(Component.translatable("gui.contentstudio.loot.loots.pool.add_reward"), button -> addGroupedReward(slot))
-                    .bounds(RIGHT_X + RIGHT_W - 141, -1000, 44, 18)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward")))
-                    .build();
-            groupPoolEditButtons[i] = Button.builder(Component.translatable("gui.contentstudio.loot.loots.edit.short"), button -> editGroupedPool(slot))
-                    .bounds(RIGHT_X + RIGHT_W - 93, -1000, 36, 18)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.edit")))
-                    .build();
-            groupPoolDeleteButtons[i] = Button.builder(Component.translatable("gui.contentstudio.loot.loots.delete.short"), button -> confirmGroupedPoolDelete(slot))
-                    .bounds(RIGHT_X + RIGHT_W - 53, -1000, 36, 18)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")))
-                    .build();
-            groupEntryEditButtons[i] = Button.builder(Component.translatable("gui.contentstudio.loot.loots.edit.short"), button -> editGroupedEntry(slot))
-                    .bounds(RIGHT_X + RIGHT_W - 61, -1000, 44, 20)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.drop.edit")))
-                    .build();
-            groupEntryDeleteButtons[i] = Button.builder(Component.translatable("gui.contentstudio.loot.loots.delete.short"), button -> deleteGroupedEntry(slot))
-                    .bounds(RIGHT_X + RIGHT_W - 109, -1000, 44, 20)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.tip.entry.delete")))
-                    .build();
+            groupArrowButtons[i] = addButton(RIGHT_X + 10, -1000, 18, Component.literal("▶"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.expand"), button -> toggleGroupedPool(slot));
+            groupAddButtons[i] = addButton(RIGHT_X + RIGHT_W - 141, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.pool.add_reward"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward"), button -> addGroupedReward(slot));
+            groupPoolEditButtons[i] = addButton(RIGHT_X + RIGHT_W - 93, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.edit.short"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.edit"), button -> editGroupedPool(slot));
+            groupPoolDeleteButtons[i] = addButton(RIGHT_X + RIGHT_W - 53, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.delete.short"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), button -> confirmGroupedPoolDelete(slot));
+            groupEntryEditButtons[i] = addButton(RIGHT_X + RIGHT_W - 61, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.edit.short"), Component.translatable("gui.contentstudio.loot.loots.tip.drop.edit"), button -> editGroupedEntry(slot));
+            groupEntryDeleteButtons[i] = addButton(RIGHT_X + RIGHT_W - 109, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.delete.short"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.delete"), button -> deleteGroupedEntry(slot));
             hideGroupSlot(i);
-            this.addRenderableWidget(groupArrowButtons[i]);
-            this.addRenderableWidget(groupAddButtons[i]);
-            this.addRenderableWidget(groupPoolEditButtons[i]);
-            this.addRenderableWidget(groupPoolDeleteButtons[i]);
-            this.addRenderableWidget(groupEntryDeleteButtons[i]);
-            this.addRenderableWidget(groupEntryEditButtons[i]);
         }
     }
 
@@ -616,13 +545,12 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private EditBox numberBox(int x, int y, String tooltipKey, String defaultValue, NumericInputType inputType) {
-        EditBox box = new EditBox(this.font, x, y, 34, 18, Component.empty());
+        EditBox box = addTextField(x, y, 34, Component.empty());
         box.setMaxLength(16);
         box.setFilter(value -> isAllowedNumericInput(value, inputType));
         box.setValue(defaultValue);
-        box.setTooltip(Tooltip.create(Component.translatable(tooltipKey)));
-        this.addRenderableWidget(box);
-        return box;
+        registerWidgetTooltip(box, Component.translatable(tooltipKey));
+return box;
     }
 
     private boolean isAllowedNumericInput(String value, NumericInputType inputType) {
@@ -2684,9 +2612,11 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             renderEditorItemPreview(g, mx, my);
             renderDropPanel(g, mx, my);
         }
-        if (searchBox != null && searchBox.getValue().isEmpty() && !searchBox.isFocused()) {
-            g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.search_hint"), searchBox.getX() + 6, searchBox.getY() + 6, 0xFFAAAAAA, false);
-        }
+        renderTextFieldPlaceholder(
+                g,
+                searchBox,
+                Component.translatable("gui.contentstudio.loot.loots.search_hint")
+        );
         if (selectedEntry == null) {
             int centerY = usesGroupedLayout() ? GROUP_Y + GROUP_H / 2 : DROP_Y + DROP_H / 2;
             g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.no_selection"), RIGHT_X + RIGHT_W / 2, centerY, 0xFFFFAA00);
@@ -2706,7 +2636,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         g.drawString(font, getTitle(), RIGHT_X + 6, RIGHT_Y + 6, 0xFFFFAA00, false);
         if (isSpecialPanelActive() && selectedEntry != null) {
             String display = getDisplayName(selectedEntry);
-            g.drawString(font, trim(font, display, RIGHT_W - 62), RIGHT_X + 6, RIGHT_Y + 28, 0xFFFFD75F, false);
+            KineticText.drawScrollingLeft(g, font, display, RIGHT_X + 6, RIGHT_Y + 28, RIGHT_W - 62, 0xFFFFD75F, false);
             if (mx >= RIGHT_X + 6 && mx <= RIGHT_X + RIGHT_W - 56 && my >= RIGHT_Y + 26 && my <= RIGHT_Y + 38) {
                 deferredTooltip = List.of(nameComponent(display), idComponent(selectedEntry.lootTableId()));
             }
@@ -2719,10 +2649,10 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             boolean translatedName = selectedEntry != null
                     && !getDisplayName(selectedEntry).equals(selectedEntry.lootTableId());
             int tableColor = translatedName ? 0xFFFFD75F : 0xFF55FFFF;
-            g.drawString(font, trim(font, infoLines.get(0).getString(), textWidth), textX, textY, tableColor, false);
+            KineticText.drawScrollingLeft(g, font, infoLines.get(0), textX, textY, textWidth, tableColor, false);
         }
         if (selectedEntry != null && !usesGroupedLayout()) {
-            g.drawString(font, trim(font, Component.translatable("gui.contentstudio.loot.loots.tip.compact_header").getString(), textWidth), textX, textY + 12, 0xFFE6E6E6, false);
+            KineticText.drawScrollingLeft(g, font, Component.translatable("gui.contentstudio.loot.loots.tip.compact_header"), textX, textY + 12, textWidth, 0xFFE6E6E6, false);
         }
         int hoverHeight = usesGroupedLayout() ? 10 : 22;
         if (mx >= textX && mx <= textX + textWidth && my >= textY && my <= textY + hoverHeight && !infoLines.isEmpty()) {
@@ -2854,7 +2784,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 }
             }
         } finally {
-            g.disableScissor();
+            disableCanvasScissor(g);
         }
         if (maxGroupScroll > 0) {
             int trackH = GROUP_H - 12;
@@ -2889,7 +2819,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 }
             }
         } finally {
-            g.disableScissor();
+            disableCanvasScissor(g);
         }
     }
 
@@ -2915,7 +2845,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 row.y + GROUP_POOL_H - 2
         );
         g.drawString(font, line, RIGHT_X + 34, row.y + 8, 0xFFFFFFFF, false);
-        g.disableScissor();
+        disableCanvasScissor(g);
         if (hover && mx >= RIGHT_X + 32 && mx < RIGHT_X + RIGHT_W - 145) {
             deferredTooltip = groupedPoolTooltip(row.poolIndex);
         }
@@ -2950,7 +2880,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         } else {
             g.drawString(font, secondLine, textX, row.y + 16, 0xFFFFFFFF, false);
         }
-        g.disableScissor();
+        disableCanvasScissor(g);
         if (hover && mx < RIGHT_X + RIGHT_W - 112) {
             deferredTooltip = buildGroupedDropTooltip(visual);
         }
@@ -3054,12 +2984,12 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             } else {
                 g.drawString(font, secondLine, textX, lineTwoY, 0xFFFFFFFF, false);
             }
-            g.disableScissor();
+            disableCanvasScissor(g);
             if (hover) {
                 deferredTooltip = buildDropTooltip(visual);
             }
         }
-        g.disableScissor();
+        disableCanvasScissor(g);
         if (maxDropScroll > 0) {
             int thumbH = Scroll.calculateThumbHeight(listH, visible, dropVisuals.size(), 18);
             Scroll.renderScrollbar(
@@ -3190,13 +3120,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         g.pose().scale(scale, scale, 1.0f);
         g.drawString(font, text, 0, 0, 0xFFFFFFFF, false);
         g.pose().popPose();
-    }
-
-    protected String trim(Font font, String text, int width) {
-        if (text == null) {
-            return "";
-        }
-        return font.width(text) > width ? font.plainSubstrByWidth(text, Math.max(4, width - font.width("..."))) + "..." : text;
     }
 
     @Override
@@ -3399,7 +3322,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     @Override
     protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
-            GuiOverlay.requestTooltip(deferredTooltip, mx, my);
+            showTooltip(deferredTooltip);
         }
     }
 }

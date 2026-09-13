@@ -1,21 +1,17 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
+import dev.xyat.kineticcore.api.client.text.KineticText;
 import dev.xyat.kineticcore.api.client.screen.GuiSession;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets;
 import dev.xyat.contentstudio.recipe.client.RecipeJeiBridge;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
 final class RecipeRemovalPreviewScreen extends KineticScreen {
     private final RecipeRemovalScreen parent;
@@ -23,8 +19,6 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     private RecipeJeiBridge.Preview preview;
     private Button toggle;
     private Button viewerButton;
-    private final List<Button> popupButtons = new ArrayList<>();
-    private final Map<Button, Component> buttonTooltips = new IdentityHashMap<>();
     private boolean dataError;
     private float previewScale = 1;
     private int previewX, previewY;
@@ -33,7 +27,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         super(entry.category());
         this.parent = parent;
         this.entry = entry;
-        useCanvas(640, 360, 6);
+        useStandardCanvas();
         GuiSession.setParent(this, parent);
         if (entry.preview() != null) {
             try { preview = entry.preview().get(); }
@@ -42,18 +36,25 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     }
 
     @Override protected void buildUi() {
-        popupButtons.clear();
-        buttonTooltips.clear();
-        Button backButton = addRenderableWidget(Button.builder(RecipeRemovalScreen.tr("back"), button -> onClose()).bounds(366, 328, 60, 20).build());
-        viewerButton = addRenderableWidget(Button.builder(RecipeRemovalScreen.tr("open_viewer"), button -> openViewerMenu()).bounds(432, 328, 60, 20).build());
+        Button backButton = addButton(366, 328, 60, RecipeRemovalScreen.tr("back"), null, button -> onClose());
+        viewerButton = addButton(
+                432, 328, 60, RecipeRemovalScreen.tr("open_viewer"),
+                RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"),
+                button -> openViewerMenu()
+        );
         viewerButton.active = RecipeJeiBridge.available();
-        buttonTooltips.put(viewerButton, RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
-        toggle = addRenderableWidget(Button.builder(parent.recipeAction(entry), button -> {
+        toggle = addButton(
+                498, 328, 60, parent.recipeAction(entry),
+                RecipeRemovalScreen.tr(entry.removable() ? "exact_hint" : "view_only_hint"),
+                button -> {
             parent.toggleRecipe(entry);
             refreshAction();
-        }).bounds(498, 328, 60, 20).build());
-        Button saveButton = addRenderableWidget(Button.builder(RecipeRemovalScreen.tr("save"), button -> parent.save()).bounds(564, 328, 60, 20).build());
-        buttonTooltips.put(saveButton, RecipeRemovalScreen.tr("save_hint"));
+                }
+        );
+        Button saveButton = addButton(
+                564, 328, 60, RecipeRemovalScreen.tr("save"), RecipeRemovalScreen.tr("save_hint"),
+                button -> parent.save()
+        );
         refreshAction();
         if (preview != null) {
             previewScale = Math.min(2, Math.min(580f / Math.max(1, preview.width()), 214f / Math.max(1, preview.height())));
@@ -72,27 +73,15 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
             openViewer(viewers.get(0));
             return;
         }
-        discardPopupButtons();
-        int width = 60;
-        int totalHeight = viewers.size() * 22 - 2;
-        int px = Math.max(4, Math.min(432, 640 - width - 4));
-        int py = Math.max(4, Math.min(324 - totalHeight, 360 - totalHeight - 4));
-        for (int i = 0; i < viewers.size(); i++) {
-            RecipeJeiBridge.Viewer viewer = viewers.get(i);
-            KineticWidgets.HighZButton button = new KineticWidgets.HighZButton(
-                    px,
-                    py + i * 22,
-                    width,
-                    20,
+        List<dev.xyat.kineticcore.api.client.overlay.GuiOverlay.MenuItem> items = new ArrayList<>();
+        for (RecipeJeiBridge.Viewer viewer : viewers) {
+            items.add(dev.xyat.kineticcore.api.client.overlay.GuiOverlay.MenuItem.action(
                     viewer.displayName(),
-                    ignored -> {
-                        discardPopupButtons();
-                        openViewer(viewer);
-                    },
-                    Tooltip.create(RecipeRemovalScreen.tr("viewer_choice_hint", viewer.displayName()))
-            );
-            popupButtons.add(addRenderableWidget(button));
+                    RecipeRemovalScreen.tr("viewer_choice_hint", viewer.displayName()),
+                    () -> openViewer(viewer)
+            ));
         }
+        openContextMenu(432, 324, items);
     }
 
     private void openViewer(RecipeJeiBridge.Viewer viewer) {
@@ -102,36 +91,13 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         }
     }
 
-    private void discardPopupButtons() {
-        if (!popupButtons.isEmpty()) {
-            for (Button button : List.copyOf(popupButtons)) removeWidget(button);
-            popupButtons.clear();
-        }
-    }
-
-    private static boolean inside(Button widget, double mouseX, double mouseY) {
-        return mouseX >= widget.getX() && mouseX < widget.getX() + widget.getWidth()
-                && mouseY >= widget.getY() && mouseY < widget.getY() + widget.getHeight();
-    }
-
-    private boolean handlePopupClick(double mouseX, double mouseY, int mouseButton) {
-        if (popupButtons.isEmpty()) return false;
-        for (Button widget : List.copyOf(popupButtons)) {
-            if (!widget.visible || !inside(widget, mouseX, mouseY)) continue;
-            if (mouseButton == 0 && widget.active) widget.mouseClicked(mouseX, mouseY, mouseButton);
-            return true;
-        }
-        discardPopupButtons();
-        return true;
-    }
-
     private void refreshAction() {
         toggle.setMessage(parent.recipeAction(entry));
         toggle.active = parent.canToggle(entry) && !dataError;
-        buttonTooltips.put(toggle, RecipeRemovalScreen.tr(entry.removable() ? "exact_hint" : "view_only_hint"));
+        registerWidgetTooltip(toggle, RecipeRemovalScreen.tr(entry.removable() ? "exact_hint" : "view_only_hint"));
         if (viewerButton != null) {
             viewerButton.active = RecipeJeiBridge.available();
-            buttonTooltips.put(viewerButton, RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
+            registerWidgetTooltip(viewerButton, RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
         }
     }
 
@@ -153,7 +119,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         GuiTheme.panel(graphics, 0, 0, 640, 360);
         graphics.drawCenteredString(font, title, 320, 16, GuiTheme.current().text());
         Component id = entry.recipe().id() == null ? RecipeRemovalScreen.tr("no_id") : Component.literal(entry.recipe().id().toString());
-        graphics.drawCenteredString(font, font.plainSubstrByWidth(id.getString(), 608), 320, 36, GuiTheme.current().mutedText());
+        KineticText.drawScrollingCentered(graphics, font, id, 320, 36, 608, GuiTheme.current().mutedText(), false);
         GuiTheme.panelAlt(graphics, 16, 62, 608, 250);
         if (dataError) graphics.drawCenteredString(font, RecipeRemovalScreen.tr("data_error"), 320, 170, GuiTheme.current().danger());
         else if (preview != null) drawPreview(graphics, mouseX, mouseY, false);
@@ -199,16 +165,9 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     }
 
     @Override protected void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY, int screenMouseX, int screenMouseY) {
-        if (!popupButtons.isEmpty()) return;
-        for (var tooltipEntry : buttonTooltips.entrySet()) {
-            Button widget = tooltipEntry.getKey();
-            if (!widget.visible || !inside(widget, mouseX, mouseY)) continue;
-            GuiOverlay.requestTooltip(tooltipEntry.getValue(), 220, screenMouseX, screenMouseY);
-            return;
-        }
         if (preview != null || dataError) return;
         ItemStack hovered = hoveredFallbackStack(mouseX, mouseY);
-        if (!hovered.isEmpty()) GuiOverlay.requestItemTooltip(hovered, screenMouseX, screenMouseY);
+        if (!hovered.isEmpty()) showItemTooltip(hovered);
     }
 
     private ItemStack hoveredFallbackStack(double mouseX, double mouseY) {
@@ -232,38 +191,26 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     }
 
     @Override protected boolean canvasMouseClicked(double mouseX, double mouseY, int button) {
-        if (!popupButtons.isEmpty()) return handlePopupClick(mouseX, mouseY, button);
         return super.canvasMouseClicked(mouseX, mouseY, button);
     }
 
     @Override protected boolean canvasMouseScrolled(double mouseX, double mouseY, double delta) {
-        if (!popupButtons.isEmpty()) {
-            discardPopupButtons();
-            return true;
-        }
         return super.canvasMouseScrolled(mouseX, mouseY, delta);
     }
 
     @Override protected boolean canvasMouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (!popupButtons.isEmpty()) return true;
         return super.canvasMouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     @Override protected boolean canvasMouseReleased(double mouseX, double mouseY, int button) {
-        if (!popupButtons.isEmpty()) return true;
         return super.canvasMouseReleased(mouseX, mouseY, button);
     }
 
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256 && !popupButtons.isEmpty()) {
-            discardPopupButtons();
-            return true;
-        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override public boolean charTyped(char codePoint, int modifiers) {
-        if (!popupButtons.isEmpty()) return true;
         return super.charTyped(codePoint, modifiers);
     }
 

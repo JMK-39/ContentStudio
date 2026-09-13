@@ -1,6 +1,7 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
+import dev.xyat.kineticcore.api.client.text.KineticText;
 
 import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
 import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
@@ -15,7 +16,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -197,51 +197,30 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     protected void initSpecialWidgets() {
         globalRemoveModeButtons.clear();
         globalRemoveLayers.closeAll();
-        globalRemoveAddButton = Button.builder(
-                        Component.translatable("gui.contentstudio.loot.loots.global_remove.add"),
-                        button -> {
+        globalRemoveAddButton = addButton(GLOBAL_REMOVE_ADD_X, GLOBAL_REMOVE_BUTTON_Y, 78, Component.translatable("gui.contentstudio.loot.loots.global_remove.add"), Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.add"), button -> {
                             closeGlobalRemoveModeMenu();
                             openGlobalRemoveItemPicker();
-                        })
-                .bounds(GLOBAL_REMOVE_ADD_X, GLOBAL_REMOVE_BUTTON_Y, 78, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.add")))
-                .build();
-        globalRemoveModeButton = Button.builder(
-                        Component.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none"),
-                        button -> toggleGlobalRemoveModeMenu())
-                .bounds(GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_MODE_W, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.match_mode")))
-                .build();
-        globalRemoveNbtButton = Button.builder(
-                        Component.translatable("gui.contentstudio.loot.loots.global_remove.edit_nbt"),
-                        button -> {
+                        });
+        globalRemoveModeButton = addButton(GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_MODE_W, Component.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none"), Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.match_mode"), button -> toggleGlobalRemoveModeMenu());
+        globalRemoveNbtButton = addButton(GLOBAL_REMOVE_NBT_X, GLOBAL_REMOVE_BUTTON_Y, 70, Component.translatable("gui.contentstudio.loot.loots.global_remove.edit_nbt"), Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.edit_nbt"), button -> {
                             closeGlobalRemoveModeMenu();
                             openGlobalRemoveNbtEditor();
-                        })
-                .bounds(GLOBAL_REMOVE_NBT_X, GLOBAL_REMOVE_BUTTON_Y, 70, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.edit_nbt")))
-                .build();
-        globalRemoveSaveButton = Button.builder(
-                        Component.translatable("gui.contentstudio.loot.loots.global_remove.save"),
-                        button -> {
+                        });
+        globalRemoveSaveButton = addButton(GLOBAL_REMOVE_SAVE_X, GLOBAL_REMOVE_BUTTON_Y, 44, Component.translatable("gui.contentstudio.loot.loots.global_remove.save"), Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.save"), button -> {
                             closeGlobalRemoveModeMenu();
                             saveGlobalRemove();
-                        })
-                .bounds(GLOBAL_REMOVE_SAVE_X, GLOBAL_REMOVE_BUTTON_Y, 44, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.save")))
-                .build();
+                        });
 
         int menuIndex = 0;
         for (GlobalRemoveRule.MatchMode mode : GlobalRemoveRule.MatchMode.values()) {
-            HighZButton option = new HighZButton(
+            HighZButton option = createHighZButton(
                     GLOBAL_REMOVE_MODE_X,
                     GLOBAL_REMOVE_MODE_MENU_Y + menuIndex * GLOBAL_REMOVE_MODE_MENU_PITCH,
                     GLOBAL_REMOVE_MODE_W,
-                    18,
                     globalRemoveModeComponent(mode, false),
-                    button -> setSelectedGlobalRemoveMode(mode),
-                    Tooltip.create(globalRemoveModeTooltip(mode)),
-                    320
+                    globalRemoveModeTooltip(mode),
+                    320,
+                    button -> setSelectedGlobalRemoveMode(mode)
             );
             option.visible = false;
             option.active = false;
@@ -249,22 +228,11 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             menuIndex++;
         }
 
-        globalExcludeSaveButton = Button.builder(
-                        Component.translatable("gui.contentstudio.loot.loots.global_exclude.save"),
-                        button -> saveGlobalExclude())
-                .bounds(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save")))
-                .build();
-
-        addRenderableWidget(globalRemoveAddButton);
-        addRenderableWidget(globalRemoveModeButton);
-        addRenderableWidget(globalRemoveNbtButton);
-        addRenderableWidget(globalRemoveSaveButton);
-        for (HighZButton option : globalRemoveModeButtons) {
-            addRenderableWidget(option);
+        globalExcludeSaveButton = addButton(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.global_exclude.save"), Component.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save"), button -> saveGlobalExclude());
+for (HighZButton option : globalRemoveModeButtons) {
+            addControl(option, null);
         }
-        addRenderableWidget(globalExcludeSaveButton);
-        updateSpecialButtons();
+updateSpecialButtons();
     }
 
     @Override
@@ -487,7 +455,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             renderGlobalRemoveItem(g, index, x, y, mx, my);
         }
 
-        g.disableScissor();
+        disableCanvasScissor(g);
         if (globalRemoveMaxScrollRow > 0) {
             int thumb = Scroll.calculateThumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
             Scroll.renderScrollbar(
@@ -590,7 +558,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 int y = listY + (i - smoothExcludeRow) * EXCLUDE_ROW_H - excludeShift;
                 renderGlobalExcludeRow(g, i, y, mx, my);
             }
-            g.disableScissor();
+            disableCanvasScissor(g);
         }
 
         if (globalExcludeMaxScroll > 0) {
@@ -630,10 +598,10 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
 
         String name = lootTableDisplayName(id);
         if (!name.equals(id)) {
-            g.drawString(font, trim(font, name, SPECIAL_W - 24), SPECIAL_X + 7, y + 2, 0xFFFFD75F, false);
-            g.drawString(font, trim(font, id, SPECIAL_W - 24), SPECIAL_X + 7, y + 12, 0xFF55FFFF, false);
+            KineticText.drawScrollingLeft(g, font, name, SPECIAL_X + 7, y + 2, SPECIAL_W - 24, 0xFFFFD75F, false);
+            KineticText.drawScrollingLeft(g, font, id, SPECIAL_X + 7, y + 12, SPECIAL_W - 24, 0xFF55FFFF, false);
         } else {
-            g.drawString(font, trim(font, id, SPECIAL_W - 24), SPECIAL_X + 7, y + 6, 0xFF55FFFF, false);
+            KineticText.drawScrollingLeft(g, font, id, SPECIAL_X + 7, y + 6, SPECIAL_W - 24, 0xFF55FFFF, false);
         }
 
         if (hovered) {
@@ -1142,10 +1110,10 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             String name = getDisplayName(entry);
             String id = entry.lootTableId();
             if (!name.equals(id)) {
-                g.drawString(font, trim(font, name, TARGET_WIDTH - 10), LEFT_X + 5, y + 2, 0xFFFFD75F, false);
-                g.drawString(font, trim(font, id, TARGET_WIDTH - 10), LEFT_X + 5, y + 12, 0xFF55FFFF, false);
+                KineticText.drawScrollingLeft(g, font, name, LEFT_X + 5, y + 2, TARGET_WIDTH - 10, 0xFFFFD75F, false);
+                KineticText.drawScrollingLeft(g, font, id, LEFT_X + 5, y + 12, TARGET_WIDTH - 10, 0xFF55FFFF, false);
             } else {
-                g.drawString(font, trim(font, id, TARGET_WIDTH - 10), LEFT_X + 5, y + 6, 0xFF55FFFF, false);
+                KineticText.drawScrollingLeft(g, font, id, LEFT_X + 5, y + 6, TARGET_WIDTH - 10, 0xFF55FFFF, false);
             }
 
             if (hover) {
@@ -1163,7 +1131,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             }
         }
 
-        g.disableScissor();
+        disableCanvasScissor(g);
         renderTargetScrollbar(g, mx, my);
     }
 

@@ -1,10 +1,9 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
 import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
+import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.widget.KineticWidgets.NumericEditBox;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 
 final class LootNumericField {
@@ -21,7 +20,7 @@ final class LootNumericField {
     }
 
     static EditBox create(
-            Font font,
+            KineticScreen screen,
             int x,
             int y,
             int width,
@@ -29,24 +28,21 @@ final class LootNumericField {
             Type type,
             String tooltipKey
     ) {
+        Component tooltip = Component.translatable(tooltipKey);
         NumericEditBox box = switch (type) {
-            case PROBABILITY, RATIO -> NumericEditBox.decimal(
-                    font, x, y, width, 20,
-                    Component.empty(), false, 0D, 1D
+            case PROBABILITY, RATIO -> screen.createDecimalField(
+                    x, y, width, Component.empty(), false, 0D, 1D, tooltip
             );
-            case POSITIVE_DECIMAL, NON_NEGATIVE_DECIMAL -> NumericEditBox.decimal(
-                    font, x, y, width, 20,
-                    Component.empty(), false, 0D, null
+            case POSITIVE_DECIMAL, NON_NEGATIVE_DECIMAL -> screen.createDecimalField(
+                    x, y, width, Component.empty(), false, 0D, null, tooltip
             );
-            case POSITIVE_INTEGER, NON_NEGATIVE_INTEGER -> NumericEditBox.integer(
-                    font, x, y, width, 20,
-                    Component.empty(), false, 0, null
+            case POSITIVE_INTEGER, NON_NEGATIVE_INTEGER -> screen.createIntegerField(
+                    x, y, width, Component.empty(), false, 0, null, tooltip
             );
         };
 
         box.setMaxLength(16);
         box.setValue(value);
-        box.setTooltip(Tooltip.create(Component.translatable(tooltipKey)));
         return box;
     }
 

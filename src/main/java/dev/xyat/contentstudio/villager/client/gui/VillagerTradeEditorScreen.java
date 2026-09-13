@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.villager.client.gui;
 
+import dev.xyat.kineticcore.api.client.text.KineticText;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
 import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
@@ -51,7 +52,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     private static final int SELL_LABEL = 0xFF55FF55;
     private static final int ROW_H = 41;
     private static final int LEVEL_ROW_H = 24;
-    private static final int LEVEL_BUTTON_SIZE = 14;
+    private static final int LEVEL_BUTTON_SIZE = COMPACT_CONTROL_HEIGHT;
 
     public Screen getParent() {
         return parent;
@@ -125,7 +126,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     private boolean tradeSearchIndexDirty = true;
     private final List<AbstractWidget> editorWidgets = new ArrayList<>();
     private final List<AbstractWidget> levelWidgets = new ArrayList<>();
-    private final List<LevelExpandButton> levelExpandButtons = new ArrayList<>();
+    private final List<Button> levelExpandButtons = new ArrayList<>();
 
     private AutoCompleteBox professionBox;
     private EditBox tradeSearchBox;
@@ -201,7 +202,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         super(Component.translatable("gui.contentstudio.villager.villager.trade.title"));
         this.parent = parent;
         dev.xyat.kineticcore.api.client.screen.GuiSession.setParent(this, parent);
-        useCanvas(
+        useResponsiveCanvas(
                 640f,
                 360f,
                 6
@@ -324,7 +325,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         listScroll.restoreOffset(lastListScroll);
 
         int topY = rootY + 8;
-        this.professionBox = new AutoCompleteBox(this.font, leftX + 6, topY, leftW - 34, 20, Component.translatable("gui.contentstudio.villager.villager.trade.profession.search"), VillagerTradeEditorScreen::getProfessionDictionary);
+        this.professionBox = addAutoCompleteField(leftX + 6, topY, leftW - 34, Component.translatable("gui.contentstudio.villager.villager.trade.profession.search"), VillagerTradeEditorScreen::getProfessionDictionary, Component.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip"));
         this.professionBox.setValue(lastProfessionText);
         this.professionBox.setResponder(value -> {
             if (!suppressProfessionResponder) {
@@ -332,23 +333,9 @@ public class VillagerTradeEditorScreen extends KineticScreen {
                 trySelectOwnerFromText(value);
             }
         });
-        this.professionBox.setTooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip")));
-        this.addRenderableWidget(this.professionBox);
 
-        Button clearSearchButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"), button -> clearProfessionSearch())
-                .bounds(leftX + leftW - 24, topY, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip")))
-                .build();
-        this.addRenderableWidget(clearSearchButton);
-
-        this.tradeSearchBox = new EditBox(
-                this.font,
-                leftX + 6,
-                leftY + 6,
-                leftW - 34,
-                20,
-                Component.translatable("gui.contentstudio.villager.villager.trade.content_search")
-        );
+        Button clearSearchButton = addButton(leftX + leftW - 24, topY, 20, Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"), Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip"), button -> clearProfessionSearch());
+this.tradeSearchBox = addTextField(leftX + 6, leftY + 6, leftW - 34, Component.translatable("gui.contentstudio.villager.villager.trade.content_search"));
         this.tradeSearchBox.setMaxLength(128);
         this.tradeSearchBox.setValue(lastTradeSearchText);
         this.tradeSearchBox.setResponder(value -> {
@@ -357,16 +344,10 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             lastListScroll = 0;
             refreshEntries();
         });
-        this.tradeSearchBox.setTooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.content_search.tooltip")));
-        this.addRenderableWidget(this.tradeSearchBox);
+        registerWidgetTooltip(this.tradeSearchBox, Component.translatable("gui.contentstudio.villager.villager.trade.content_search.tooltip"));
 
-        Button clearTradeSearchButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"), button -> clearTradeSearch())
-                .bounds(leftX + leftW - 24, leftY + 6, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip")))
-                .build();
-        this.addRenderableWidget(clearTradeSearchButton);
-
-        int gap = 6;
+        Button clearTradeSearchButton = addButton(leftX + leftW - 24, leftY + 6, 20, Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"), Component.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip"), button -> clearTradeSearch());
+int gap = 6;
         int backW = 58;
         int saveW = 58;
         int undoW = 78;
@@ -376,18 +357,12 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         int undoX = saveX - gap - undoW;
         int previewX = undoX - gap - previewW;
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview"), button -> openRemovedDefaultTradesScreen())
-                .bounds(previewX, topY, previewW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview.tooltip")))
-                .build());
+        addButton(previewX, topY, previewW, Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview"), Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview.tooltip"), button -> openRemovedDefaultTradesScreen());
 
-        this.undoButton = this.addRenderableWidget(Button.builder(undoButtonText(), button -> undoLastChange())
-                .bounds(undoX, topY, undoW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.undo.tooltip")))
-                .build());
+        this.undoButton = addButton(undoX, topY, undoW, undoButtonText(), Component.translatable("gui.contentstudio.villager.villager.trade.undo.tooltip"), button -> undoLastChange());
         updateUndoButtonState();
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.save"), button -> {
+        addButton(saveX, topY, saveW, Component.translatable("gui.contentstudio.villager.villager.trade.save"), Component.translatable("gui.contentstudio.villager.villager.trade.save.tooltip"), button -> {
             syncFieldValues();
             if (levelSettingsActive) {
                 applyCurrentLevelSettings();
@@ -399,12 +374,9 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             undoHistory.clear();
             updateUndoButtonState();
             refreshEntries();
-        }).bounds(saveX, topY, saveW, 20).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.save.tooltip"))).build());
+        });
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.back"), button -> onClose())
-                .bounds(backX, topY, backW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")))
-                .build());
+        addButton(backX, topY, backW, Component.translatable("gui.contentstudio.villager.villager.trade.back"), Component.translatable("gui.contentstudio.villager.villager.trade.back.tooltip"), button -> onClose());
 
         addLevelExpandButtons();
         addLevelFields();
@@ -425,10 +397,10 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     }
 
     private void setupLayout() {
-        this.rootW = Math.min(this.canvasWidth - 8, 632);
-        this.rootH = Math.min(this.canvasHeight - 8, 352);
-        this.rootX = (this.canvasWidth - rootW) / 2;
-        this.rootY = (this.canvasHeight - rootH) / 2;
+        this.rootW = Math.min(this.canvasWidth() - 8, 632);
+        this.rootH = Math.min(this.canvasHeight() - 8, 352);
+        this.rootX = (this.canvasWidth() - rootW) / 2;
+        this.rootY = (this.canvasHeight() - rootH) / 2;
 
         this.leftX = rootX + 8;
         this.leftY = rootY + 36;
@@ -450,16 +422,23 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         levelExpandButtons.clear();
         for (int level = 1; level <= LEVEL_EXPANDED.length; level++) {
             int targetLevel = level;
-            LevelExpandButton button = new LevelExpandButton(levelExpandText(level), ignored -> {
-                selectedLevel = targetLevel;
-                lastSelectedLevel = targetLevel;
-                loadGroupState();
-                toggleLevelExpanded(targetLevel);
-                refreshEntries();
-            });
+            Button button = addCompactButton(
+                    0,
+                    0,
+                    LEVEL_BUTTON_SIZE,
+                    levelExpandText(level),
+                    Component.translatable("gui.contentstudio.villager.villager.trade.level.arrow.tooltip"),
+                    ignored -> {
+                        selectedLevel = targetLevel;
+                        lastSelectedLevel = targetLevel;
+                        loadGroupState();
+                        toggleLevelExpanded(targetLevel);
+                        refreshEntries();
+                    }
+            );
             button.visible = false;
             button.active = false;
-            levelExpandButtons.add(this.addWidget(button));
+            levelExpandButtons.add(button);
         }
     }
 
@@ -475,16 +454,10 @@ public class VillagerTradeEditorScreen extends KineticScreen {
 
         this.offerCountBox = addLevelSmallNumberBox(countX, buttonY + 15, selectedOfferCount);
 
-        Button addTradeButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade"), button -> beginNewTradeFromLevel())
-                .bounds(buttonX, buttonY, buttonW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade.tooltip")))
-                .build();
+        Button addTradeButton = addButton(buttonX, buttonY, buttonW, Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade"), Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade.tooltip"), button -> beginNewTradeFromLevel());
         addLevelWidget(addTradeButton);
 
-        Button clearLevelButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.level.clear"), button -> clearCurrentLevel(selectedLevel))
-                .bounds(buttonX, buttonY + 24, buttonW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.level.clear.tooltip")))
-                .build();
+        Button clearLevelButton = addButton(buttonX, buttonY + 24, buttonW, Component.translatable("gui.contentstudio.villager.villager.trade.level.clear"), Component.translatable("gui.contentstudio.villager.villager.trade.level.clear.tooltip"), button -> clearCurrentLevel(selectedLevel));
         addLevelWidget(clearLevelButton);
     }
 
@@ -519,27 +492,21 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         usesBox = addIntegerBox(metaX + fieldGap * 2, metaY2, fieldW, uses, "gui.contentstudio.villager.villager.trade.uses.tooltip", 0);
 
         int toggleY = metaY2 + 34;
-        this.rewardButton = Button.builder(rewardText(), button -> {
+        this.rewardButton = addButton(metaX, toggleY, 110, rewardText(), Component.translatable("gui.contentstudio.villager.villager.trade.reward.tooltip"), button -> {
             rewardExp = !rewardExp;
             button.setMessage(rewardText());
-        }).bounds(metaX, toggleY, 110, 18).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.reward.tooltip"))).build();
+        });
         addEditorWidget(this.rewardButton);
 
-        this.restockButton = Button.builder(restockText(), button -> {
+        this.restockButton = addButton(metaX + 116, toggleY, 110, restockText(), Component.translatable("gui.contentstudio.villager.villager.trade.restock.tooltip"), button -> {
             allowRestock = !allowRestock;
             button.setMessage(restockText());
-        }).bounds(metaX + 116, toggleY, 110, 18).tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.restock.tooltip"))).build();
+        });
         addEditorWidget(this.restockButton);
     }
 
     private void addClearSlotButton(int slot, int x, int y) {
-        Button clear = Button.builder(
-                        Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear"),
-                        button -> clearTradeItemSlot(slot)
-                )
-                .bounds(x, y, 36, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear.tooltip")))
-                .build();
+        Button clear = addButton(x, y, 36, Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear"), Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear.tooltip"), button -> clearTradeItemSlot(slot));
         addEditorWidget(clear);
     }
 
@@ -567,25 +534,11 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             String tooltipKey,
             int minValue
     ) {
-        NumericEditBox box = NumericEditBox.integer(
-                this.font,
-                x,
-                y,
-                36,
-                18,
-                Component.empty(),
-                minValue < 0,
-                minValue,
-                64
-        );
+        NumericEditBox box = addIntegerField(x, y, 36, Component.empty(), minValue < 0, minValue, 64, null);
 
         box.setMaxLength(3);
         box.setValue(value);
-        box.setTooltip(
-                Tooltip.create(
-                        Component.translatable(tooltipKey)
-                )
-        );
+        registerWidgetTooltip(box, Component.translatable(tooltipKey));
 
         addEditorWidget(box);
         return box;
@@ -596,27 +549,13 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             int y,
             int value
     ) {
-        NumericEditBox box = NumericEditBox.integer(
-                this.font,
-                x,
-                y,
-                50,
-                18,
-                Component.empty(),
-                false,
-                0,
-                64
-        );
+        NumericEditBox box = addIntegerField(x, y, 50, Component.empty(), false, 0, 64, null);
 
         box.setMaxLength(3);
         box.setIntValue(value);
-        box.setTooltip(
-                Tooltip.create(
-                        Component.translatable(
+        registerWidgetTooltip(box, Component.translatable(
                                 "gui.contentstudio.villager.villager.trade.offer_count.tooltip"
-                        )
-                )
-        );
+                        ));
 
         addLevelWidget(box);
         return box;
@@ -630,25 +569,11 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             String tooltipKey,
             int minValue
     ) {
-        NumericEditBox box = NumericEditBox.integer(
-                this.font,
-                x,
-                y,
-                width,
-                18,
-                Component.empty(),
-                minValue < 0,
-                minValue,
-                999999
-        );
+        NumericEditBox box = addIntegerField(x, y, width, Component.empty(), minValue < 0, minValue, 999999, null);
 
         box.setMaxLength(10);
         box.setValue(value);
-        box.setTooltip(
-                Tooltip.create(
-                        Component.translatable(tooltipKey)
-                )
-        );
+        registerWidgetTooltip(box, Component.translatable(tooltipKey));
 
         addEditorWidget(box);
         return box;
@@ -660,35 +585,18 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             int width,
             String value
     ) {
-        NumericEditBox box = NumericEditBox.decimal(
-                this.font,
-                x,
-                y,
-                width,
-                18,
-                Component.empty(),
-                false,
-                0.0,
-                1000.0
-        );
+        NumericEditBox box = addDecimalField(x, y, width, Component.empty(), false, 0.0, 1000.0, null);
 
         box.setMaxLength(10);
         box.setValue(value);
-        box.setTooltip(
-                Tooltip.create(
-                        Component.translatable("gui.contentstudio.villager.villager.trade.price.tooltip")
-                )
-        );
+        registerWidgetTooltip(box, Component.translatable("gui.contentstudio.villager.villager.trade.price.tooltip"));
 
         addEditorWidget(box);
         return box;
     }
 
     private void addNbtButton(int slot, int x, int y) {
-        Button button = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.nbt.button"), b -> openNbtEditor(slot))
-                .bounds(x, y, 36, 18)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.nbt.tooltip")))
-                .build();
+        Button button = addButton(x, y, 36, Component.translatable("gui.contentstudio.villager.villager.trade.nbt.button"), Component.translatable("gui.contentstudio.villager.villager.trade.nbt.tooltip"), b -> openNbtEditor(slot));
         addEditorWidget(button);
     }
 
@@ -700,33 +608,22 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         int clearW = 96;
         int gap = 8;
 
-        Button saveButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.offer.save"), button -> saveCurrentOffer())
-                .bounds(x, y, saveW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.inline.save.tooltip")))
-                .build();
+        Button saveButton = addButton(x, y, saveW, Component.translatable("gui.contentstudio.villager.villager.trade.offer.save"), Component.translatable("gui.contentstudio.villager.villager.trade.inline.save.tooltip"), button -> saveCurrentOffer());
         addEditorWidget(saveButton);
 
-        Button deleteButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.offer.delete"), button -> deleteSelectedEntry())
-                .bounds(x + saveW + gap, y, deleteW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.inline.delete.tooltip")))
-                .build();
+        Button deleteButton = addButton(x + saveW + gap, y, deleteW, Component.translatable("gui.contentstudio.villager.villager.trade.offer.delete"), Component.translatable("gui.contentstudio.villager.villager.trade.inline.delete.tooltip"), button -> deleteSelectedEntry());
         addEditorWidget(deleteButton);
 
-        Button clearCurrentButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.clear_current"), button -> clearCurrentTarget())
-                .bounds(x + saveW + gap + deleteW + gap, y, clearW, 20)
-                .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.inline.clear_current.tooltip")))
-                .build();
+        Button clearCurrentButton = addButton(x + saveW + gap + deleteW + gap, y, clearW, Component.translatable("gui.contentstudio.villager.villager.trade.clear_current"), Component.translatable("gui.contentstudio.villager.villager.trade.inline.clear_current.tooltip"), button -> clearCurrentTarget());
         addEditorWidget(clearCurrentButton);
     }
 
     private void addEditorWidget(AbstractWidget widget) {
         this.editorWidgets.add(widget);
-        this.addRenderableWidget(widget);
     }
 
     private void addLevelWidget(AbstractWidget widget) {
         this.levelWidgets.add(widget);
-        this.addRenderableWidget(widget);
     }
 
     private void setEditorWidgetsVisible(boolean visible) {
@@ -780,35 +677,21 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     @Override
     protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
         renderLeftPanel(g, mx, my);
-        renderLevelExpandButtons(g, mx, my, pt);
         renderRightPanel(g, mx, my);
-        renderProfessionPlaceholder(g);
-        renderTradeSearchPlaceholder(g);
+        renderTextFieldPlaceholder(
+                g,
+                professionBox,
+                Component.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder")
+        );
+        renderTextFieldPlaceholder(
+                g,
+                tradeSearchBox,
+                Component.translatable("gui.contentstudio.villager.villager.trade.content_search.placeholder")
+        );
         renderProfessionSearchHint(g);
         if (professionBox != null) {
             professionBox.renderSuggestions(g, mx, my);
         }
-    }
-
-    private void renderProfessionPlaceholder(GuiGraphics g) {
-        if (professionBox == null || professionBox.isFocused() || !professionBox.getValue().isEmpty()) {
-            return;
-        }
-        g.drawString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder"), professionBox.getX() + 5, professionBox.getY() + 6, 0xFFCFCFCF, false);
-    }
-
-    private void renderTradeSearchPlaceholder(GuiGraphics g) {
-        if (tradeSearchBox == null || tradeSearchBox.isFocused() || !tradeSearchBox.getValue().isEmpty()) {
-            return;
-        }
-        g.drawString(
-                this.font,
-                Component.translatable("gui.contentstudio.villager.villager.trade.content_search.placeholder"),
-                tradeSearchBox.getX() + 5,
-                tradeSearchBox.getY() + 6,
-                0xFFCFCFCF,
-                false
-        );
     }
 
     private void renderProfessionSearchHint(GuiGraphics g) {
@@ -866,21 +749,17 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             renderEntry(g, mx, my, entry, y, h);
             y += h;
         }
-        g.disableScissor();
+        disableCanvasScissor(g);
         renderListScrollbar(g, mx, my);
     }
 
-    private void renderLevelExpandButtons(GuiGraphics g, int mx, int my, float pt) {
+    @Override
+    protected void updateCanvasWidgets(int mouseX, int mouseY, float partialTick) {
         updateLevelExpandButtons();
-        for (LevelExpandButton button : levelExpandButtons) {
-            if (button.visible) {
-                button.render(g, mx, my, pt);
-            }
-        }
     }
 
     private void updateLevelExpandButtons() {
-        for (LevelExpandButton button : levelExpandButtons) {
+        for (Button button : levelExpandButtons) {
             button.visible = false;
             button.active = false;
         }
@@ -898,7 +777,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             if (entry.header() && y >= listY + 3 && y + h <= listY + listH - 3) {
                 int index = entry.level() - 1;
                 if (index >= 0 && index < levelExpandButtons.size()) {
-                    LevelExpandButton button = levelExpandButtons.get(index);
+                    Button button = levelExpandButtons.get(index);
                     button.setX(listX + 8);
                     button.setY(y + 4);
                     button.setMessage(levelExpandText(entry.level()));
@@ -910,8 +789,8 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         }
     }
 
-    private LevelExpandButton hoveredLevelExpandButton(double mx, double my) {
-        for (LevelExpandButton button : levelExpandButtons) {
+    private Button hoveredLevelExpandButton(double mx, double my) {
+        for (Button button : levelExpandButtons) {
             if (button.visible && button.isMouseOver(mx, my)) {
                 return button;
             }
@@ -946,14 +825,14 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             int minGap = 10;
 
             int maxRightWidth = Math.max(38, listX + listW - rightPadding - leftTextX - 74);
-            String safeRight = trim(right, Math.min(154, maxRightWidth));
-            int rightTextX = listX + listW - rightPadding - this.font.width(safeRight);
+            int rightTextWidth = Math.min(154, maxRightWidth);
+            int rightEdge = listX + listW - rightPadding;
+            int rightTextX = rightEdge - rightTextWidth;
 
             int maxLeftWidth = Math.max(32, rightTextX - leftTextX - minGap);
-            String safeLeft = trim(left, maxLeftWidth);
 
-            g.drawString(this.font, safeLeft, leftTextX, y + 7, 0xFFFFFF55, false);
-            g.drawString(this.font, safeRight, rightTextX, y + 7, 0xFFFFFFFF, false);
+            KineticText.drawScrollingLeft(g, this.font, left, leftTextX, y + 7, maxLeftWidth, 0xFFFFFF55, false);
+            KineticText.drawScrollingRight(g, this.font, Component.literal(right), rightEdge, y + 7, rightTextWidth, 0xFFFFFFFF, false);
             return;
         }
 
@@ -969,9 +848,9 @@ public class VillagerTradeEditorScreen extends KineticScreen {
                 : offerMeta;
 
         int sourceColor = entry.custom() ? 0xFFFF55FF : 0xFF55FF55;
-        g.drawString(this.font, trim(source.getString(), 48), listX + 9, y + 4, sourceColor, false);
+        KineticText.drawScrollingLeft(g, this.font, source, listX + 9, y + 4, 48, sourceColor, false);
         renderOfferIconLine(g, entry.offer(), listX + 56, y + 2);
-        g.drawString(this.font, trim(meta, listW - 28), listX + 9, y + 27, 0xFFFFFFFF, false);
+        KineticText.drawScrollingLeft(g, this.font, meta, listX + 9, y + 27, listW - 28, 0xFFFFFFFF, false);
     }
 
     private void renderOfferIconLine(GuiGraphics g, MerchantOffer offer, int x, int y) {
@@ -1119,15 +998,15 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         }
 
         String ownerName = getProfessionName(selectedOwner);
-        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName).getString(), rightW - 20), rightX + 8, rightY + 8, 0xFFFFFF55, false);
-        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.selected_state", selectedLevel, modeName(selectedMode), countCustomOffers(selectedOwner, selectedLevel)).getString(), rightW - 20), rightX + 8, rightY + 24, 0xFFFFFFFF, false);
+        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName), rightX + 8, rightY + 8, rightW - 20, 0xFFFFFF55, false);
+        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.selected_state", selectedLevel, modeName(selectedMode), countCustomOffers(selectedOwner, selectedLevel)), rightX + 8, rightY + 24, rightW - 20, 0xFFFFFFFF, false);
 
         int noticeX = rightX + 8;
         int noticeY = rightY + 64;
         g.fill(noticeX, noticeY, noticeX + rightW - 16, noticeY + 18, PANEL_MID);
         g.renderOutline(noticeX, noticeY, rightW - 16, 18, 0xAAFFFFFF);
         Component state = editingDefault ? Component.translatable("gui.contentstudio.villager.villager.trade.inline.editing_default") : (editingCustomIndex >= 0 ? Component.translatable("gui.contentstudio.villager.villager.trade.inline.editing_custom") : Component.translatable("gui.contentstudio.villager.villager.trade.inline.creating"));
-        g.drawString(this.font, trim(state.getString(), rightW - 28), noticeX + 6, noticeY + 5, 0xFFFF55FF, false);
+        KineticText.drawScrollingLeft(g, this.font, state, noticeX + 6, noticeY + 5, rightW - 28, 0xFFFF55FF, false);
 
         renderTradeSlots(g, mx, my);
 
@@ -1151,8 +1030,8 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         int defaultCount = VillagerTradeRuntimeUtil.getDefaultOfferCount(selectedOwner, selectedLevel);
         int controlRightX = rightX + rightW - 190;
 
-        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName).getString(), controlRightX - rightX - 12), rightX + 8, rightY + 8, 0xFFFFFF55, false);
-        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.level.settings_state", selectedLevel, modeName(selectedMode), selectedOfferCount, defaultCount).getString(), controlRightX - rightX - 12), rightX + 8, rightY + 24, 0xFFFFFFFF, false);
+        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName), rightX + 8, rightY + 8, controlRightX - rightX - 12, 0xFFFFFF55, false);
+        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.level.settings_state", selectedLevel, modeName(selectedMode), selectedOfferCount, defaultCount), rightX + 8, rightY + 24, controlRightX - rightX - 12, 0xFFFFFFFF, false);
 
         int buttonW = 92;
         int buttonX = rightX + rightW - 110;
@@ -1214,7 +1093,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         int slotY = y + 20;
 
         int labelColor = slot == 0 ? BUY_A_LABEL : slot == 1 ? BUY_B_LABEL : SELL_LABEL;
-        g.drawString(this.font, trim(label.getString(), 94), x, y, labelColor, false);
+        KineticText.drawScrollingLeft(g, this.font, label, x, y, 94, labelColor, false);
         renderInsetSlot(g, x, slotY, isHoverSlot(mx, my, slot));
         if (!stack.isEmpty()) {
             g.renderItem(stack, x + 4, slotY + 4);
@@ -1240,24 +1119,20 @@ public class VillagerTradeEditorScreen extends KineticScreen {
 
     @Override
     protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
-        if (hoveredLevelExpandButton(smx, smy) != null) {
-            GuiOverlay.requestTooltip(Component.translatable("gui.contentstudio.villager.villager.trade.level.arrow.tooltip"), mx, my);
-            return;
-        }
         int hoverSlot = hoveredSlot(smx, smy);
         if (hoverSlot >= 0) {
             String key = hoverSlot == 0 ? "gui.contentstudio.villager.villager.trade.slot.buy_a.tooltip" : hoverSlot == 1 ? "gui.contentstudio.villager.villager.trade.slot.buy_b.tooltip" : "gui.contentstudio.villager.villager.trade.slot.sell.tooltip";
-            GuiOverlay.requestTooltip(Component.translatable(key), mx, my);
+            showTooltip(Component.translatable(key));
             return;
         }
         ItemStack hoveredListStack = findHoveredLeftListStack(smx, smy);
         if (!hoveredListStack.isEmpty()) {
-            GuiOverlay.requestItemTooltip(hoveredListStack, mx, my);
+            showItemTooltip(hoveredListStack);
             return;
         }
         TradeEntry hoveredEntry = findEntryAt(smx, smy);
         if (hoveredEntry != null && hoveredEntry.header()) {
-            GuiOverlay.requestTooltip(Component.translatable("gui.contentstudio.villager.villager.trade.level.row.tooltip"), mx, my);
+            showTooltip(Component.translatable("gui.contentstudio.villager.villager.trade.level.row.tooltip"));
         }
     }
 
@@ -1327,7 +1202,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     }
 
     private boolean handleLevelExpandButtonClick(double mx, double my, int btn) {
-        LevelExpandButton button = hoveredLevelExpandButton(mx, my);
+        Button button = hoveredLevelExpandButton(mx, my);
         return button != null && button.mouseClicked(mx, my, btn);
     }
 
@@ -2619,38 +2494,6 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         };
     }
 
-    private String trim(String text, int width) {
-        if (this.font.width(text) <= width) {
-            return text;
-        }
-        return this.font.plainSubstrByWidth(text, Math.max(1, width - this.font.width("..."))) + "...";
-    }
-
-    private final class LevelExpandButton extends Button {
-        private LevelExpandButton(Component message, OnPress onPress) {
-            super(0, 0, LEVEL_BUTTON_SIZE, LEVEL_BUTTON_SIZE, message, onPress, DEFAULT_NARRATION);
-        }
-
-        @Override
-        protected void renderWidget(@NotNull GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-            int x = getX();
-            int y = getY();
-            int width = getWidth();
-            int height = getHeight();
-            boolean hovered = isMouseOver(mouseX, mouseY);
-
-            g.fill(x, y, x + width, y + height, hovered ? 0xFF777A86 : 0xFF555863);
-            g.fill(x + 1, y + 1, x + width - 1, y + 2, hovered ? 0xFFFFFFFF : 0xFFC4C7D0);
-            g.fill(x + 1, y + 1, x + 2, y + height - 1, hovered ? 0xFFFFFFFF : 0xFFC4C7D0);
-            g.fill(x + 1, y + height - 2, x + width - 1, y + height - 1, 0xFF202129);
-            g.fill(x + width - 2, y + 1, x + width - 1, y + height - 1, 0xFF202129);
-            g.renderOutline(x, y, width, height, hovered ? 0xFFFFFFFF : 0xFF8E929E);
-
-            int iconColor = active ? 0xFF55FF55 : 0xFFAAAAAA;
-            g.drawCenteredString(VillagerTradeEditorScreen.this.font, getMessage(), x + width / 2, y + 3, iconColor);
-        }
-    }
-
     private static class RemovedDefaultTradesScreen extends KineticScreen {
         private static final int ROW_HEIGHT = 42;
 
@@ -2676,7 +2519,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             super(Component.translatable("gui.contentstudio.villager.villager.trade.removed.title"));
             this.parentScreen = parentScreen;
             this.owner = VillagerConfig.clean(owner);
-            useCanvas(
+            useResponsiveCanvas(
                     520f,
                     320f,
                     6
@@ -2686,41 +2529,27 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         @Override
         protected void buildUi() {
             this.renderRenderablesOnly = false;
-            this.rootW = Math.min(this.canvasWidth - 8, 512);
-            this.rootH = Math.min(this.canvasHeight - 8, 312);
-            this.rootX = (this.canvasWidth - rootW) / 2;
-            this.rootY = (this.canvasHeight - rootH) / 2;
+            this.rootW = Math.min(this.canvasWidth() - 8, 512);
+            this.rootH = Math.min(this.canvasHeight() - 8, 312);
+            this.rootX = (this.canvasWidth() - rootW) / 2;
+            this.rootY = (this.canvasHeight() - rootH) / 2;
             this.listX = rootX + 10;
             this.listY = rootY + 32;
             this.listW = rootW - 20;
             this.listH = rootH - 44;
 
             int buttonY = rootY + 8;
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all"), button -> restoreAllRemovedTrades())
-                    .bounds(rootX + 10, buttonY, 50, 20)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip")))
-                    .build());
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset"), button -> openResetConfirmPopup())
-                    .bounds(rootX + 68, buttonY, 50, 20)
-                    .tooltip(Tooltip.create(Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip")))
-                    .build());
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.removed.back"), button -> returnToParent())
-                    .bounds(rootX + rootW - 60, buttonY, 50, 20)
-                    .build());
+            addButton(rootX + 10, buttonY, 50, Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all"), Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip"), button -> restoreAllRemovedTrades());
+            addButton(rootX + 68, buttonY, 50, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset"), Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip"), button -> openResetConfirmPopup());
+            addButton(rootX + rootW - 60, buttonY, 50, Component.translatable("gui.contentstudio.villager.villager.trade.removed.back"), null, button -> returnToParent());
 
             int popupW = 270;
             int popupH = 112;
             int popupX = rootX + (rootW - popupW) / 2;
             int popupY = rootY + (rootH - popupH) / 2;
             int confirmY = popupY + 78;
-            this.resetConfirmYesButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.yes"), button -> resetCurrentProfessionToDefault())
-                    .bounds(popupX + 32, confirmY, 72, 20)
-                    .build();
-            this.resetConfirmNoButton = Button.builder(Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.no"), button -> closeResetConfirmPopup())
-                    .bounds(popupX + popupW - 104, confirmY, 72, 20)
-                    .build();
-            this.addRenderableWidget(this.resetConfirmYesButton);
-            this.addRenderableWidget(this.resetConfirmNoButton);
+            this.resetConfirmYesButton = addButton(popupX + 32, confirmY, 72, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.yes"), null, button -> resetCurrentProfessionToDefault());
+            this.resetConfirmNoButton = addButton(popupX + popupW - 104, confirmY, 72, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.no"), null, button -> closeResetConfirmPopup());
             setResetConfirmButtonsVisible(false);
 
             refreshRemovedEntries();
@@ -2775,7 +2604,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
                     renderRemovedEntry(g, mx, my, entry, y);
                     y += ROW_HEIGHT;
                 }
-                g.disableScissor();
+                disableCanvasScissor(g);
                 renderRemovedScrollbar(g, mx, my);
             }
 
@@ -2791,7 +2620,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             int popupX = rootX + (rootW - popupW) / 2;
             int popupY = rootY + (rootH - popupH) / 2;
 
-            GuiTheme.shadow(g, this.canvasWidth, this.canvasHeight);
+            GuiTheme.shadow(g, this.canvasWidth(), this.canvasHeight());
             GuiTheme.panel(g, popupX, popupY, popupW, popupH, PANEL_COLOR, 0xFFFFAA00);
 
             g.drawCenteredString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.title"), popupX + popupW / 2, popupY + 10, 0xFFFFFF55);

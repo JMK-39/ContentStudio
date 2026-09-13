@@ -139,7 +139,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 );
             }
         }
-        g.disableScissor();
+        disableCanvasScissor(g);
         renderTargetScrollbar(g, mx, my);
     }
 
@@ -217,9 +217,9 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 boxY,
                 boxW,
                 boxH,
-                this.canvasScale,
-                this.canvasX,
-                this.canvasY,
+                this.canvasScale(),
+                this.canvasX(),
+                this.canvasY(),
                 hovered
         );
 

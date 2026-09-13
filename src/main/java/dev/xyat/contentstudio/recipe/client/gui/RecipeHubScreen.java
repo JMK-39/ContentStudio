@@ -31,9 +31,8 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
     }
 
     @Override
-    protected void init() {
-        super.init();
-        RecipePreviewState.returnToPreview = false;
+    protected void buildUi() {
+RecipePreviewState.returnToPreview = false;
 
         int buttonW = 128;
         int buttonH = 38;
@@ -52,13 +51,13 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
             int x = startX + col * (buttonW + paddingX);
             int y = startY + row * (buttonH + paddingY);
 
-            this.addRenderableWidget(new IconButton(x, y, buttonW, buttonH, type, button -> {
+            addControl(new IconButton(x, y, buttonW, buttonH, type, button -> {
                 if (Minecraft.getInstance().player != null) {
                     RecipeNetwork.CHANNEL.sendToServer(
                             new RecipeNetwork.RequestEditPacket("", type.name(), -1)
                     );
                 }
-            }));
+            }), null);
             i++;
         }
 
@@ -68,22 +67,21 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
         int totalBottomWidth = bottomBtnW * 3 + bottomSpacing * 2;
         int bottomStartX = this.leftPos + (this.imageWidth - totalBottomWidth) / 2;
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.recipe.recipehud.back"), b -> onClose())
-                .bounds(bottomStartX, bottomY, bottomBtnW, 20).build());
+        addButton(bottomStartX, bottomY, bottomBtnW, Component.translatable("gui.contentstudio.recipe.recipehud.back"), null, b -> onClose());
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.recipe.recipehud.btn.hub"), b -> {
+        addButton(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW, Component.translatable("gui.contentstudio.recipe.recipehud.btn.hub"), null, b -> {
             if (this.minecraft != null && this.minecraft.player != null) {
                 ItemSearchIndex.prepareCache(() -> {
                     this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_data"));
                     RecipeNetwork.requestOpen();
                 });
             }
-        }).bounds(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW, 20).build());
+        });
 
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"), b -> {
+        addButton(bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW, Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"), null, b -> {
             this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_recipes"));
             RecipeNetwork.requestRecipeRecords();
-        }).bounds(bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW, 20).build());
+        });
     }
 
     @Override
@@ -115,7 +113,7 @@ public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
         for (var renderable : renderables) {
             if (renderable instanceof IconButton button
                     && button.isMouseOver(virtualMouseX, virtualMouseY)) {
-                GuiOverlay.requestTooltip(java.util.List.of(button.type.getTitle()), mouseX, mouseY);
+                showTooltip(java.util.List.of(button.type.getTitle()));
                 return;
             }
         }

@@ -61,9 +61,8 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
             }
             items.addAll(unique);
         }
-        useCanvas(640, 360, 6);
-        maxScale = 1.0F;
-    }
+        useStandardCanvas();
+}
 
     public static Screen create(Screen parent, List<String> items) {
         return new VillagerFollowItemEditorScreen(parent, items);
@@ -73,21 +72,9 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     protected void buildUi() {
         updateScrollRange();
 
-        addRenderableWidget(Button.builder(
-                        Component.translatable("gui.kineticcore.items.list_editor.add"),
-                        ignored -> openSelector())
-                .bounds(70, 316, 130, 20)
-                .build());
-        addRenderableWidget(Button.builder(
-                        Component.translatable("gui.kineticcore.config.back"),
-                        ignored -> onClose())
-                .bounds(255, 316, 130, 20)
-                .build());
-        addRenderableWidget(Button.builder(
-                        Component.translatable("gui.kineticcore.hud_editor.save"),
-                        ignored -> saveAndClose())
-                .bounds(440, 316, 130, 20)
-                .build());
+        addButton(70, 316, 130, Component.translatable("gui.kineticcore.items.list_editor.add"), null, ignored -> openSelector());
+        addButton(255, 316, 130, Component.translatable("gui.kineticcore.config.back"), null, ignored -> onClose());
+        addButton(440, 316, 130, Component.translatable("gui.kineticcore.hud_editor.save"), null, ignored -> saveAndClose());
     }
 
     private void openSelector() {
@@ -117,7 +104,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
 
     private void saveAndClose() {
         VillagerNetwork.saveFollowItems(List.copyOf(items));
-        Minecraft.getInstance().setScreen(parent);
+        navigateBack();
     }
 
     private void updateScrollRange() {
@@ -144,7 +131,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
                 PANEL_BACKGROUND,
                 PANEL_OUTLINE
         );
-        graphics.drawCenteredString(font, title, canvasWidth / 2, 30, 0xFFFFAA00);
+        graphics.drawCenteredString(font, title, canvasWidth() / 2, 30, 0xFFFFAA00);
         GuiTheme.panel(
                 graphics,
                 GRID_X,
@@ -193,7 +180,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
         int first = baseRow * COLUMNS;
         int last = Math.min(items.size(), first + (ROWS_VISIBLE + 2) * COLUMNS);
 
-        graphics.enableScissor(GRID_X, GRID_Y, GRID_X + GRID_WIDTH, GRID_Y + GRID_HEIGHT);
+        enableCanvasScissor(graphics, GRID_X, GRID_Y, GRID_X + GRID_WIDTH, GRID_Y + GRID_HEIGHT);
         for (int index = first; index < last; index++) {
             int visible = index - first;
             int column = visible % COLUMNS;
@@ -217,7 +204,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
                 );
             }
         }
-        graphics.disableScissor();
+        disableCanvasScissor(graphics);
     }
 
     private ItemStack previewStack(String itemId) {
@@ -322,7 +309,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
                 Component.translatable("gui.kineticcore.items.list_editor.remove_hint"),
                 300
         ));
-        GuiOverlay.requestFormattedTooltip(lines, mouseX, mouseY);
+        showFormattedTooltip(lines);
     }
 
     private static String normalizeItemId(String itemId) {
@@ -333,7 +320,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
 
     @Override
     public void onClose() {
-        Minecraft.getInstance().setScreen(parent);
+        navigateBack();
     }
 
     @Override
