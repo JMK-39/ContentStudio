@@ -1,6 +1,6 @@
 package dev.xyat.contentstudio.recipe.removal;
 
-import net.minecraft.network.FriendlyByteBuf;
+import dev.xyat.kineticcore.api.network.NetworkBuffer;
 
 import java.util.Objects;
 
@@ -11,14 +11,14 @@ public record RemovalEntry(RemovalMode mode, String value, String comment) {
         this.comment = comment != null ? comment : "";
     }
 
-    public void toNetwork(FriendlyByteBuf buf) {
-        buf.writeEnum(mode);
-        buf.writeUtf(value);
-        buf.writeUtf(comment);
+    public void toNetwork(NetworkBuffer buffer) {
+        buffer.writeEnum(mode);
+        buffer.writeUtf(value);
+        buffer.writeUtf(comment);
     }
 
-    public static RemovalEntry fromNetwork(FriendlyByteBuf buf) {
-        return new RemovalEntry(buf.readEnum(RemovalMode.class), buf.readUtf(), buf.readUtf());
+    public static RemovalEntry fromNetwork(NetworkBuffer buffer) {
+        return new RemovalEntry(buffer.readEnum(RemovalMode.class), buffer.readUtf(), buffer.readUtf());
     }
 
     @Override

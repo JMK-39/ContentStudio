@@ -1,27 +1,30 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.kineticcore.api.client.text.KineticText;
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.blaze3d.systems.RenderSystem;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
-import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.Scroll;
+import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.ToggleButton;
+import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
+import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -30,9 +33,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,7 +45,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -86,26 +86,24 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     private List<Component> infoLines = new ArrayList<>();
     protected List<Component> deferredTooltip = null;
 
-    private EditBox searchBox;
-    private EditBox itemBox;
-    private EditBox chanceBox;
-    private EditBox rollsBox;
-    private EditBox countMinBox;
-    private EditBox countMaxBox;
-    private EditBox weightBox;
-    private EditBox lootingMinBox;
-    private EditBox lootingMaxBox;
-    private Button saveButton;
-    private Button resetButton;
-    private Button deleteButton;
-    private Button applyButton;
-    private Button addButton;
-    private Button killedButton;
-    private Button lootingButton;
-    private Button fireButton;
-    private Button overrideModeButton;
-    private Button confirmResetButton;
-    private Button cancelResetButton;
+    private KineticEditBox searchBox;
+    private KineticEditBox itemBox;
+    private KineticEditBox chanceBox;
+    private KineticEditBox rollsBox;
+    private KineticEditBox countMinBox;
+    private KineticEditBox countMaxBox;
+    private KineticEditBox weightBox;
+    private KineticEditBox lootingMinBox;
+    private KineticEditBox lootingMaxBox;
+    private StateButton saveButton;
+    private StateButton resetButton;
+    private StateButton deleteButton;
+    private StateButton applyButton;
+    private StateButton addButton;
+    private ToggleButton killedButton;
+    private ToggleButton lootingButton;
+    private ToggleButton fireButton;
+    private ToggleButton overrideModeButton;
     private String searchQuery = "";
 
     protected LootEntryInfo selectedEntry;
@@ -129,23 +127,22 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     protected int maxDropScroll = 0;
     protected boolean draggingTargetScroll = false;
     private boolean draggingDropScroll = false;
-    protected final Scroll.State targetScrollState = new Scroll.State();
-    protected final Scroll.State dropScrollState = new Scroll.State();
-    private boolean showResetConfirm = false;
-    private Button addPoolHeaderButton;
-    private Button[] groupArrowButtons;
-    private Button[] groupAddButtons;
-    private Button[] groupPoolEditButtons;
-    private Button[] groupPoolDeleteButtons;
-    private Button[] groupEntryDeleteButtons;
-    private Button[] groupEntryEditButtons;
+    protected final KineticScroll.State targetScrollState = new KineticScroll.State();
+    protected final KineticScroll.State dropScrollState = new KineticScroll.State();
+    private StateButton addPoolHeaderButton;
+    private StateButton[] groupArrowButtons;
+    private StateButton[] groupAddButtons;
+    private StateButton[] groupPoolEditButtons;
+    private StateButton[] groupPoolDeleteButtons;
+    private StateButton[] groupEntryDeleteButtons;
+    private StateButton[] groupEntryEditButtons;
     private final List<GroupRow> groupedRows = new ArrayList<>();
     private final List<GroupRow> visibleGroupRows = new ArrayList<>();
     private final Set<Integer> expandedPools = new HashSet<>();
     private double groupScroll = 0D;
     private int maxGroupScroll = 0;
     private boolean draggingGroupScroll = false;
-    private final Scroll.State groupScrollState = new Scroll.State();
+    private final KineticScroll.State groupScrollState = new KineticScroll.State();
     private final Map<TableDraftKey, String> pendingTableDrafts = new LinkedHashMap<>();
     private final Set<TableDraftKey> pendingTableResets = new LinkedHashSet<>();
     private final Map<TableDraftKey, String> savingTableDrafts = new LinkedHashMap<>();
@@ -311,32 +308,36 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     protected AbstractLootEditorScreen(int mode, List<LootEntryInfo> entries, String titleKey, Screen parentScreen) {
         super(Component.translatable(titleKey));
+        setParentScreen(parentScreen);
         this.mode = mode;
         this.parentScreen = parentScreen;
         this.allEntries = new ArrayList<>(entries);
         this.displayEntries = new ArrayList<>(this.allEntries);
-        useResponsiveCanvas(
-                V_WIDTH,
-                V_HEIGHT,
-                6
-        );
-}
+    }
 
     @Override
     protected void buildUi() {
-        // EditBox 会在设定边界外多绘制 1 点边框，这样它的可见边缘才与列表描边完全对齐。
-        searchBox = addTextField(LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2, Component.empty());
+        searchBox = addTextField(
+                LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2, Component.empty(),
+                Component.translatable("gui.contentstudio.loot.loots.search_hint"), null,
+                Component.translatable("gui.contentstudio.loot.loots.tip.search")
+        );
         searchBox.setMaxLength(256);
         searchBox.setValue(searchQuery);
         searchBox.setResponder(this::onSearchChanged);
-        registerWidgetTooltip(searchBox, Component.translatable("gui.contentstudio.loot.loots.tip.search"));
-Button closeButton = addButton(RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.back"), Component.translatable("gui.contentstudio.loot.loots.tip.back"), button -> onClose());
-initEditWidgets();
+
+        addButton(
+                RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44,
+                Component.translatable("gui.contentstudio.loot.loots.back"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.back"),
+                this::onClose
+        );
+
+        initEditWidgets();
         if (usesGroupedLayout()) {
             initGroupedWidgets();
         }
         initSpecialWidgets();
-        initResetConfirmButtons();
         sortAllEntries();
         updateSearch(searchQuery, false);
         if (selectedEntry == null && !displayEntries.isEmpty()) {
@@ -358,24 +359,13 @@ initEditWidgets();
         }
     }
 
-    private void initResetConfirmButtons() {
-        confirmResetButton = addButton(V_WIDTH / 2 - 82, V_HEIGHT / 2 + 22, 78, Component.translatable("gui.contentstudio.loot.loots.reset.confirm.yes"), Component.translatable("gui.contentstudio.loot.loots.tip.reset_confirm_yes"), button -> {
-            showResetConfirm = false;
-            setResetConfirmButtons(false);
-            resetCurrentJson();
-        });
-        cancelResetButton = addButton(V_WIDTH / 2 + 4, V_HEIGHT / 2 + 22, 78, Component.translatable("gui.contentstudio.loot.loots.reset.confirm.cancel"), Component.translatable("gui.contentstudio.loot.loots.tip.reset_confirm_cancel"), button -> {
-            showResetConfirm = false;
-            setResetConfirmButtons(false);
-        });
-        setResetConfirmButtons(false);
-}
-
     private void initEditWidgets() {
         int x0 = RIGHT_X + 10;
-        itemBox = addTextField(-1000, -1000, 1, Component.empty());
+        itemBox = addTextField(
+                -1000, -1000, 1, Component.empty(), null, null,
+                Component.translatable("gui.contentstudio.loot.loots.tip.item_id")
+        );
         itemBox.setMaxLength(256);
-        registerWidgetTooltip(itemBox, Component.translatable("gui.contentstudio.loot.loots.tip.item_id"));
 
         int fieldY = EDIT_Y + 26;
         chanceBox = numberBox(x0 + 48, fieldY, "gui.contentstudio.loot.loots.tip.chance", "1", NumericInputType.PROBABILITY);
@@ -387,39 +377,68 @@ initEditWidgets();
         lootingMaxBox = numberBox(x0 + 312, fieldY, "gui.contentstudio.loot.loots.tip.looting_max", "0", NumericInputType.WHOLE_NUMBER);
 
         int by = EDIT_Y + 48;
-        killedButton = addButton(x0, by, 44, getKilledText(), Component.translatable("gui.contentstudio.loot.loots.tip.killed"), button -> {
-            requirePlayerKill = !requirePlayerKill;
-            killedButton.setMessage(getKilledText());
-        });
-        lootingButton = addButton(x0 + 48, by, 44, getLootingText(), Component.translatable("gui.contentstudio.loot.loots.tip.looting"), button -> {
-            enableLooting = !enableLooting;
-            lootingButton.setMessage(getLootingText());
-        });
-        fireButton = addButton(x0 + 96, by, 44, getFireText(), Component.translatable("gui.contentstudio.loot.loots.tip.fire"), button -> {
-            enableFireSmelt = !enableFireSmelt;
-            fireButton.setMessage(getFireText());
-        });
+        killedButton = addToggleButton(
+                x0, by, 44, requirePlayerKill,
+                Component.translatable("gui.contentstudio.loot.loots.killed_on"),
+                Component.translatable("gui.contentstudio.loot.loots.killed_off"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.killed"),
+                null, value -> requirePlayerKill = value
+        );
+        lootingButton = addToggleButton(
+                x0 + 48, by, 44, enableLooting,
+                Component.translatable("gui.contentstudio.loot.loots.looting_on"),
+                Component.translatable("gui.contentstudio.loot.loots.looting_off"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.looting"),
+                null, value -> enableLooting = value
+        );
+        fireButton = addToggleButton(
+                x0 + 96, by, 44, enableFireSmelt,
+                Component.translatable("gui.contentstudio.loot.loots.fire_on"),
+                Component.translatable("gui.contentstudio.loot.loots.fire_off"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.fire"),
+                null, value -> enableFireSmelt = value
+        );
         int modeButtonX = modeButtonX(x0);
         int actionButtonX = actionButtonX(x0);
-        overrideModeButton = addButton(modeButtonX, by, 58, getOverrideModeText(), Component.translatable("gui.contentstudio.loot.loots.tip.override_mode"), button -> toggleOverrideMode());
-applyButton = addButton(actionButtonX, by, 38, Component.translatable("gui.contentstudio.loot.loots.apply_drop"), Component.translatable("gui.contentstudio.loot.loots.tip.apply_drop"), button -> applyEditToSelected());
-        addButton = addButton(actionButtonX + 42, by, 38, Component.translatable("gui.contentstudio.loot.loots.add_drop"), Component.translatable("gui.contentstudio.loot.loots.tip.add_drop"), button -> addDrop());
-        deleteButton = addButton(actionButtonX + 84, by, 38, Component.translatable("gui.contentstudio.loot.loots.delete_drop"), Component.translatable("gui.contentstudio.loot.loots.tip.delete_drop"), button -> deleteSelectedDrop());
-        saveButton = addButton(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.save"), Component.translatable("gui.contentstudio.loot.loots.tip.save"), button -> saveCurrentJson());
-        resetButton = addButton(RIGHT_X + RIGHT_W - 148, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.reset"), Component.translatable("gui.contentstudio.loot.loots.tip.reset"), button -> {
-                    showResetConfirm = true;
-                    setResetConfirmButtons(true);
-                });
-if (!showEntityEditControls()) {
-            killedButton.visible = false;
-            lootingButton.visible = false;
-            fireButton.visible = false;
-            lootingMinBox.visible = false;
-            lootingMaxBox.visible = false;
+        overrideModeButton = addToggleButton(
+                modeButtonX, by, 58, overrideMode,
+                Component.translatable("gui.contentstudio.loot.loots.mode.override"),
+                Component.translatable("gui.contentstudio.loot.loots.mode.append"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.override_mode"),
+                value -> selectedEntry != null, value -> toggleOverrideMode()
+        );
+
+        applyButton = addButton(
+                actionButtonX, by, 38, Component.translatable("gui.contentstudio.loot.loots.apply_drop"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.apply_drop"), this::applyEditToSelected
+        );
+        addButton = addButton(
+                actionButtonX + 42, by, 38, Component.translatable("gui.contentstudio.loot.loots.add_drop"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.add_drop"), this::addDrop
+        );
+        deleteButton = addButton(
+                actionButtonX + 84, by, 38, Component.translatable("gui.contentstudio.loot.loots.delete_drop"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.delete_drop"), this::deleteSelectedDrop
+        );
+        saveButton = addButton(
+                RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.save"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.save"), this::saveCurrentJson
+        );
+        resetButton = addButton(
+                RIGHT_X + RIGHT_W - 148, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.reset"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.reset"), this::openResetConfirmDialog
+        );
+
+        if (!showEntityEditControls()) {
+            killedButton.setVisible(false);
+            lootingButton.setVisible(false);
+            fireButton.setVisible(false);
+            lootingMinBox.setVisible(false);
+            lootingMaxBox.setVisible(false);
         }
         if (usesGroupedLayout()) {
             hideInlineWidgets();
-            overrideModeButton.visible = true;
+            overrideModeButton.setVisible(true);
             overrideModeButton.setX(RIGHT_X + RIGHT_W - 212);
             overrideModeButton.setY(RIGHT_Y + 10);
         }
@@ -430,38 +449,62 @@ if (!showEntityEditControls()) {
     }
 
     private void hideInlineWidgets() {
-        if (itemBox != null) itemBox.visible = false;
-        if (chanceBox != null) chanceBox.visible = false;
-        if (rollsBox != null) rollsBox.visible = false;
-        if (countMinBox != null) countMinBox.visible = false;
-        if (countMaxBox != null) countMaxBox.visible = false;
-        if (weightBox != null) weightBox.visible = false;
-        if (lootingMinBox != null) lootingMinBox.visible = false;
-        if (lootingMaxBox != null) lootingMaxBox.visible = false;
-        if (killedButton != null) killedButton.visible = false;
-        if (lootingButton != null) lootingButton.visible = false;
-        if (fireButton != null) fireButton.visible = false;
-        if (applyButton != null) applyButton.visible = false;
-        if (addButton != null) addButton.visible = false;
-        if (deleteButton != null) deleteButton.visible = false;
+        if (itemBox != null) itemBox.setVisible(false);
+        if (chanceBox != null) chanceBox.setVisible(false);
+        if (rollsBox != null) rollsBox.setVisible(false);
+        if (countMinBox != null) countMinBox.setVisible(false);
+        if (countMaxBox != null) countMaxBox.setVisible(false);
+        if (weightBox != null) weightBox.setVisible(false);
+        if (lootingMinBox != null) lootingMinBox.setVisible(false);
+        if (lootingMaxBox != null) lootingMaxBox.setVisible(false);
+        if (killedButton != null) killedButton.setVisible(false);
+        if (lootingButton != null) lootingButton.setVisible(false);
+        if (fireButton != null) fireButton.setVisible(false);
+        if (applyButton != null) applyButton.setVisible(false);
+        if (addButton != null) addButton.setVisible(false);
+        if (deleteButton != null) deleteButton.setVisible(false);
     }
 
     private void initGroupedWidgets() {
-        addPoolHeaderButton = addButton(RIGHT_X + RIGHT_W - 276, RIGHT_Y + 10, 58, Component.translatable("gui.contentstudio.loot.loots.pool.add"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.add"), button -> addGroupedPool());
-groupArrowButtons = new Button[GROUP_BUTTON_SLOTS];
-        groupAddButtons = new Button[GROUP_BUTTON_SLOTS];
-        groupPoolEditButtons = new Button[GROUP_BUTTON_SLOTS];
-        groupPoolDeleteButtons = new Button[GROUP_BUTTON_SLOTS];
-        groupEntryDeleteButtons = new Button[GROUP_BUTTON_SLOTS];
-        groupEntryEditButtons = new Button[GROUP_BUTTON_SLOTS];
+        addPoolHeaderButton = addButton(
+                RIGHT_X + RIGHT_W - 276, RIGHT_Y + 10, 58,
+                Component.translatable("gui.contentstudio.loot.loots.pool.add"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.pool.add"),
+                this::addGroupedPool
+        );
+
+        groupArrowButtons = new StateButton[GROUP_BUTTON_SLOTS];
+        groupAddButtons = new StateButton[GROUP_BUTTON_SLOTS];
+        groupPoolEditButtons = new StateButton[GROUP_BUTTON_SLOTS];
+        groupPoolDeleteButtons = new StateButton[GROUP_BUTTON_SLOTS];
+        groupEntryDeleteButtons = new StateButton[GROUP_BUTTON_SLOTS];
+        groupEntryEditButtons = new StateButton[GROUP_BUTTON_SLOTS];
         for (int i = 0; i < GROUP_BUTTON_SLOTS; i++) {
             int slot = i;
-            groupArrowButtons[i] = addButton(RIGHT_X + 10, -1000, 18, Component.literal("▶"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.expand"), button -> toggleGroupedPool(slot));
-            groupAddButtons[i] = addButton(RIGHT_X + RIGHT_W - 141, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.pool.add_reward"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward"), button -> addGroupedReward(slot));
-            groupPoolEditButtons[i] = addButton(RIGHT_X + RIGHT_W - 93, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.edit.short"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.edit"), button -> editGroupedPool(slot));
-            groupPoolDeleteButtons[i] = addButton(RIGHT_X + RIGHT_W - 53, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.delete.short"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), button -> confirmGroupedPoolDelete(slot));
-            groupEntryEditButtons[i] = addButton(RIGHT_X + RIGHT_W - 61, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.edit.short"), Component.translatable("gui.contentstudio.loot.loots.tip.drop.edit"), button -> editGroupedEntry(slot));
-            groupEntryDeleteButtons[i] = addButton(RIGHT_X + RIGHT_W - 109, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.delete.short"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.delete"), button -> deleteGroupedEntry(slot));
+            groupArrowButtons[i] = addButton(
+                    RIGHT_X + 10, -1000, 18, Component.translatable("gui.contentstudio.common.expand_symbol"),
+                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.expand"), () -> toggleGroupedPool(slot)
+            );
+            groupAddButtons[i] = addButton(
+                    RIGHT_X + RIGHT_W - 141, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.pool.add_reward"),
+                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward"), () -> addGroupedReward(slot)
+            );
+            groupPoolEditButtons[i] = addButton(
+                    RIGHT_X + RIGHT_W - 93, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.edit.short"),
+                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.edit"), () -> editGroupedPool(slot)
+            );
+            groupPoolDeleteButtons[i] = addButton(
+                    RIGHT_X + RIGHT_W - 53, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.delete.short"),
+                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), () -> confirmGroupedPoolDelete(slot)
+            );
+            groupEntryEditButtons[i] = addButton(
+                    RIGHT_X + RIGHT_W - 61, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.edit.short"),
+                    Component.translatable("gui.contentstudio.loot.loots.tip.drop.edit"), () -> editGroupedEntry(slot)
+            );
+            groupEntryDeleteButtons[i] = addButton(
+                    RIGHT_X + RIGHT_W - 109, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.delete.short"),
+                    Component.translatable("gui.contentstudio.loot.loots.tip.entry.delete"), () -> deleteGroupedEntry(slot)
+            );
             hideGroupSlot(i);
         }
     }
@@ -470,12 +513,12 @@ groupArrowButtons = new Button[GROUP_BUTTON_SLOTS];
         if (groupArrowButtons == null || slot < 0 || slot >= GROUP_BUTTON_SLOTS) {
             return;
         }
-        groupArrowButtons[slot].visible = false;
-        groupAddButtons[slot].visible = false;
-        groupPoolEditButtons[slot].visible = false;
-        groupPoolDeleteButtons[slot].visible = false;
-        groupEntryDeleteButtons[slot].visible = false;
-        groupEntryEditButtons[slot].visible = false;
+        groupArrowButtons[slot].setVisible(false);
+        groupAddButtons[slot].setVisible(false);
+        groupPoolEditButtons[slot].setVisible(false);
+        groupPoolDeleteButtons[slot].setVisible(false);
+        groupEntryDeleteButtons[slot].setVisible(false);
+        groupEntryEditButtons[slot].setVisible(false);
     }
 
     protected boolean showEntityEditControls() {
@@ -494,63 +537,28 @@ groupArrowButtons = new Button[GROUP_BUTTON_SLOTS];
         return x0 + 206;
     }
 
-    private void setResetConfirmButtons(boolean visible) {
-        if (confirmResetButton != null) {
-            confirmResetButton.visible = visible;
-            confirmResetButton.active = visible;
-        }
-        if (cancelResetButton != null) {
-            cancelResetButton.visible = visible;
-            cancelResetButton.active = visible;
-        }
-
-        setModalBlockedWidgets(!visible);
-        updateButtons();
-    }
-
-    private void setModalBlockedWidgets(boolean active) {
-        if (searchBox != null) searchBox.active = active;
-        if (itemBox != null) itemBox.active = active;
-        if (chanceBox != null) chanceBox.active = active;
-        if (rollsBox != null) rollsBox.active = active;
-        if (countMinBox != null) countMinBox.active = active;
-        if (countMaxBox != null) countMaxBox.active = active;
-        if (weightBox != null) weightBox.active = active;
-        if (lootingMinBox != null) lootingMinBox.active = active;
-        if (lootingMaxBox != null) lootingMaxBox.active = active;
-        if (killedButton != null) killedButton.active = active;
-        if (lootingButton != null) lootingButton.active = active;
-        if (fireButton != null) fireButton.active = active;
-        if (overrideModeButton != null) overrideModeButton.active = active;
-        if (applyButton != null) applyButton.active = active;
-        if (deleteButton != null) deleteButton.active = active;
-        if (saveButton != null) saveButton.active = active;
-        if (resetButton != null) resetButton.active = active;
-        if (addPoolHeaderButton != null) addPoolHeaderButton.active = active && selectedEntry != null;
-        setGroupedButtonsActive(active);
-    }
-
     private void setGroupedButtonsActive(boolean active) {
         if (groupArrowButtons == null) {
             return;
         }
         for (int i = 0; i < GROUP_BUTTON_SLOTS; i++) {
-            groupArrowButtons[i].active = active;
-            groupAddButtons[i].active = active;
-            groupPoolEditButtons[i].active = active;
-            groupPoolDeleteButtons[i].active = active && poolCountForGroupedLayout() > 1;
-            groupEntryDeleteButtons[i].active = active;
-            groupEntryEditButtons[i].active = active;
+            groupArrowButtons[i].setEnabled(active);
+            groupAddButtons[i].setEnabled(active);
+            groupPoolEditButtons[i].setEnabled(active);
+            groupPoolDeleteButtons[i].setEnabled(active && poolCountForGroupedLayout() > 1);
+            groupEntryDeleteButtons[i].setEnabled(active);
+            groupEntryEditButtons[i].setEnabled(active);
         }
     }
 
-    private EditBox numberBox(int x, int y, String tooltipKey, String defaultValue, NumericInputType inputType) {
-        EditBox box = addTextField(x, y, 34, Component.empty());
+    private KineticEditBox numberBox(int x, int y, String tooltipKey, String defaultValue, NumericInputType inputType) {
+        KineticEditBox box = addTextField(
+                x, y, 34, Component.empty(), null, null, Component.translatable(tooltipKey)
+        );
         box.setMaxLength(16);
         box.setFilter(value -> isAllowedNumericInput(value, inputType));
         box.setValue(defaultValue);
-        registerWidgetTooltip(box, Component.translatable(tooltipKey));
-return box;
+        return box;
     }
 
     private boolean isAllowedNumericInput(String value, NumericInputType inputType) {
@@ -575,10 +583,10 @@ return box;
     }
 
     private void showNumericInputToast(String translationKey) {
-        GuiOverlay.toast(
+        KineticOverlays.toast(
                 "loots_number_input",
                 Component.translatable(translationKey),
-                GuiOverlay.Position.BOTTOM_CENTER,
+                KineticOverlays.Position.BOTTOM_CENTER,
                 3000,
                 0,
                 -30
@@ -683,7 +691,7 @@ return box;
     }
 
     protected int targetScrollbarThumbHeight() {
-        return Scroll.calculateThumbHeight(targetAreaHeight(), targetVisibleRows(), targetTotalRows(), 24);
+        return KineticScroll.stateThumbHeight(targetAreaHeight(), targetVisibleRows(), targetTotalRows(), 24);
     }
 
     protected void renderTargetScrollbar(GuiGraphics g, int mx, int my) {
@@ -695,18 +703,20 @@ return box;
         int width = 4;
         int height = targetAreaHeight() - 2;
         int thumbHeight = Math.min(height, targetScrollbarThumbHeight());
-        int travel = Math.max(0, height - thumbHeight);
         double smoothTarget = smoothTargetScroll();
-        int thumbY = y + (maxTargetScroll <= 0
-                ? 0
-                : (int) Math.round(smoothTarget * travel / maxTargetScroll));
-        boolean hovered = mx >= x && mx < x + width && my >= y && my < y + height;
-        int thumbColor = hovered || draggingTargetScroll
-                ? GuiTheme.current().scrollThumbHover()
-                : GuiTheme.current().scrollThumb();
-        g.fill(x, y, x + width, y + height, GuiTheme.current().scrollTrack());
-        g.renderOutline(x, y, width, height, GuiTheme.current().border());
-        g.fill(x + 1, thumbY + 1, x + width - 1, thumbY + Math.max(2, thumbHeight - 1), thumbColor);
+        GuiTheme.scrollbar(
+                g,
+                mx,
+                my,
+                x,
+                y,
+                width,
+                height,
+                thumbHeight,
+                maxTargetScroll,
+                smoothTarget,
+                draggingTargetScroll
+        );
     }
 
     protected String lootTableType() {
@@ -795,19 +805,19 @@ return box;
                 Boolean.toString(enableFireSmelt));
     }
 
-    private boolean hasUnappliedEditorChanges() {
-        return selectedDrop != null && !Objects.equals(selectedDropEditorSnapshot, currentEditorSnapshot());
+    private boolean hasNoUnappliedEditorChanges() {
+        return selectedDrop == null || Objects.equals(selectedDropEditorSnapshot, currentEditorSnapshot());
     }
 
-    private boolean commitSelectedDropEditorChanges() {
-        if (!hasUnappliedEditorChanges()) {
-            return true;
+    private boolean failsToCommitSelectedDropEditorChanges() {
+        if (hasNoUnappliedEditorChanges()) {
+            return false;
         }
         if (selectedDrop == null || selectedDrop.entry == null || selectedDrop.pool == null) {
-            return true;
+            return false;
         }
         if (hasEditorValueError(selectedDrop.entry, selectedDrop.pool)) {
-            return false;
+            return true;
         }
         dirty = true;
         selectedJson = GSON.toJson(currentRoot);
@@ -819,7 +829,7 @@ return box;
         selectedDropEditorSnapshot = currentEditorSnapshot();
         infoLines = buildInfoLines();
         updateButtons();
-        return true;
+        return false;
     }
 
     protected void selectEntry(LootEntryInfo entry) {
@@ -832,7 +842,7 @@ return box;
             return;
         }
         if (currentKey != null) {
-            if (!commitSelectedDropEditorChanges()) {
+            if (failsToCommitSelectedDropEditorChanges()) {
                 return;
             }
             stashCurrentDraft();
@@ -888,7 +898,7 @@ return box;
 
     public void applySaveResult(int packetMode, String targetId, String lootTableId, String json, boolean overridden, boolean success, Component message) {
         if (packetMode != mode) {
-            GuiOverlay.toast(message);
+            KineticOverlays.toast(message);
             return;
         }
 
@@ -900,7 +910,7 @@ return box;
 
         if (!batchResult) {
             if (!currentSelection) {
-                GuiOverlay.toast(message);
+                KineticOverlays.toast(message);
                 return;
             }
             if (success && (json == null || json.isBlank())) {
@@ -920,7 +930,7 @@ return box;
             if (success) {
                 commitDraft();
             }
-            GuiOverlay.toast(message);
+            KineticOverlays.toast(message);
             return;
         }
 
@@ -955,7 +965,7 @@ return box;
             saveBatchHadFailure = true;
         }
 
-        GuiOverlay.toast(message);
+        KineticOverlays.toast(message);
         if (!isSavingBatch()) {
             if (!saveBatchHadFailure && pendingTableDrafts.isEmpty() && pendingTableResets.isEmpty()) {
                 commitDraft();
@@ -1199,8 +1209,8 @@ return box;
             return true;
         }
         try {
-            ResourceLocation id = new ResourceLocation(name);
-            Item item = ForgeRegistries.ITEMS.getValue(id);
+            ResourceLocation id = KineticResourceIds.parse(name);
+            Item item = KineticRegistries.items().get(id);
             return item == null || item == Items.AIR;
         } catch (Exception ignored) {
             return true;
@@ -1255,7 +1265,7 @@ return box;
             return new ItemStack(Items.CHEST);
         }
         try {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(name));
+            Item item = KineticRegistries.items().get(KineticResourceIds.parse(name));
             if (item != null && item != Items.AIR) {
                 ItemStack stack = new ItemStack(item);
                 LootJsonEditUtil.applyItemNbt(entry, stack);
@@ -1278,9 +1288,9 @@ return box;
         requirePlayerKill = false;
         enableLooting = false;
         enableFireSmelt = false;
-        if (killedButton != null) killedButton.setMessage(getKilledText());
-        if (lootingButton != null) lootingButton.setMessage(getLootingText());
-        if (fireButton != null) fireButton.setMessage(getFireText());
+        if (killedButton != null) killedButton.setValue(requirePlayerKill);
+        if (lootingButton != null) lootingButton.setValue(enableLooting);
+        if (fireButton != null) fireButton.setValue(enableFireSmelt);
         selectedDropEditorSnapshot = "";
     }
 
@@ -1316,14 +1326,14 @@ return box;
             lootingMaxBox.setValue("0");
         }
         requirePlayerKill = entryHasKilledByPlayer(selectedDrop.entry);
-        killedButton.setMessage(getKilledText());
-        lootingButton.setMessage(getLootingText());
-        if (fireButton != null) fireButton.setMessage(getFireText());
+        killedButton.setValue(requirePlayerKill);
+        lootingButton.setValue(enableLooting);
+        if (fireButton != null) fireButton.setValue(enableFireSmelt);
         selectedDropEditorSnapshot = currentEditorSnapshot();
         updateButtons();
     }
 
-    private void setRangeFields(JsonElement element, EditBox minBox, EditBox maxBox, String fallback) {
+    private void setRangeFields(JsonElement element, KineticEditBox minBox, KineticEditBox maxBox, String fallback) {
         if (element != null && element.isJsonObject()) {
             JsonObject object = element.getAsJsonObject();
             minBox.setValue(object.has("min") ? trimNumber(readDouble(object.get("min"), 1.0D)) : fallback);
@@ -1369,7 +1379,7 @@ return box;
 
     private void applyEditToSelected() {
         if (selectedDrop == null || selectedDrop.entry == null) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
             return;
         }
         if (hasEditorValueError(selectedDrop.entry, selectedDrop.pool)) {
@@ -1400,12 +1410,12 @@ return box;
             currentRoot = appendModeBackupRoot == null ? createRootFromSelectedJson() : appendModeBackupRoot.deepCopy();
             appendModeBackupRoot = null;
             overrideMode = false;
-            dirty = !isCurrentRootSameAsSelectedJson();
+            dirty = isCurrentRootDifferentFromSelectedJson();
         }
 
         selectedDrop = null;
         if (overrideModeButton != null) {
-            overrideModeButton.setMessage(getOverrideModeText());
+            overrideModeButton.setValue(overrideMode);
         }
         rebuildVisualData();
         updateButtons();
@@ -1420,12 +1430,12 @@ return box;
         }
     }
 
-    private boolean isCurrentRootSameAsSelectedJson() {
+    private boolean isCurrentRootDifferentFromSelectedJson() {
         try {
             JsonElement element = JsonParser.parseString(selectedJson == null ? "" : selectedJson);
-            return currentRoot != null && element.isJsonObject() && currentRoot.equals(element.getAsJsonObject());
+            return currentRoot == null || !element.isJsonObject() || !currentRoot.equals(element.getAsJsonObject());
         } catch (Exception ignored) {
-            return false;
+            return true;
         }
     }
 
@@ -1445,7 +1455,7 @@ return box;
 
     private void deleteSelectedDrop() {
         if (selectedDrop == null || selectedDrop.parentEntries == null) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
             return;
         }
         selectedDrop.parentEntries.remove(selectedDrop.entryIndex);
@@ -1454,8 +1464,8 @@ return box;
 
     private boolean hasEditorValueError(JsonObject entry, JsonObject pool) {
         String itemId = itemBox.getValue().trim();
-        if (!isValidItemId(itemId)) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.invalid_item"));
+        if (isInvalidItemId(itemId)) {
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.invalid_item"));
             return true;
         }
         if (hasEmptyNumericField()) {
@@ -1526,7 +1536,7 @@ return box;
                 || isEmpty(lootingMaxBox);
     }
 
-    private boolean isEmpty(EditBox box) {
+    private boolean isEmpty(KineticEditBox box) {
         return box == null || box.getValue().trim().isEmpty();
     }
 
@@ -1540,16 +1550,16 @@ return box;
         if (isEmpty(lootingMaxBox)) lootingMaxBox.setValue("0");
     }
 
-    private boolean isValidItemId(String itemId) {
+    private boolean isInvalidItemId(String itemId) {
         try {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
-            return item != null && item != Items.AIR;
+            Item item = KineticRegistries.items().get(KineticResourceIds.parse(itemId));
+            return item == null || item == Items.AIR;
         } catch (Exception e) {
-            return false;
+            return true;
         }
     }
 
-    private Integer parseIntegerBox(EditBox box) {
+    private Integer parseIntegerBox(KineticEditBox box) {
         try {
             return Integer.parseInt(box.getValue().trim());
         } catch (Exception e) {
@@ -1557,7 +1567,7 @@ return box;
         }
     }
 
-    private Double parseDoubleBox(EditBox box) {
+    private Double parseDoubleBox(KineticEditBox box) {
         try {
             return Double.parseDouble(box.getValue().trim());
         } catch (Exception e) {
@@ -1565,7 +1575,7 @@ return box;
         }
     }
 
-    private RollRange parseRollRange(EditBox box) {
+    private RollRange parseRollRange(KineticEditBox box) {
         try {
             String value = box.getValue().trim().replace(" ", "");
             int separator = value.indexOf('-');
@@ -1581,7 +1591,7 @@ return box;
         }
     }
 
-    private void enforceAtLeastOne(EditBox box) {
+    private void enforceAtLeastOne(KineticEditBox box) {
         Integer value = parseIntegerBox(box);
         if (value == null || value < 1) {
             box.setValue("1");
@@ -1817,7 +1827,7 @@ return box;
         if (selectedEntry == null || currentRoot == null || isSavingBatch()) {
             return;
         }
-        if (!commitSelectedDropEditorChanges()) {
+        if (failsToCommitSelectedDropEditorChanges()) {
             return;
         }
         stashCurrentDraft();
@@ -1846,12 +1856,24 @@ return box;
         updateButtons();
     }
 
+    private void openResetConfirmDialog() {
+        if (selectedEntry == null || isSavingBatch()) {
+            return;
+        }
+        openDialog(
+                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.title"),
+                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.desc"),
+                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.yes"),
+                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.cancel"),
+                this::resetCurrentJson,
+                () -> { }
+        );
+    }
+
     private void resetCurrentJson() {
         if (selectedEntry == null || isSavingBatch()) {
             return;
         }
-        showResetConfirm = false;
-        setResetConfirmButtons(false);
         LootNetwork.sendToServer(new LootNetwork.RequestResetPreviewPacket(mode, selectedEntry.targetId(), selectedEntry.lootTableId()));
     }
 
@@ -1881,9 +1903,9 @@ return box;
         if (this.minecraft == null) {
             return;
         }
-        this.minecraft.setScreen(new ItemSelectorScreen(this, selection -> {
+        KineticSelectors.openItemSelector(this, selection -> {
             if (selection != null && selection.isItem()) {
-                ResourceLocation id = ForgeRegistries.ITEMS.getKey(selection.stack().getItem());
+                ResourceLocation id = KineticRegistries.items().id(selection.stack().getItem());
                 if (id != null && itemBox != null) {
                     pendingPickedItemId = id.toString();
                     pendingPickedItemStackId = id.toString();
@@ -1892,7 +1914,7 @@ return box;
                     itemBox.setValue(id.toString());
                 }
             }
-        }));
+        });
     }
 
     private void appendReadableConditions(List<Component> lines, JsonElement element) {
@@ -2294,20 +2316,22 @@ return box;
                 continue;
             }
             if (row.isPool()) {
-                groupArrowButtons[slot].visible = true;
+                groupArrowButtons[slot].setVisible(true);
                 groupArrowButtons[slot].setY(row.y + 2);
-                groupArrowButtons[slot].setMessage(Component.literal(expandedPools.contains(row.poolIndex) ? "▼" : "▶"));
-                groupAddButtons[slot].visible = true;
+                groupArrowButtons[slot].setText(Component.translatable(expandedPools.contains(row.poolIndex)
+                        ? "gui.contentstudio.common.collapse_symbol"
+                        : "gui.contentstudio.common.expand_symbol"));
+                groupAddButtons[slot].setVisible(true);
                 groupAddButtons[slot].setY(row.y + 2);
-                groupPoolEditButtons[slot].visible = true;
+                groupPoolEditButtons[slot].setVisible(true);
                 groupPoolEditButtons[slot].setY(row.y + 2);
-                groupPoolDeleteButtons[slot].visible = true;
-                groupPoolDeleteButtons[slot].active = poolCountForGroupedLayout() > 1 && !showResetConfirm;
+                groupPoolDeleteButtons[slot].setVisible(true);
+                groupPoolDeleteButtons[slot].setEnabled(poolCountForGroupedLayout() > 1);
                 groupPoolDeleteButtons[slot].setY(row.y + 2);
             } else {
-                groupEntryDeleteButtons[slot].visible = true;
+                groupEntryDeleteButtons[slot].setVisible(true);
                 groupEntryDeleteButtons[slot].setY(row.y + 5);
-                groupEntryEditButtons[slot].visible = true;
+                groupEntryEditButtons[slot].setVisible(true);
                 groupEntryEditButtons[slot].setY(row.y + 5);
             }
         }
@@ -2338,21 +2362,34 @@ return box;
     private void editGroupedPool(int slot) {
         GroupRow row = visibleGroupRow(slot);
         if (row != null && row.isPool() && minecraft != null) {
-            minecraft.setScreen(new LootPoolEditScreen(this, row.poolIndex, groupedPool(row.poolIndex).deepCopy()));
+            KineticClientRuntime.openScreen(new LootPoolEditScreen(this, row.poolIndex, groupedPool(row.poolIndex).deepCopy()));
         }
     }
 
     private void confirmGroupedPoolDelete(int slot) {
         GroupRow row = visibleGroupRow(slot);
-        if (row != null && row.isPool() && minecraft != null) {
-            minecraft.setScreen(new LootPoolDeleteConfirmScreen(this, this, row.poolIndex));
+        if (row == null || !row.isPool()) {
+            return;
         }
+        int poolIndex = row.poolIndex;
+        openDialog(
+                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
+                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
+                Component.translatable("gui.contentstudio.loot.loots.confirm.delete"),
+                Component.translatable("gui.contentstudio.loot.loots.confirm.cancel"),
+                () -> {
+                    if (deletePoolFromEditor(poolIndex)) {
+                        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.deleted"));
+                    }
+                },
+                () -> { }
+        );
     }
 
     private void editGroupedEntry(int slot) {
         GroupRow row = visibleGroupRow(slot);
         if (row != null && !row.isPool() && row.visual != null && minecraft != null) {
-            minecraft.setScreen(new LootEntryEditScreen(this, row.visual));
+            KineticClientRuntime.openScreen(new LootEntryEditScreen(this, row.visual));
         }
     }
 
@@ -2360,7 +2397,7 @@ return box;
         GroupRow row = visibleGroupRow(slot);
         if (row != null && !row.isPool() && row.visual != null) {
             deleteEntryFromEditor(row.visual);
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.entry.deleted"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.entry.deleted"));
         }
     }
 
@@ -2374,7 +2411,7 @@ return box;
         expandedPools.add(poolIndex);
         markDirtyAndRebuild(null);
         if (minecraft != null) {
-            minecraft.setScreen(new LootPoolEditScreen(this, poolIndex, groupedPool(poolIndex).deepCopy()));
+            KineticClientRuntime.openScreen(new LootPoolEditScreen(this, poolIndex, groupedPool(poolIndex).deepCopy()));
         }
     }
 
@@ -2382,11 +2419,11 @@ return box;
         if (minecraft == null) {
             return;
         }
-        minecraft.setScreen(new ItemSelectorScreen(this, selection -> {
+        KineticSelectors.openItemSelector(this, selection -> {
             if (selection == null || !selection.isItem()) {
                 return;
             }
-            ResourceLocation id = ForgeRegistries.ITEMS.getKey(selection.stack().getItem());
+            ResourceLocation id = KineticRegistries.items().id(selection.stack().getItem());
             if (id == null) {
                 return;
             }
@@ -2404,8 +2441,8 @@ return box;
             groupedPool(poolIndex).getAsJsonArray("entries").add(entry);
             expandedPools.add(poolIndex);
             markDirtyAndRebuild(entry);
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.drop.added"));
-        }));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.drop.added"));
+        });
     }
 
     void applyEntryEdit(DropVisual original, JsonObject updated) {
@@ -2439,7 +2476,7 @@ return box;
     boolean deletePoolFromEditor(int poolIndex) {
         JsonArray pools = getPools();
         if (pools.size() <= 1) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.pool.keep_one"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.keep_one"));
             return false;
         }
         if (poolIndex < 0 || poolIndex >= pools.size()) {
@@ -2486,42 +2523,29 @@ return box;
     }
 
     protected void updateButtons() {
-        if (showResetConfirm) {
-            setModalBlockedWidgets(false);
-            if (confirmResetButton != null) {
-                confirmResetButton.visible = true;
-                confirmResetButton.active = true;
-            }
-            if (cancelResetButton != null) {
-                cancelResetButton.visible = true;
-                cancelResetButton.active = true;
-            }
-            return;
-        }
-
         boolean hasEntry = selectedEntry != null;
         boolean hasDrop = selectedDrop != null;
         boolean specialPanel = isSpecialPanelActive();
         boolean saving = isSavingBatch();
         if (saveButton != null) {
-            saveButton.visible = !specialPanel;
-            saveButton.active = !specialPanel && hasEntry && !saving;
+            saveButton.setVisible(!specialPanel);
+            saveButton.setEnabled(!specialPanel && hasEntry && !saving);
         }
         if (resetButton != null) {
-            resetButton.visible = !specialPanel;
-            resetButton.active = !specialPanel && hasEntry && !saving;
+            resetButton.setVisible(!specialPanel);
+            resetButton.setEnabled(!specialPanel && hasEntry && !saving);
         }
         if (addPoolHeaderButton != null) {
-            addPoolHeaderButton.visible = !specialPanel;
-            addPoolHeaderButton.active = !specialPanel && hasEntry;
+            addPoolHeaderButton.setVisible(!specialPanel);
+            addPoolHeaderButton.setEnabled(!specialPanel && hasEntry);
         }
-        if (deleteButton != null) deleteButton.active = !specialPanel && hasDrop;
-        if (applyButton != null) applyButton.active = !specialPanel && hasDrop;
-        if (fireButton != null) fireButton.active = !specialPanel && hasEntry;
+        if (deleteButton != null) deleteButton.setEnabled(!specialPanel && hasDrop);
+        if (applyButton != null) applyButton.setEnabled(!specialPanel && hasDrop);
+        if (fireButton != null) fireButton.setEnabled(!specialPanel && hasEntry);
         if (overrideModeButton != null) {
-            overrideModeButton.visible = !specialPanel;
-            overrideModeButton.active = !specialPanel && hasEntry;
-            overrideModeButton.setMessage(getOverrideModeText());
+            overrideModeButton.setVisible(!specialPanel);
+            overrideModeButton.setEnabled(!specialPanel && hasEntry);
+            overrideModeButton.setValue(overrideMode);
         }
         if (usesGroupedLayout()) {
             setGroupedButtonsActive(!specialPanel && hasEntry);
@@ -2550,8 +2574,7 @@ return box;
 
     @Override
     protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, V_WIDTH, V_HEIGHT, 0xFA1E1E1E);
-        g.renderOutline(0, 0, V_WIDTH, V_HEIGHT, 0xFF555555);
+        GuiTheme.panel(g, 0, 0, V_WIDTH, V_HEIGHT);
         drawPanel(g, LEFT_X - 2, RIGHT_Y - 2, TARGET_WIDTH + 14, RIGHT_H + 4);
         drawPanel(g, RIGHT_X - 2, RIGHT_Y - 2, RIGHT_W + 4, RIGHT_H + 4);
         if (isSpecialPanelActive()) {
@@ -2567,35 +2590,7 @@ return box;
     }
 
     private void drawPanel(GuiGraphics g, int x, int y, int w, int h) {
-        g.fill(x, y, x + w, y + h, 0xAA000000);
-        g.renderOutline(x, y, w, h, 0xFFFFAA00);
-    }
-
-    private void renderResetConfirmOverlay(GuiGraphics g, int mx, int my, float pt) {
-        g.flush();
-        RenderSystem.disableDepthTest();
-        g.pose().pushPose();
-        g.pose().translate(0.0F, 0.0F, 1000.0F);
-        try {
-            int x = V_WIDTH / 2 - 140;
-            int y = V_HEIGHT / 2 - 54;
-            int w = 280;
-            int h = 100;
-            g.fill(0, 0, V_WIDTH, V_HEIGHT, 0xF0000000);
-            g.fill(x, y, x + w, y + h, 0xFF101010);
-            g.renderOutline(x, y, w, h, 0xFFFFAA00);
-            g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.reset.confirm.title"), V_WIDTH / 2, y + 14, 0xFFFFAA00);
-            g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.reset.confirm.desc"), V_WIDTH / 2, y + 34, 0xFFFFFFFF);
-            if (confirmResetButton != null) {
-                confirmResetButton.render(g, mx, my, pt);
-            }
-            if (cancelResetButton != null) {
-                cancelResetButton.render(g, mx, my, pt);
-            }
-        } finally {
-            g.pose().popPose();
-            RenderSystem.enableDepthTest();
-        }
+        GuiTheme.stateSurface(g, x, y, w, h, GuiTheme.Surface.PANEL_ALT, true, false, false);
     }
 
     @Override
@@ -2612,17 +2607,9 @@ return box;
             renderEditorItemPreview(g, mx, my);
             renderDropPanel(g, mx, my);
         }
-        renderTextFieldPlaceholder(
-                g,
-                searchBox,
-                Component.translatable("gui.contentstudio.loot.loots.search_hint")
-        );
         if (selectedEntry == null) {
             int centerY = usesGroupedLayout() ? GROUP_Y + GROUP_H / 2 : DROP_Y + DROP_H / 2;
             g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.no_selection"), RIGHT_X + RIGHT_W / 2, centerY, 0xFFFFAA00);
-        }
-        if (showResetConfirm) {
-            renderResetConfirmOverlay(g, mx, my, pt);
         }
     }
 
@@ -2636,7 +2623,7 @@ return box;
         g.drawString(font, getTitle(), RIGHT_X + 6, RIGHT_Y + 6, 0xFFFFAA00, false);
         if (isSpecialPanelActive() && selectedEntry != null) {
             String display = getDisplayName(selectedEntry);
-            KineticText.drawScrollingLeft(g, font, display, RIGHT_X + 6, RIGHT_Y + 28, RIGHT_W - 62, 0xFFFFD75F, false);
+            g.drawString(font, trim(font, display, RIGHT_W - 62), RIGHT_X + 6, RIGHT_Y + 28, 0xFFFFD75F, false);
             if (mx >= RIGHT_X + 6 && mx <= RIGHT_X + RIGHT_W - 56 && my >= RIGHT_Y + 26 && my <= RIGHT_Y + 38) {
                 deferredTooltip = List.of(nameComponent(display), idComponent(selectedEntry.lootTableId()));
             }
@@ -2649,10 +2636,10 @@ return box;
             boolean translatedName = selectedEntry != null
                     && !getDisplayName(selectedEntry).equals(selectedEntry.lootTableId());
             int tableColor = translatedName ? 0xFFFFD75F : 0xFF55FFFF;
-            KineticText.drawScrollingLeft(g, font, infoLines.get(0), textX, textY, textWidth, tableColor, false);
+            g.drawString(font, trim(font, infoLines.get(0).getString(), textWidth), textX, textY, tableColor, false);
         }
         if (selectedEntry != null && !usesGroupedLayout()) {
-            KineticText.drawScrollingLeft(g, font, Component.translatable("gui.contentstudio.loot.loots.tip.compact_header"), textX, textY + 12, textWidth, 0xFFE6E6E6, false);
+            g.drawString(font, trim(font, Component.translatable("gui.contentstudio.loot.loots.tip.compact_header").getString(), textWidth), textX, textY + 12, 0xFFE6E6E6, false);
         }
         int hoverHeight = usesGroupedLayout() ? 10 : 22;
         if (mx >= textX && mx <= textX + textWidth && my >= textY && my <= textY + hoverHeight && !infoLines.isEmpty()) {
@@ -2713,7 +2700,7 @@ return box;
         ItemStack stack = editorPreviewStack();
         boolean hovered = mx >= x && mx <= x + EDIT_ICON && my >= y && my <= y + EDIT_ICON;
         drawCheckerboard(g, stack, x, y, EDIT_ICON, EDIT_ICON, 5, hovered);
-        g.renderOutline(x, y, EDIT_ICON, EDIT_ICON, GuiTheme.current().accentHover());
+        GuiTheme.stateOutline(g, x, y, EDIT_ICON, EDIT_ICON, true, hovered, false);
         if (!stack.isEmpty()) {
             int itemOffset = (EDIT_ICON - 16) / 2;
             g.pose().pushPose();
@@ -2746,7 +2733,7 @@ return box;
             return pendingPickedItemStack.copy();
         }
         try {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
+            Item item = KineticRegistries.items().get(KineticResourceIds.parse(itemId));
             if (item != null && item != Items.AIR) {
                 ItemStack stack = new ItemStack(item);
                 if (selectedDrop != null && itemId.equals(safeString(selectedDrop.entry.get("name")))) {
@@ -2774,7 +2761,7 @@ return box;
             g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, GROUP_Y + GROUP_H / 2, 0xFFFFAA00);
             return;
         }
-        enableCanvasScissor(g, RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
+        enableUiScissor(g, RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
         try {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
@@ -2784,13 +2771,13 @@ return box;
                 }
             }
         } finally {
-            disableCanvasScissor(g);
+            disableUiScissor(g);
         }
         if (maxGroupScroll > 0) {
             int trackH = GROUP_H - 12;
-            int thumbH = Scroll.calculateThumbHeight(trackH,
+            int thumbH = KineticScroll.stateThumbHeight(trackH,
                     Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-            Scroll.renderScrollbar(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH,
+            KineticScroll.renderScrollbarState(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH,
                     thumbH, maxGroupScroll,
                     groupScrollState.follow(groupScroll, maxGroupScroll, draggingGroupScroll),
                     draggingGroupScroll);
@@ -2798,7 +2785,7 @@ return box;
     }
 
     private void renderGroupedRowBackgrounds(GuiGraphics g, int mx, int my) {
-        enableCanvasScissor(g, RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
+        enableUiScissor(g, RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
         try {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
@@ -2806,20 +2793,23 @@ return box;
                 int width = RIGHT_W - 24;
                 boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
                 int drawHeight = GROUP_POOL_H - GROUP_ROW_GAP;
-                g.fill(x, row.y, x + width, row.y + drawHeight, hover ? 0xFF3A321C : 0xFF2D291B);
-                g.renderOutline(x, row.y, width, drawHeight, hover ? 0xFFFFDD55 : 0xFFFFAA00);
+                GuiTheme.stateSurface(
+                        g, x, row.y, width, drawHeight,
+                        GuiTheme.Surface.PANEL_ALT, false, hover, false
+                );
             } else {
                 int x = RIGHT_X + 10;
                 int width = RIGHT_W - 26;
                 int drawHeight = GROUP_ENTRY_H - GROUP_ROW_GAP;
                 boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + drawHeight;
-                g.fill(x, row.y, x + width, row.y + drawHeight, hover ? 0xFF333333 : 0xFF242424);
-                int border = row.visual.loadError ? 0xFFFF3333 : hover ? 0xFF55FF55 : 0xFF666666;
-                g.renderOutline(x, row.y, width, drawHeight, border);
+                GuiTheme.stateSurface(
+                        g, x, row.y, width, drawHeight,
+                        GuiTheme.Surface.PANEL_ALT, false, hover, row.visual.loadError
+                );
                 }
             }
         } finally {
-            disableCanvasScissor(g);
+            disableUiScissor(g);
         }
     }
 
@@ -2837,7 +2827,7 @@ return box;
                         numberComponent(readRollsForEditor(pool)),
                         numberComponent(entryCount))
                 .withStyle(ChatFormatting.GRAY);
-        enableCanvasScissor(
+        enableUiScissor(
                 g,
                 RIGHT_X + 34,
                 row.y + 1,
@@ -2845,7 +2835,7 @@ return box;
                 row.y + GROUP_POOL_H - 2
         );
         g.drawString(font, line, RIGHT_X + 34, row.y + 8, 0xFFFFFFFF, false);
-        disableCanvasScissor(g);
+        disableUiScissor(g);
         if (hover && mx >= RIGHT_X + 32 && mx < RIGHT_X + RIGHT_W - 145) {
             deferredTooltip = groupedPoolTooltip(row.poolIndex);
         }
@@ -2867,7 +2857,7 @@ return box;
                 .append(Component.literal("    "))
                 .append(visual.count);
         Component secondLine = visual.loadError ? loadErrorIdComponent(visual) : buildGroupedSecondLine(visual);
-        enableCanvasScissor(
+        enableUiScissor(
                 g,
                 textX,
                 row.y + 1,
@@ -2880,7 +2870,7 @@ return box;
         } else {
             g.drawString(font, secondLine, textX, row.y + 16, 0xFFFFFFFF, false);
         }
-        disableCanvasScissor(g);
+        disableUiScissor(g);
         if (hover && mx < RIGHT_X + RIGHT_W - 112) {
             deferredTooltip = buildGroupedDropTooltip(visual);
         }
@@ -2944,7 +2934,7 @@ return box;
                 (smoothDropScroll - smoothDropRow) * DROP_ROW_H
         );
         int end = Math.min(dropVisuals.size(), smoothDropRow + visible + 1);
-        enableCanvasScissor(
+        enableUiScissor(
                 g,
                 RIGHT_X + 8,
                 startY,
@@ -2956,10 +2946,17 @@ return box;
             int rowY = startY + (i - smoothDropRow) * DROP_ROW_H - dropShift;
             boolean hover = mx >= RIGHT_X + 10 && mx <= RIGHT_X + RIGHT_W - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4;
             boolean selected = selectedDrop == visual;
-            int bg = selected ? 0xFF12395A : hover ? 0xFF333333 : 0xFF242424;
-            int border = visual.loadError ? 0xFFFF3333 : selected ? GuiTheme.current().accentHover() : hover ? 0xFF55FF55 : 0xFF666666;
-            g.fill(RIGHT_X + 10, rowY, RIGHT_X + RIGHT_W - 16, rowY + DROP_ROW_H - 4, bg);
-            g.renderOutline(RIGHT_X + 10, rowY, RIGHT_W - 26, DROP_ROW_H - 4, border);
+            GuiTheme.stateSurface(
+                    g,
+                    RIGHT_X + 10,
+                    rowY,
+                    RIGHT_W - 26,
+                    DROP_ROW_H - 4,
+                    GuiTheme.Surface.PANEL_ALT,
+                    selected,
+                    hover,
+                    visual.loadError
+            );
             renderDropIcon(g, visual, rowY, hover);
             int textX = RIGHT_X + 44;
             int lineOneY = rowY + 7;
@@ -2971,7 +2968,7 @@ return box;
                     .append(Component.literal("    "))
                     .append(visual.count);
             Component secondLine = visual.loadError ? loadErrorIdComponent(visual) : buildDropSecondLine(visual);
-            enableCanvasScissor(
+            enableUiScissor(
                     g,
                     textX,
                     rowY + 2,
@@ -2984,15 +2981,15 @@ return box;
             } else {
                 g.drawString(font, secondLine, textX, lineTwoY, 0xFFFFFFFF, false);
             }
-            disableCanvasScissor(g);
+            disableUiScissor(g);
             if (hover) {
                 deferredTooltip = buildDropTooltip(visual);
             }
         }
-        disableCanvasScissor(g);
+        disableUiScissor(g);
         if (maxDropScroll > 0) {
-            int thumbH = Scroll.calculateThumbHeight(listH, visible, dropVisuals.size(), 18);
-            Scroll.renderScrollbar(
+            int thumbH = KineticScroll.stateThumbHeight(listH, visible, dropVisuals.size(), 18);
+            KineticScroll.renderScrollbarState(
                     g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2,
                     thumbH, maxDropScroll,
                     dropScrollState.follow(dropScroll, maxDropScroll, draggingDropScroll),
@@ -3006,14 +3003,14 @@ return box;
         int y = rowY + (GROUP_ENTRY_H - GROUP_ROW_GAP - ICON_CELL) / 2;
         ItemStack stack = visual.stack == null ? ItemStack.EMPTY : visual.stack;
         LootCheckerboard.draw(g, stack, x, y, ICON_CELL, ICON_CELL, hovered);
-        g.renderOutline(x, y, ICON_CELL, ICON_CELL, visual.loadError ? 0xFFFF3333 : 0xFF777777);
+        GuiTheme.stateOutline(g, x, y, ICON_CELL, ICON_CELL, false, hovered, visual.loadError);
         if (!stack.isEmpty()) {
             renderLargeItem(g, stack, x + 3, y + 3, ICON_CELL - 6);
         }
     }
 
     protected void drawCheckerboard(GuiGraphics g, ItemStack stack, int x, int y, int w, int h, int cell, boolean hovered) {
-        GuiTheme.itemSlot(g, stack, x, y, w, h, cell, hovered);
+        GuiTheme.itemSlot(g, x, y, w, h, cell, false, hovered, false);
     }
 
     protected void renderLargeItem(GuiGraphics g, ItemStack stack, int x, int y, int size) {
@@ -3122,29 +3119,26 @@ return box;
         g.pose().popPose();
     }
 
+    protected String trim(Font font, String text, int width) {
+        if (text == null) {
+            return "";
+        }
+        return font.width(text) > width ? font.plainSubstrByWidth(text, Math.max(4, width - font.width("..."))) + "..." : text;
+    }
+
     @Override
     protected boolean canvasMouseClicked(double mx, double my, int btn) {
         if (isSavingBatch()) {
             return true;
         }
-        if (showResetConfirm) {
-            if (confirmResetButton != null && confirmResetButton.mouseClicked(mx, my, btn)) {
-                return true;
-            }
-            if (cancelResetButton != null && cancelResetButton.mouseClicked(mx, my, btn)) {
-                return true;
-            }
-            return true;
-        }
-
         boolean handled = super.canvasMouseClicked(mx, my, btn);
         if (handled) {
             return true;
         }
-        if (btn != 0 && isSpecialPanelActive() && handleSpecialPanelClick(mx, my, btn)) {
+        if (!KineticMouseButtons.isPrimary(btn) && isSpecialPanelActive() && handleSpecialPanelClick(mx, my, btn)) {
             return true;
         }
-        if (btn == 0) {
+        if (KineticMouseButtons.isPrimary(btn)) {
             LootEntryInfo targetEntry = targetEntryAt(mx, my);
             if (targetEntry != null) {
                 if (handleSpecialTargetClick(targetEntry)) {
@@ -3155,7 +3149,7 @@ return box;
             }
             if (maxTargetScroll > 0 && mx >= LEFT_X + TARGET_WIDTH + 4 && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() + 1 && my <= targetAreaY() + targetAreaHeight() - 1) {
                 draggingTargetScroll = true;
-                targetScroll = Scroll.calculateScrollOffsetPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
+                targetScroll = KineticScroll.stateOffsetFromPointerPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
                 targetScrollState.snap(targetScroll, maxTargetScroll);
                 return true;
             }
@@ -3167,9 +3161,9 @@ return box;
                         && my >= GROUP_Y + 6 && my <= GROUP_Y + GROUP_H - 6) {
                     draggingGroupScroll = true;
                     int trackH = GROUP_H - 12;
-                    int thumbH = Scroll.calculateThumbHeight(trackH,
+                    int thumbH = KineticScroll.stateThumbHeight(trackH,
                             Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-                    groupScroll = Scroll.calculateScrollOffsetPrecise(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
+                    groupScroll = KineticScroll.stateOffsetFromPointerPrecise(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
                     groupScrollState.snap(groupScroll, maxGroupScroll);
                     updateVisibleGroupedRows();
                     return true;
@@ -3186,8 +3180,8 @@ return box;
             int dropListH = dropListHeight();
             if (maxDropScroll > 0 && mx >= DROP_SCROLLBAR_X && mx <= DROP_SCROLLBAR_X + 4 && my >= dropStartY + 1 && my <= dropStartY + dropListH - 1) {
                 draggingDropScroll = true;
-                int thumbH = Scroll.calculateThumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
-                dropScroll = Scroll.calculateScrollOffsetPrecise(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
+                int thumbH = KineticScroll.stateThumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
+                dropScroll = KineticScroll.stateOffsetFromPointerPrecise(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
                 dropScrollState.snap(dropScroll, maxDropScroll);
                 return true;
             }
@@ -3205,7 +3199,7 @@ return box;
             for (int i = smoothDropRow; i < endDrop; i++) {
                 int rowY = dropStartY + (i - smoothDropRow) * DROP_ROW_H - dropShift;
                 if (mx >= RIGHT_X + 10 && mx <= RIGHT_X + RIGHT_W - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4) {
-                    if (!commitSelectedDropEditorChanges()) {
+                    if (failsToCommitSelectedDropEditorChanges()) {
                         return true;
                     }
                     selectedDrop = dropVisuals.get(i);
@@ -3220,7 +3214,7 @@ return box;
     @Override
     protected boolean canvasMouseDragged(double mx, double my, int btn, double dx, double dy) {
         if (draggingTargetScroll) {
-            targetScroll = Scroll.calculateScrollOffsetPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
+            targetScroll = KineticScroll.stateOffsetFromPointerPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
             targetScrollState.snap(targetScroll, maxTargetScroll);
             return true;
         }
@@ -3230,16 +3224,16 @@ return box;
         if (draggingDropScroll) {
             int dropStartY = dropListStartY();
             int dropListH = dropListHeight();
-            int thumbH = Scroll.calculateThumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
-            dropScroll = Scroll.calculateScrollOffsetPrecise(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
+            int thumbH = KineticScroll.stateThumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
+            dropScroll = KineticScroll.stateOffsetFromPointerPrecise(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
             dropScrollState.snap(dropScroll, maxDropScroll);
             return true;
         }
         if (draggingGroupScroll) {
             int trackH = GROUP_H - 12;
-            int thumbH = Scroll.calculateThumbHeight(trackH,
+            int thumbH = KineticScroll.stateThumbHeight(trackH,
                     Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-            groupScroll = Scroll.calculateScrollOffsetPrecise(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
+            groupScroll = KineticScroll.stateOffsetFromPointerPrecise(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
             groupScrollState.snap(groupScroll, maxGroupScroll);
             updateVisibleGroupedRows();
             return true;
@@ -3262,7 +3256,7 @@ return box;
     protected boolean canvasMouseScrolled(double mx, double my, double delta) {
         if (mx >= LEFT_X && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && maxTargetScroll > 0) {
             targetScroll = targetScrollState.wheel(
-                    targetScroll, delta, 1.0D / 3.0D, maxTargetScroll
+                    targetScroll, delta, 1.0D, maxTargetScroll
             );
             return true;
         }
@@ -3272,14 +3266,14 @@ return box;
         if (!isSpecialPanelActive() && usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W
                 && my >= GROUP_Y && my <= GROUP_Y + GROUP_H && maxGroupScroll > 0) {
             groupScroll = groupScrollState.wheel(
-                    groupScroll, delta, 1.0D / 3.0D, maxGroupScroll
+                    groupScroll, delta, 1.0D, maxGroupScroll
             );
             updateVisibleGroupedRows();
             return true;
         }
         if (!usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W && my >= DROP_Y && my <= DROP_Y + DROP_H && maxDropScroll > 0) {
             dropScroll = dropScrollState.wheel(
-                    dropScroll, delta, 1.0D / 3.0D, maxDropScroll
+                    dropScroll, delta, 1.0D, maxDropScroll
             );
             return true;
         }
@@ -3287,42 +3281,27 @@ return box;
     }
 
     @Override
-    public void onClose() {
-        if (isSavingBatch()) {
-            return;
-        }
-        if (minecraft != null && parentScreen != null) {
-            minecraft.setScreen(parentScreen);
-        } else {
-            super.onClose();
-        }
+    protected boolean handleCloseRequest() {
+        return isSavingBatch();
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
         if (isSavingBatch()) {
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            if (showResetConfirm) {
-                showResetConfirm = false;
-                setResetConfirmButtons(false);
-            } else {
-                commitDraft();
-                onClose();
-            }
+        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ESCAPE, keyCode)) {
+            commitDraft();
+            onClose();
             return true;
         }
-        if (showResetConfirm) {
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return false;
     }
 
     @Override
     protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
-            showTooltip(deferredTooltip);
+            KineticOverlays.requestTooltip(deferredTooltip, mx, my);
         }
     }
 }

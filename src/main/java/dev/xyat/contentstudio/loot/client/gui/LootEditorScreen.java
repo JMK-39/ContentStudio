@@ -1,8 +1,11 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
+import dev.xyat.kineticcore.api.client.widget.KineticWidgets;
 
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.EntityPreviewRenderer;
+import dev.xyat.kineticcore.api.client.widget.render.KineticEntityPreview.EntityPreviewRenderer;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
@@ -11,7 +14,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 
@@ -24,7 +26,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     private static final int BLOCK_CELL_SIZE = 18;
     private static final int BLOCK_CELL_GAP = 1;
 
-    private final EntityPreviewRenderer entityPreviewRenderer = new EntityPreviewRenderer();
+    private final EntityPreviewRenderer entityPreviewRenderer = KineticWidgets.createEntityPreviewRenderer();
 
     public LootEditorScreen(int mode, List<LootEntryInfo> entries) {
         this(mode, entries, null);
@@ -101,7 +103,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 displayEntries.size(),
                 start + targetVisibleEntryCount() + cols
         );
-        enableCanvasScissor(
+        enableUiScissor(
                 g,
                 LEFT_X,
                 targetAreaY(),
@@ -124,8 +126,13 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
             int inset = mode == LootEntryInfo.MODE_BLOCK ? 1 : 2;
             int checkerSize = mode == LootEntryInfo.MODE_BLOCK ? 4 : 8;
             drawCheckerboard(g, targetStack, x + inset, y + inset, cell - inset * 2, cell - inset * 2, checkerSize, hover);
-            int border = selected ? GuiTheme.current().accentHover() : changed ? 0xFFFFDD55 : hover ? 0xFF55FF55 : 0xFF777777;
-            g.renderOutline(x, y, cell, cell, border);
+            if (selected) {
+                GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
+            } else if (changed) {
+                GuiTheme.indicatorOutline(g, x, y, cell, cell, GuiTheme.Indicator.WARNING);
+            } else {
+                GuiTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
+            }
             if (mode == LootEntryInfo.MODE_ENTITY) {
                 renderEntity(g, entry.targetId(), x + 4, y + 4, cell, hover);
             } else {
@@ -139,7 +146,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 );
             }
         }
-        disableCanvasScissor(g);
+        disableUiScissor(g);
         renderTargetScrollbar(g, mx, my);
     }
 
@@ -171,9 +178,9 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     @Override
     protected String getDisplayName(LootEntryInfo entry) {
         try {
-            ResourceLocation id = new ResourceLocation(entry.targetId());
+            ResourceLocation id = KineticResourceIds.parse(entry.targetId());
             if (mode == LootEntryInfo.MODE_ENTITY) {
-                EntityType<?> type = ForgeRegistries.ENTITY_TYPES.getValue(id);
+                EntityType<?> type = KineticRegistries.entityTypes().get(id);
                 if (type != null) {
                     return type.getDescription().getString();
                 }
@@ -189,7 +196,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
 
     private ItemStack blockStack(String id) {
         try {
-            var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation(id));
+            var block = KineticRegistries.blocks().get(KineticResourceIds.parse(id));
             if (block != null) {
                 return new ItemStack(block.asItem());
             }
@@ -235,8 +242,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     }
 
     @Override
-    public void removed() {
+    protected void screenRemoved() {
         entityPreviewRenderer.clear();
-        super.removed();
     }
 }

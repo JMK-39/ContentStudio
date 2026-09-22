@@ -1,27 +1,27 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.kineticcore.api.client.text.KineticText;
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 
 import com.google.gson.JsonObject;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
-import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.selector.NbtEditorScreen;
+import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.ToggleButton;
+import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,23 +52,23 @@ final class LootEntryEditScreen extends KineticScreen {
     private final boolean entityMode;
     private final int screenHeight;
 
-    private EditBox chanceBox;
-    private EditBox countMinBox;
-    private EditBox countMaxBox;
-    private EditBox weightBox;
-    private EditBox lootingMinBox;
-    private EditBox lootingMaxBox;
-    private EditBox enchantMinBox;
-    private EditBox enchantMaxBox;
-    private EditBox damageMinBox;
-    private EditBox damageMaxBox;
-    private Button randomEnchantButton;
-    private Button levelEnchantButton;
-    private Button furnaceButton;
-    private Button explosionButton;
-    private Button killedButton;
-    private Button fireRequiredButton;
-    private Button lootingButton;
+    private NumericEditBox chanceBox;
+    private NumericEditBox countMinBox;
+    private NumericEditBox countMaxBox;
+    private NumericEditBox weightBox;
+    private NumericEditBox lootingMinBox;
+    private NumericEditBox lootingMaxBox;
+    private NumericEditBox enchantMinBox;
+    private NumericEditBox enchantMaxBox;
+    private NumericEditBox damageMinBox;
+    private NumericEditBox damageMaxBox;
+    private ToggleButton randomEnchantButton;
+    private ToggleButton levelEnchantButton;
+    private ToggleButton furnaceButton;
+    private ToggleButton explosionButton;
+    private ToggleButton killedButton;
+    private ToggleButton fireRequiredButton;
+    private ToggleButton lootingButton;
 
     private boolean randomEnchant;
     private boolean levelEnchant;
@@ -96,6 +96,7 @@ final class LootEntryEditScreen extends KineticScreen {
     LootEntryEditScreen(AbstractLootEditorScreen parent, AbstractLootEditorScreen.DropVisual visual) {
         super(Component.translatable("gui.contentstudio.loot.loots.entry_editor.title"));
         this.parent = parent;
+        setParentScreen(parent);
         this.original = visual;
         this.workingEntry = visual.entry.deepCopy();
         String type = LootJsonEditUtil.string(workingEntry.get("type"));
@@ -111,12 +112,7 @@ final class LootEntryEditScreen extends KineticScreen {
         this.killedByPlayer = LootJsonEditUtil.killedByPlayer(workingEntry);
         this.requiresFire = LootJsonEditUtil.requiresFire(workingEntry);
         this.looting = LootJsonEditUtil.hasFunction(workingEntry, "looting_enchant");
-        useResponsiveCanvas(
-                WIDTH,
-                screenHeight,
-                6
-        );
-    }
+}
 
     @Override
     protected void buildUi() {
@@ -130,65 +126,96 @@ final class LootEntryEditScreen extends KineticScreen {
         weightBox = numericBox(255, NUMERIC_FIELD_Y, 65, draft(draftWeight, String.valueOf(Math.max(1, LootJsonEditUtil.integer(workingEntry.get("weight"))))), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.weight");
         lootingMinBox = numericBox(332, NUMERIC_FIELD_Y, 65, draft(draftLootingMin, format(loot.min())), LootNumericField.Type.NON_NEGATIVE_INTEGER, "gui.contentstudio.loot.loots.tip.looting_min");
         lootingMaxBox = numericBox(409, NUMERIC_FIELD_Y, 65, draft(draftLootingMax, format(loot.max())), LootNumericField.Type.NON_NEGATIVE_INTEGER, "gui.contentstudio.loot.loots.tip.looting_max");
-        lootingMinBox.visible = entityMode;
-        lootingMaxBox.visible = entityMode;
+        lootingMinBox.setVisible(entityMode);
+        lootingMaxBox.setVisible(entityMode);
 
-        randomEnchantButton = toggleButton(24, FUNCTION_BUTTON_Y, 112, "gui.contentstudio.loot.loots.entry.random_enchant", randomEnchant,
-                "gui.contentstudio.loot.loots.tip.entry.random_enchant", () -> {
-                    randomEnchant = !randomEnchant;
+        randomEnchantButton = addToggleButton(
+                24, FUNCTION_BUTTON_Y, 112, randomEnchant,
+                toggleText("gui.contentstudio.loot.loots.entry.random_enchant", true),
+                toggleText("gui.contentstudio.loot.loots.entry.random_enchant", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.random_enchant"), null,
+                value -> {
+                    randomEnchant = value;
                     if (randomEnchant) levelEnchant = false;
-                    updateToggleMessages();
+                    updateToggleValues();
                 });
-        levelEnchantButton = toggleButton(142, FUNCTION_BUTTON_Y, 112, "gui.contentstudio.loot.loots.entry.level_enchant", levelEnchant,
-                "gui.contentstudio.loot.loots.tip.entry.level_enchant", () -> {
-                    levelEnchant = !levelEnchant;
+        levelEnchantButton = addToggleButton(
+                142, FUNCTION_BUTTON_Y, 112, levelEnchant,
+                toggleText("gui.contentstudio.loot.loots.entry.level_enchant", true),
+                toggleText("gui.contentstudio.loot.loots.entry.level_enchant", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.level_enchant"), null,
+                value -> {
+                    levelEnchant = value;
                     if (levelEnchant) randomEnchant = false;
-                    updateToggleMessages();
+                    updateToggleValues();
                 });
-        furnaceButton = toggleButton(260, FUNCTION_BUTTON_Y, 112, "gui.contentstudio.loot.loots.entry.furnace", furnaceSmelt,
-                "gui.contentstudio.loot.loots.tip.entry.furnace", () -> {
-                    furnaceSmelt = !furnaceSmelt;
-                    updateToggleMessages();
-                });
-        explosionButton = toggleButton(378, FUNCTION_BUTTON_Y, 112, "gui.contentstudio.loot.loots.entry.explosion", explosionDecay,
-                "gui.contentstudio.loot.loots.tip.entry.explosion", () -> {
-                    explosionDecay = !explosionDecay;
-                    updateToggleMessages();
-                });
+        furnaceButton = addToggleButton(
+                260, FUNCTION_BUTTON_Y, 112, furnaceSmelt,
+                toggleText("gui.contentstudio.loot.loots.entry.furnace", true),
+                toggleText("gui.contentstudio.loot.loots.entry.furnace", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.furnace"), null,
+                value -> furnaceSmelt = value);
+        explosionButton = addToggleButton(
+                378, FUNCTION_BUTTON_Y, 112, explosionDecay,
+                toggleText("gui.contentstudio.loot.loots.entry.explosion", true),
+                toggleText("gui.contentstudio.loot.loots.entry.explosion", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.explosion"), null,
+                value -> explosionDecay = value);
 
         enchantMinBox = numericBox(82, ENCHANT_FIELD_Y, 46, draft(draftEnchantMin, format(levels.min())), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_min");
         enchantMaxBox = numericBox(136, ENCHANT_FIELD_Y, 46, draft(draftEnchantMax, format(levels.max())), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_max");
         damageMinBox = numericBox(264, ENCHANT_FIELD_Y, 46, draft(draftDamageMin, format(damage.min())), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_min");
         damageMaxBox = numericBox(318, ENCHANT_FIELD_Y, 46, draft(draftDamageMax, format(damage.max())), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_max");
 
-        killedButton = toggleButton(24, ENTITY_BUTTON_Y, 151, "gui.contentstudio.loot.loots.entry.killed", killedByPlayer,
-                "gui.contentstudio.loot.loots.tip.entry.killed_by_player", () -> {
-                    killedByPlayer = !killedByPlayer;
-                    updateToggleMessages();
+        killedButton = addToggleButton(
+                24, ENTITY_BUTTON_Y, 151, killedByPlayer,
+                toggleText("gui.contentstudio.loot.loots.entry.killed", true),
+                toggleText("gui.contentstudio.loot.loots.entry.killed", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.killed_by_player"), null,
+                value -> killedByPlayer = value);
+        fireRequiredButton = addToggleButton(
+                181, ENTITY_BUTTON_Y, 151, requiresFire,
+                toggleText("gui.contentstudio.loot.loots.entry.fire_required", true),
+                toggleText("gui.contentstudio.loot.loots.entry.fire_required", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.fire_required"), null,
+                value -> requiresFire = value);
+        lootingButton = addToggleButton(
+                338, ENTITY_BUTTON_Y, 151, looting,
+                toggleText("gui.contentstudio.loot.loots.entry.looting", true),
+                toggleText("gui.contentstudio.loot.loots.entry.looting", false),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.looting_bonus"), null,
+                value -> {
+                    looting = value;
+                    updateToggleValues();
                 });
-        fireRequiredButton = toggleButton(181, ENTITY_BUTTON_Y, 151, "gui.contentstudio.loot.loots.entry.fire_required", requiresFire,
-                "gui.contentstudio.loot.loots.tip.entry.fire_required", () -> {
-                    requiresFire = !requiresFire;
-                    updateToggleMessages();
-                });
-        lootingButton = toggleButton(338, ENTITY_BUTTON_Y, 151, "gui.contentstudio.loot.loots.entry.looting", looting,
-                "gui.contentstudio.loot.loots.tip.entry.looting_bonus", () -> {
-                    looting = !looting;
-                    updateToggleMessages();
-                });
-        killedButton.visible = entityMode;
-        fireRequiredButton.visible = entityMode;
-        lootingButton.visible = entityMode;
+        killedButton.setVisible(entityMode);
+        fireRequiredButton.setVisible(entityMode);
+        lootingButton.setVisible(entityMode);
 
-        addButton(NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W, Component.translatable("gui.contentstudio.loot.loots.entry.nbt"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.nbt"), button -> openNbtEditor());
+        addButton(
+                NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W,
+                Component.translatable("gui.contentstudio.loot.loots.entry.nbt"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.nbt"),
+                this::openNbtEditor
+        );
 
         int actionY = screenHeight - 38;
-        addButton(360, actionY, 64, Component.translatable("gui.contentstudio.loot.loots.entry.apply"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.apply"), button -> applyChanges());
-        addButton(432, actionY, 64, Component.translatable("gui.contentstudio.loot.loots.entry.cancel"), Component.translatable("gui.contentstudio.loot.loots.tip.entry.cancel"), button -> closeToParent());
-        updateToggleMessages();
+        addButton(
+                360, actionY, 64,
+                Component.translatable("gui.contentstudio.loot.loots.entry.apply"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.apply"),
+                this::applyChanges
+        );
+        addButton(
+                432, actionY, 64,
+                Component.translatable("gui.contentstudio.loot.loots.entry.cancel"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.entry.cancel"),
+                this::closeToParent
+        );
+        updateToggleValues();
     }
 
-    private EditBox numericBox(
+    private NumericEditBox numericBox(
             int x,
             int y,
             int width,
@@ -196,8 +223,8 @@ final class LootEntryEditScreen extends KineticScreen {
             LootNumericField.Type type,
             String tooltipKey
     ) {
-        EditBox box =
-                LootNumericField.create(
+        NumericEditBox box =
+                LootNumericField.add(
                         this,
                         x,
                         y,
@@ -207,47 +234,40 @@ final class LootEntryEditScreen extends KineticScreen {
                         tooltipKey
                 );
 
-        addControl(box, null);
         return box;
-    }
-
-    private Button toggleButton(int x, int y, int width, String key, boolean initial, String tooltipKey, Runnable action) {
-        Button button = addButton(x, y, width, toggleText(key, initial), Component.translatable(tooltipKey), ignored -> action.run());
-return button;
     }
 
     private Component toggleText(String key, boolean enabled) {
         return Component.translatable(key, Component.translatable(enabled
-                        ? "gui.contentstudio.loot.loots.state.on"
-                        : "gui.contentstudio.loot.loots.state.off")
-                .withStyle(enabled ? ChatFormatting.GREEN : ChatFormatting.RED));
+                ? "gui.contentstudio.loot.loots.state.on"
+                : "gui.contentstudio.loot.loots.state.off"));
     }
 
-    private void updateToggleMessages() {
-        if (randomEnchantButton != null) randomEnchantButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.random_enchant", randomEnchant));
-        if (levelEnchantButton != null) levelEnchantButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.level_enchant", levelEnchant));
-        if (furnaceButton != null) furnaceButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.furnace", furnaceSmelt));
-        if (explosionButton != null) explosionButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.explosion", explosionDecay));
-        if (killedButton != null) killedButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.killed", killedByPlayer));
-        if (fireRequiredButton != null) fireRequiredButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.fire_required", requiresFire));
-        if (lootingButton != null) lootingButton.setMessage(toggleText("gui.contentstudio.loot.loots.entry.looting", looting));
-        if (enchantMinBox != null) enchantMinBox.active = levelEnchant;
-        if (enchantMaxBox != null) enchantMaxBox.active = levelEnchant;
-        if (lootingMinBox != null) lootingMinBox.active = entityMode && looting;
-        if (lootingMaxBox != null) lootingMaxBox.active = entityMode && looting;
+    private void updateToggleValues() {
+        if (randomEnchantButton != null) randomEnchantButton.setValue(randomEnchant);
+        if (levelEnchantButton != null) levelEnchantButton.setValue(levelEnchant);
+        if (furnaceButton != null) furnaceButton.setValue(furnaceSmelt);
+        if (explosionButton != null) explosionButton.setValue(explosionDecay);
+        if (killedButton != null) killedButton.setValue(killedByPlayer);
+        if (fireRequiredButton != null) fireRequiredButton.setValue(requiresFire);
+        if (lootingButton != null) lootingButton.setValue(looting);
+        if (enchantMinBox != null) enchantMinBox.setEnabled(levelEnchant);
+        if (enchantMaxBox != null) enchantMaxBox.setEnabled(levelEnchant);
+        if (lootingMinBox != null) lootingMinBox.setEnabled(entityMode && looting);
+        if (lootingMaxBox != null) lootingMaxBox.setEnabled(entityMode && looting);
         updateDamageFields();
     }
 
     private void updateDamageFields() {
         damageableItem = itemEntry && itemStack().isDamageableItem();
         if (damageMinBox != null) {
-            damageMinBox.active = damageableItem;
+            damageMinBox.setEnabled(damageableItem);
             registerWidgetTooltip(damageMinBox, Component.translatable(damageableItem
                     ? "gui.contentstudio.loot.loots.tip.entry.damage_min"
                     : "gui.contentstudio.loot.loots.tip.entry.damage_disabled"));
         }
         if (damageMaxBox != null) {
-            damageMaxBox.active = damageableItem;
+            damageMaxBox.setEnabled(damageableItem);
             registerWidgetTooltip(damageMaxBox, Component.translatable(damageableItem
                     ? "gui.contentstudio.loot.loots.tip.entry.damage_max"
                     : "gui.contentstudio.loot.loots.tip.entry.damage_disabled"));
@@ -255,8 +275,8 @@ return button;
     }
 
     private void applyChanges() {
-        if (itemEntry && !validItem(selectedItemId)) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.invalid_item"));
+        if (itemEntry && invalidItem(selectedItemId)) {
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.invalid_item"));
             return;
         }
         Double chance = LootNumericField.decimal(chanceBox);
@@ -305,16 +325,16 @@ return button;
             LootJsonEditUtil.setLooting(workingEntry, looting, lootMin, lootMax);
         }
         parent.applyEntryEdit(original, workingEntry);
-        GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.entry.applied"));
+        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.entry.applied"));
         closeToParent();
     }
 
-    private boolean validItem(String id) {
+    private boolean invalidItem(String id) {
         try {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(id));
-            return item != null && item != Items.AIR;
+            Item item = KineticRegistries.items().get(KineticResourceIds.parse(id));
+            return item == null || item == Items.AIR;
         } catch (Exception ignored) {
-            return false;
+            return true;
         }
     }
 
@@ -323,16 +343,16 @@ return button;
             return;
         }
         captureDraft();
-        minecraft.setScreen(new ItemSelectorScreen(this, selection -> {
+        KineticSelectors.openItemSelector(this, selection -> {
             if (selection != null && selection.isItem()) {
-                ResourceLocation id = ForgeRegistries.ITEMS.getKey(selection.stack().getItem());
+                ResourceLocation id = KineticRegistries.items().id(selection.stack().getItem());
                 if (id != null) {
                     selectedItemId = id.toString();
                     selectedItemStack = selection.stack().copy();
                     itemSelectionChanged = true;
                 }
             }
-        }));
+        });
     }
 
     private void openNbtEditor() {
@@ -340,10 +360,10 @@ return button;
             return;
         }
         captureDraft();
-        minecraft.setScreen(new NbtEditorScreen(currentItemNbt(), value -> {
+        KineticSelectors.openNbtEditor(this, currentItemNbt(), value -> {
             LootJsonEditUtil.setItemNbt(workingEntry, value);
             selectedItemStack = ItemStack.EMPTY;
-        }, this));
+        });
     }
 
     private String currentItemNbt() {
@@ -379,17 +399,25 @@ return button;
 
     @Override
     protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, WIDTH, screenHeight, 0xFA1E1E1E);
-        g.renderOutline(0, 0, WIDTH, screenHeight, 0xFF555555);
-        g.fill(12, 12, WIDTH - 12, screenHeight - 12, 0xE0000000);
-        g.renderOutline(12, 12, WIDTH - 24, screenHeight - 24, 0xFFFFAA00);
+        GuiTheme.panel(g, 0, 0, WIDTH, screenHeight);
+        GuiTheme.stateSurface(
+                g,
+                12,
+                12,
+                WIDTH - 24,
+                screenHeight - 24,
+                GuiTheme.Surface.PANEL_ALT,
+                true,
+                false,
+                false
+        );
     }
 
     @Override
     protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
         g.drawString(font, getTitle(), 24, 21, 0xFFFFAA00, false);
-        KineticText.drawScrollingLeft(g, font, parent.selectedTableName(), 170, 21, WIDTH - 194, 0xFFFFD75F, false);
+        g.drawString(font, trim(parent.selectedTableName().getString(), WIDTH - 194), 170, 21, 0xFFFFD75F, false);
         drawItem(g, mx, my);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_min", 101);
@@ -400,14 +428,14 @@ return button;
             fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_max", 409);
         }
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, 0xFFFF55FF, false);
-        KineticText.drawScrollingLeft(g, font, Component.translatable("gui.contentstudio.loot.loots.entry.functions_help"), 94, FUNCTION_TITLE_Y, 270, 0xFFAAAAAA, false);
+        g.drawString(font, trim(Component.translatable("gui.contentstudio.loot.loots.entry.functions_help").getString(), 270), 94, FUNCTION_TITLE_Y, 0xFFAAAAAA, false);
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, 0xFFDD77FF, false);
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6,
                 damageableItem ? 0xFFFFD75F : 0xFF777777, false);
         Component damageHelp = Component.translatable(damageableItem
                 ? "gui.contentstudio.loot.loots.entry.damage_enabled"
                 : "gui.contentstudio.loot.loots.entry.damage_disabled");
-        KineticText.drawScrollingLeft(g, font, damageHelp, 372, ENCHANT_FIELD_Y + 6, 124,
+        g.drawString(font, trim(damageHelp.getString(), 124), 372, ENCHANT_FIELD_Y + 6,
                 damageableItem ? 0xFF55FF55 : 0xFF777777, false);
         if (entityMode) {
             g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, 0xFF55FFFF, false);
@@ -425,7 +453,7 @@ return button;
         boolean hovered = mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE
                 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE;
         LootCheckerboard.draw(g, stack, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, hovered);
-        g.renderOutline(ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, itemEntry ? GuiTheme.current().accentHover() : 0xFF777777);
+        GuiTheme.stateOutline(g, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, itemEntry, hovered, false);
         if (!stack.isEmpty()) {
             g.pose().pushPose();
             g.pose().translate(ITEM_X + 6, ITEM_Y + 6, 100);
@@ -434,12 +462,12 @@ return button;
         }
         Component itemName = stack.isEmpty() ? original.name : stack.getHoverName();
         int itemTextWidth = NBT_BUTTON_X - 70;
-        KineticText.drawScrollingLeft(g, font, itemName, 62, ITEM_Y + 1, itemTextWidth, 0xFFFFAA00, false);
-        KineticText.drawScrollingLeft(g, font, selectedItemId, 62, ITEM_Y + 13, itemTextWidth, 0xFF55FFFF, false);
+        g.drawString(font, trim(itemName.getString(), itemTextWidth), 62, ITEM_Y + 1, 0xFFFFAA00, false);
+        g.drawString(font, trim(selectedItemId, itemTextWidth), 62, ITEM_Y + 13, 0xFF55FFFF, false);
         Component hint = Component.translatable(itemEntry
                 ? "gui.contentstudio.loot.loots.entry.item_hint"
                 : "gui.contentstudio.loot.loots.tip.entry.locked_type");
-        KineticText.drawScrollingLeft(g, font, hint, 62, ITEM_Y + 25, itemTextWidth, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
+        g.drawString(font, trim(hint.getString(), itemTextWidth), 62, ITEM_Y + 25, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
         if (mx >= ITEM_X && mx < WIDTH - 24 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE + 10) {
             deferredTooltip = stack.isEmpty()
                     ? List.of(Component.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
@@ -453,13 +481,13 @@ return button;
 
     private ItemStack itemStack() {
         if (selectedItemStack != null && !selectedItemStack.isEmpty()) {
-            ResourceLocation selectedId = ForgeRegistries.ITEMS.getKey(selectedItemStack.getItem());
+            ResourceLocation selectedId = KineticRegistries.items().id(selectedItemStack.getItem());
             if (selectedId != null && selectedId.toString().equals(selectedItemId)) {
                 return selectedItemStack;
             }
         }
         try {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(selectedItemId));
+            Item item = KineticRegistries.items().get(KineticResourceIds.parse(selectedItemId));
             if (item == null || item == Items.AIR) {
                 return ItemStack.EMPTY;
             }
@@ -490,7 +518,7 @@ return button;
 
     @Override
     protected boolean canvasMouseClicked(double mx, double my, int button) {
-        if (button == 0 && itemEntry && mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE) {
+        if (KineticMouseButtons.isPrimary(button) && itemEntry && mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE) {
             openItemPicker();
             return true;
         }
@@ -498,18 +526,18 @@ return button;
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
+        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ESCAPE, keyCode)) {
             closeToParent();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return false;
     }
 
     @Override
     protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
-            showTooltip(deferredTooltip);
+            KineticOverlays.requestTooltip(deferredTooltip, mx, my);
         }
     }
 
@@ -518,4 +546,10 @@ return button;
         return String.format(java.util.Locale.ROOT, "%.4f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
+    private String trim(String text, int width) {
+        if (text == null || font.width(text) <= width) {
+            return text == null ? "" : text;
+        }
+        return font.plainSubstrByWidth(text, Math.max(4, width - font.width("..."))) + "...";
+    }
 }

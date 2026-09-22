@@ -21,6 +21,6 @@ final class LootCheckerboard {
     }
 
     static void draw(GuiGraphics graphics, ItemStack stack, int x, int y, int width, int height, int cellSize, boolean hovered) {
-        GuiTheme.itemSlot(graphics, stack, x, y, width, height, cellSize, hovered);
+        GuiTheme.itemSlot(graphics, x, y, width, height, cellSize, false, hovered, false);
     }
 }

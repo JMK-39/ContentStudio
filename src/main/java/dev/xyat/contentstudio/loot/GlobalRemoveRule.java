@@ -1,12 +1,13 @@
 package dev.xyat.contentstudio.loot;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -58,7 +59,7 @@ public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
         if (stack == null || stack.isEmpty()) {
             return new GlobalRemoveRule("", MatchMode.ITEM, "");
         }
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = KineticRegistries.items().id(stack.getItem());
         String nbt = stack.hasTag() && stack.getTag() != null && !stack.getTag().isEmpty()
                 ? stack.getTag().toString()
                 : "";
@@ -75,7 +76,7 @@ public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
     }
 
     public ResourceLocation itemResourceLocation() {
-        return ResourceLocation.tryParse(itemId);
+        return KineticResourceIds.tryParse(itemId);
     }
 
     public boolean hasConfiguredNbt() {
@@ -98,7 +99,7 @@ public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
             return false;
         }
         ResourceLocation expectedId = itemResourceLocation();
-        ResourceLocation actualId = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation actualId = KineticRegistries.items().id(stack.getItem());
         if (expectedId == null || !expectedId.equals(actualId)) {
             return false;
         }
@@ -123,7 +124,7 @@ public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
 
     public boolean isValid() {
         ResourceLocation id = itemResourceLocation();
-        if (id == null || !ForgeRegistries.ITEMS.containsKey(id)) {
+        if (id == null || !KineticRegistries.items().contains(id)) {
             return false;
         }
         if (nbt.isBlank()) {

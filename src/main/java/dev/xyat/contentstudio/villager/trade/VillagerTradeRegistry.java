@@ -1,26 +1,22 @@
 package dev.xyat.contentstudio.villager.trade;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.contentstudio.villager.VillagerModule;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.VillagerTrades;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.event.village.VillagerTradesEvent;
-import net.minecraftforge.event.village.WandererTradesEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import dev.xyat.kineticcore.api.event.KineticEventPriority;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.server.event.KineticServerEvents;
+import dev.xyat.kineticcore.api.villager.event.KineticVillagerEvents;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Mod.EventBusSubscriber(modid = VillagerModule.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class VillagerTradeRegistry {
     private static final Map<String, VillagerConfig.TradeGroup> ACTIVE_GROUPS = new HashMap<>();
     private static final Map<String, List<VillagerConfig.TradeOfferData>> ACTIVE_OFFERS = new HashMap<>();
@@ -29,53 +25,58 @@ public final class VillagerTradeRegistry {
 
     private static boolean sessionPrepared;
     private static MinecraftServer activeServer;
+    private static boolean registered;
 
     private VillagerTradeRegistry() {
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onServerAboutToStart(ServerAboutToStartEvent event) {
-        if (activeServer != event.getServer()) {
-            resetSession();
-            activeServer = event.getServer();
+    public static synchronized void register() {
+        if (registered) {
+            return;
         }
-        prepareSession();
-    }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onVillagerTrades(VillagerTradesEvent event) {
-        prepareSession();
-
-        ResourceLocation professionId = BuiltInRegistries.VILLAGER_PROFESSION.getKey(event.getType());
-        String owner = professionId.toString();
-        for (int level = 1; level <= 5; level++) {
-            List<VillagerTrades.ItemListing> trades = event.getTrades().get(level);
-            if (trades == null) {
-                continue;
+        KineticServerEvents.onAboutToStart(KineticEventPriority.HIGHEST, server -> {
+            if (activeServer != server) {
+                resetSession();
+                activeServer = server;
             }
-            captureBaseline(owner, level, trades);
-            applyPublishedPool(owner, level, trades);
-        }
-    }
+            prepareSession();
+        });
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onWandererTrades(WandererTradesEvent event) {
-        prepareSession();
+        KineticVillagerEvents.onVillagerTrades(KineticEventPriority.LOWEST, context -> {
+            prepareSession();
+            ResourceLocation professionId = KineticRegistries.villagerProfessions().id(context.profession());
+            if (professionId == null) {
+                return;
+            }
+            String owner = professionId.toString();
+            for (int level = 1; level <= 5; level++) {
+                List<VillagerTrades.ItemListing> trades = context.trades(level);
+                if (trades == null) {
+                    continue;
+                }
+                captureBaseline(owner, level, trades);
+                applyPublishedPool(owner, level, trades);
+            }
+        });
 
-        String owner = VillagerConfig.WANDERING_TRADER_ID;
-        captureBaseline(owner, 1, event.getGenericTrades());
-        captureBaseline(owner, 2, event.getRareTrades());
-        applyPublishedPool(owner, 1, event.getGenericTrades());
-        applyPublishedPool(owner, 2, event.getRareTrades());
-    }
+        KineticVillagerEvents.onWandererTrades(KineticEventPriority.LOWEST, context -> {
+            prepareSession();
+            String owner = VillagerConfig.WANDERING_TRADER_ID;
+            captureBaseline(owner, 1, context.genericTrades());
+            captureBaseline(owner, 2, context.rareTrades());
+            applyPublishedPool(owner, 1, context.genericTrades());
+            applyPublishedPool(owner, 2, context.rareTrades());
+        });
 
-    @SubscribeEvent
-    public static void onServerStopped(ServerStoppedEvent event) {
-        if (activeServer == null || activeServer == event.getServer()) {
-            restoreBaselinePools();
-            resetSession();
-            activeServer = null;
-        }
+        KineticServerEvents.onStopped(KineticEventPriority.NORMAL, server -> {
+            if (activeServer == null || activeServer == server) {
+                restoreBaselinePools();
+                resetSession();
+                activeServer = null;
+            }
+        });
+        registered = true;
     }
 
     public static boolean isSessionUnavailable() {
@@ -142,7 +143,8 @@ public final class VillagerTradeRegistry {
     public static boolean applyAndSaveLive(
             List<String> groups,
             List<String> offers,
-            List<String> overrides
+            List<String> overrides,
+            boolean lateOverride
     ) {
         if (!sessionPrepared || activeServer == null || !VillagerConfig.areValidTradeLists(groups, offers, overrides)) {
             return false;
@@ -151,14 +153,17 @@ public final class VillagerTradeRegistry {
         List<String> oldGroups = new ArrayList<>(VillagerConfig.villagerTradeGroups);
         List<String> oldOffers = new ArrayList<>(VillagerConfig.villagerTradeOffers);
         List<String> oldOverrides = new ArrayList<>(VillagerConfig.villagerDefaultTradeOverrides);
+        boolean oldLateOverride = VillagerConfig.enableVillagerTradeLateOverride;
         try {
             VillagerConfig.replaceTradeLists(groups, offers, overrides);
+            VillagerConfig.enableVillagerTradeLateOverride = lateOverride;
             VillagerConfig.save();
             rebuildActiveState();
             publishAllLive();
             return true;
         } catch (Exception e) {
             VillagerConfig.replaceTradeLists(oldGroups, oldOffers, oldOverrides);
+            VillagerConfig.enableVillagerTradeLateOverride = oldLateOverride;
             rebuildActiveState();
             VillagerModule.LOGGER.error("Failed to apply villager trade configuration live", e);
             return false;
@@ -317,12 +322,12 @@ public final class VillagerTradeRegistry {
             return;
         }
 
-        ResourceLocation id = ResourceLocation.tryParse(VillagerConfig.clean(owner));
+        ResourceLocation id = KineticResourceIds.tryParse(VillagerConfig.clean(owner));
         if (id == null) {
             return;
         }
 
-        VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.get(id);
+        VillagerProfession profession = KineticRegistries.villagerProfessions().get(id);
         var tradesByLevel = VillagerTrades.TRADES.get(profession);
         if (tradesByLevel != null) {
             tradesByLevel.put(level, array);

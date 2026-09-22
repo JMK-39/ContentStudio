@@ -1,11 +1,11 @@
 package dev.xyat.contentstudio.villager.mixin;
 
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
 import dev.xyat.contentstudio.villager.trade.VillagerTradeRegistry;
 import dev.xyat.contentstudio.villager.util.VillagerTradeRuntimeUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -16,6 +16,7 @@ import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -26,6 +27,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(Villager.class)
@@ -45,6 +47,9 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
     @Unique
     private boolean contentstudio_villager$isTrapped = false;
 
+    @Unique
+    private List<MerchantOffer> contentstudio_villager$offersBeforeLateOverride = List.of();
+
     public VillagerTweaksMixin(EntityType<? extends AbstractVillager> type, Level level) {
         super(type, level);
     }
@@ -56,10 +61,15 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
         }
 
         VillagerData data = ((Villager) (Object) this).getVillagerData();
-        ResourceLocation professionId = BuiltInRegistries.VILLAGER_PROFESSION.getKey(data.getProfession());
+        ResourceLocation professionId = KineticRegistries.villagerProfessions().id(data.getProfession());
         String profession = professionId.toString();
         int level = data.getLevel();
         if (!VillagerTradeRegistry.hasActiveLevelChanges(profession, level)) {
+            return;
+        }
+
+        if (VillagerConfig.enableVillagerTradeLateOverride) {
+            contentstudio_villager$offersBeforeLateOverride = new ArrayList<>(this.getOffers());
             return;
         }
 
@@ -78,6 +88,47 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
                 VillagerTradeRuntimeUtil.getDefaultOfferCount(profession, level)
         );
         ci.cancel();
+    }
+
+    @Inject(method = "updateTrades", at = @At("TAIL"))
+    private void contentstudio_villager$applyConfiguredTradesLate(CallbackInfo ci) {
+        if (!VillagerConfig.enableVillagerTradeLateOverride || VillagerTradeRegistry.isSessionUnavailable()) {
+            contentstudio_villager$offersBeforeLateOverride = List.of();
+            return;
+        }
+
+        VillagerData data = ((Villager) (Object) this).getVillagerData();
+        ResourceLocation professionId = KineticRegistries.villagerProfessions().id(data.getProfession());
+        if (professionId == null) {
+            contentstudio_villager$offersBeforeLateOverride = List.of();
+            return;
+        }
+
+        String profession = professionId.toString();
+        int level = data.getLevel();
+        if (!VillagerTradeRegistry.hasActiveLevelChanges(profession, level)) {
+            contentstudio_villager$offersBeforeLateOverride = List.of();
+            return;
+        }
+
+        VillagerConfig.TradeGroup group = VillagerTradeRegistry.getActiveTradeGroup(profession, level);
+        MerchantOffers offers = this.getOffers();
+        List<MerchantOffer> previousOffers = contentstudio_villager$offersBeforeLateOverride;
+        contentstudio_villager$offersBeforeLateOverride = List.of();
+
+        offers.clear();
+        if (group == null || !group.replaceAll()) {
+            offers.addAll(previousOffers);
+        }
+
+        VillagerTradeRuntimeUtil.addConfiguredOffers(
+                offers,
+                (Villager) (Object) this,
+                this.getRandom(),
+                profession,
+                level,
+                VillagerTradeRuntimeUtil.getDefaultOfferCount(profession, level)
+        );
     }
 
     @Inject(method = "customServerAiStep", at = @At("HEAD"), cancellable = true)

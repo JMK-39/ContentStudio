@@ -1,27 +1,24 @@
 package dev.xyat.contentstudio.villager.network;
 
-import dev.xyat.kineticcore.api.KTNetworkProtocol;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import dev.xyat.kineticcore.api.NetworkCompressUtil;
 import dev.xyat.contentstudio.villager.VillagerModule;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
 import dev.xyat.contentstudio.villager.trade.VillagerTradeRegistry;
-import net.minecraft.network.FriendlyByteBuf;
+import dev.xyat.kineticcore.api.network.KineticCompression;
+import dev.xyat.kineticcore.api.network.NetworkBuffer;
+import dev.xyat.kineticcore.api.network.NetworkCodec;
+import dev.xyat.kineticcore.api.network.NetworkVersionPolicy;
+import dev.xyat.kineticcore.api.network.PacketChannel;
+import dev.xyat.kineticcore.api.network.PacketRegistrations;
+import dev.xyat.kineticcore.api.network.ServerPacketContext;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
 
-import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 public final class VillagerNetwork {
     private static final String PROTOCOL_VERSION = "2";
@@ -31,40 +28,63 @@ public final class VillagerNetwork {
     private static final int MAX_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
     private static final Gson GSON = new Gson();
     private static final Type STRING_LIST_TYPE = new TypeToken<List<String>>() { }.getType();
-
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(VillagerModule.MODID, "villager"),
-            () -> PROTOCOL_VERSION,
-            KTNetworkProtocol::acceptsAnyVersion,
-            KTNetworkProtocol::acceptsAnyVersion
+    private static final PacketChannel CHANNEL = PacketChannel.create(
+            KineticResourceIds.of(VillagerModule.MODID, "villager"),
+            PROTOCOL_VERSION,
+            NetworkVersionPolicy.ANY
     );
-
-    private static int packetId;
+    private static final boolean[] PACKET_REGISTERED = new boolean[8];
     private static boolean initialized;
 
     private VillagerNetwork() {
     }
 
-    public static void init() {
+    public static synchronized void init() {
         if (initialized) {
             return;
         }
+        PacketRegistrations.runIndependent(
+                () -> registerClientbound(0, OpenTradeEditorPacket.class, (buffer, packet) -> packet.encode(buffer), OpenTradeEditorPacket::decode, OpenTradeEditorPacket::handle),
+                () -> registerServerbound(1, RequestTradeEditorPacket.class, (buffer, packet) -> packet.encode(buffer), RequestTradeEditorPacket::decode, RequestTradeEditorPacket::handle),
+                () -> registerServerbound(2, SaveTradeEditorPacket.class, (buffer, packet) -> packet.encode(buffer), SaveTradeEditorPacket::decode, SaveTradeEditorPacket::handle),
+                () -> registerClientbound(3, TradeSaveResultPacket.class, (buffer, packet) -> packet.encode(buffer), TradeSaveResultPacket::decode, TradeSaveResultPacket::handle),
+                () -> registerClientbound(4, OpenFollowItemEditorPacket.class, (buffer, packet) -> packet.encode(buffer), OpenFollowItemEditorPacket::decode, OpenFollowItemEditorPacket::handle),
+                () -> registerServerbound(5, RequestFollowItemEditorPacket.class, (buffer, packet) -> packet.encode(buffer), RequestFollowItemEditorPacket::decode, RequestFollowItemEditorPacket::handle),
+                () -> registerServerbound(6, SaveFollowItemsPacket.class, (buffer, packet) -> packet.encode(buffer), SaveFollowItemsPacket::decode, SaveFollowItemsPacket::handle),
+                () -> registerClientbound(7, FollowItemSaveResultPacket.class, (buffer, packet) -> packet.encode(buffer), FollowItemSaveResultPacket::decode, FollowItemSaveResultPacket::handle),
+                () -> initialized = allPacketsRegistered()
+        );
+    }
 
-        synchronized (VillagerNetwork.class) {
-            if (initialized) {
-                return;
-            }
+    private static <T> void registerServerbound(
+            int id,
+            Class<T> type,
+            java.util.function.BiConsumer<NetworkBuffer, T> encoder,
+            java.util.function.Function<NetworkBuffer, T> decoder,
+            dev.xyat.kineticcore.api.network.ServerboundPacketHandler<T> handler
+    ) {
+        if (PACKET_REGISTERED[id]) return;
+        CHANNEL.registerServerbound(id, type, NetworkCodec.of(encoder, decoder), handler);
+        PACKET_REGISTERED[id] = true;
+    }
 
-            CHANNEL.registerMessage(packetId++, OpenTradeEditorPacket.class, OpenTradeEditorPacket::encode, OpenTradeEditorPacket::decode, OpenTradeEditorPacket::handle);
-            CHANNEL.registerMessage(packetId++, RequestTradeEditorPacket.class, RequestTradeEditorPacket::encode, RequestTradeEditorPacket::decode, RequestTradeEditorPacket::handle);
-            CHANNEL.registerMessage(packetId++, SaveTradeEditorPacket.class, SaveTradeEditorPacket::encode, SaveTradeEditorPacket::decode, SaveTradeEditorPacket::handle);
-            CHANNEL.registerMessage(packetId++, TradeSaveResultPacket.class, TradeSaveResultPacket::encode, TradeSaveResultPacket::decode, TradeSaveResultPacket::handle);
-            CHANNEL.registerMessage(packetId++, OpenFollowItemEditorPacket.class, OpenFollowItemEditorPacket::encode, OpenFollowItemEditorPacket::decode, OpenFollowItemEditorPacket::handle);
-            CHANNEL.registerMessage(packetId++, RequestFollowItemEditorPacket.class, RequestFollowItemEditorPacket::encode, RequestFollowItemEditorPacket::decode, RequestFollowItemEditorPacket::handle);
-            CHANNEL.registerMessage(packetId++, SaveFollowItemsPacket.class, SaveFollowItemsPacket::encode, SaveFollowItemsPacket::decode, SaveFollowItemsPacket::handle);
-            CHANNEL.registerMessage(packetId++, FollowItemSaveResultPacket.class, FollowItemSaveResultPacket::encode, FollowItemSaveResultPacket::decode, FollowItemSaveResultPacket::handle);
-            initialized = true;
+    private static <T> void registerClientbound(
+            int id,
+            Class<T> type,
+            java.util.function.BiConsumer<NetworkBuffer, T> encoder,
+            java.util.function.Function<NetworkBuffer, T> decoder,
+            java.util.function.Consumer<T> handler
+    ) {
+        if (PACKET_REGISTERED[id]) return;
+        CHANNEL.registerClientbound(id, type, NetworkCodec.of(encoder, decoder), handler);
+        PACKET_REGISTERED[id] = true;
+    }
+
+    private static boolean allPacketsRegistered() {
+        for (boolean value : PACKET_REGISTERED) {
+            if (!value) return false;
         }
+        return true;
     }
 
     public static void requestTradeEditor() {
@@ -85,39 +105,39 @@ public final class VillagerNetwork {
                 VillagerConfig.villagerTradeGroups,
                 VillagerConfig.villagerTradeOffers,
                 VillagerConfig.villagerDefaultTradeOverrides,
+                VillagerConfig.enableVillagerTradeLateOverride,
                 notifySuccess
         ));
     }
 
     private static void sendTradeEditor(ServerPlayer player) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new OpenTradeEditorPacket(
+        CHANNEL.sendToPlayer(player, new OpenTradeEditorPacket(
                 VillagerConfig.villagerTradeGroups,
                 VillagerConfig.villagerTradeOffers,
-                VillagerConfig.villagerDefaultTradeOverrides
+                VillagerConfig.villagerDefaultTradeOverrides,
+                VillagerConfig.enableVillagerTradeLateOverride
         ));
     }
 
     private static void sendFollowItemEditor(ServerPlayer player) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new OpenFollowItemEditorPacket(
-                VillagerConfig.villagerFollowItems
-        ));
+        CHANNEL.sendToPlayer(player, new OpenFollowItemEditorPacket(VillagerConfig.villagerFollowItems));
     }
 
-    private static void writeStringList(FriendlyByteBuf buffer, List<String> values) {
+    private static void writeStringList(NetworkBuffer buffer, List<String> values) {
         List<String> safeValues = values == null ? List.of() : values;
         validateStringList(safeValues);
-        byte[] compressed = NetworkCompressUtil.compress(GSON.toJson(safeValues));
-        if (compressed.length > MAX_COMPRESSED_BYTES) {
-            throw new IllegalArgumentException("Villager config payload exceeds compressed limit");
-        }
-        buffer.writeByteArray(compressed);
+        byte[] compressed = KineticCompression.compressUtf8(
+                GSON.toJson(safeValues),
+                MAX_COMPRESSED_BYTES,
+                MAX_DECOMPRESSED_BYTES
+        );
+        buffer.writeByteArray(compressed, MAX_COMPRESSED_BYTES);
     }
 
-    private static List<String> readStringList(FriendlyByteBuf buffer) {
-        byte[] compressed = buffer.readByteArray(MAX_COMPRESSED_BYTES);
-        String json = new String(
-                NetworkCompressUtil.decompressBytes(compressed, MAX_DECOMPRESSED_BYTES),
-                StandardCharsets.UTF_8
+    private static List<String> readStringList(NetworkBuffer buffer) {
+        String json = KineticCompression.decompressUtf8(
+                buffer.readByteArray(MAX_COMPRESSED_BYTES),
+                MAX_DECOMPRESSED_BYTES
         );
         List<String> values = GSON.fromJson(json, STRING_LIST_TYPE);
         List<String> safeValues = values == null ? new ArrayList<>() : new ArrayList<>(values);
@@ -143,20 +163,16 @@ public final class VillagerNetwork {
             this.items = items == null ? List.of() : new ArrayList<>(items);
         }
 
-        public static void encode(OpenFollowItemEditorPacket packet, FriendlyByteBuf buffer) {
-            writeStringList(buffer, packet.items);
+        private void encode(NetworkBuffer buffer) {
+            writeStringList(buffer, items);
         }
 
-        public static OpenFollowItemEditorPacket decode(FriendlyByteBuf buffer) {
+        public static OpenFollowItemEditorPacket decode(NetworkBuffer buffer) {
             return new OpenFollowItemEditorPacket(readStringList(buffer));
         }
 
-        public static void handle(OpenFollowItemEditorPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                    dev.xyat.contentstudio.villager.client.VillagerClientActions.openFollowItemEditor(packet.items)
-            ));
-            context.setPacketHandled(true);
+        public static void handle(OpenFollowItemEditorPacket packet) {
+            dev.xyat.contentstudio.villager.client.VillagerClientActions.openFollowItemEditor(packet.items);
         }
     }
 
@@ -171,25 +187,18 @@ public final class VillagerNetwork {
             this.request = request;
         }
 
-        public static void encode(RequestFollowItemEditorPacket packet, FriendlyByteBuf buffer) {
-            buffer.writeBoolean(packet.request);
+        private void encode(NetworkBuffer buffer) {
+            buffer.writeBoolean(request);
         }
 
-        public static RequestFollowItemEditorPacket decode(FriendlyByteBuf buffer) {
+        public static RequestFollowItemEditorPacket decode(NetworkBuffer buffer) {
             return new RequestFollowItemEditorPacket(buffer.readBoolean());
         }
 
-        public static void handle(RequestFollowItemEditorPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            ServerPlayer sender = context.getSender();
-            if (packet.request && sender != null) {
-                context.enqueueWork(() -> {
-                    if (sender.hasPermissions(2)) {
-                        sendFollowItemEditor(sender);
-                    }
-                });
+        public static void handle(RequestFollowItemEditorPacket packet, ServerPacketContext context) {
+            if (packet.request && context.sender().hasPermissions(2)) {
+                sendFollowItemEditor(context.sender());
             }
-            context.setPacketHandled(true);
         }
     }
 
@@ -200,54 +209,41 @@ public final class VillagerNetwork {
             this.items = items == null ? List.of() : new ArrayList<>(items);
         }
 
-        public static void encode(SaveFollowItemsPacket packet, FriendlyByteBuf buffer) {
-            writeStringList(buffer, packet.items);
+        private void encode(NetworkBuffer buffer) {
+            writeStringList(buffer, items);
         }
 
-        public static SaveFollowItemsPacket decode(FriendlyByteBuf buffer) {
+        public static SaveFollowItemsPacket decode(NetworkBuffer buffer) {
             return new SaveFollowItemsPacket(readStringList(buffer));
         }
 
-        public static void handle(SaveFollowItemsPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            ServerPlayer sender = context.getSender();
-            if (sender == null) {
-                context.setPacketHandled(true);
-                return;
-            }
-
-            context.enqueueWork(() -> {
-                boolean success = false;
-                if (sender.hasPermissions(2) && VillagerConfig.areValidFollowItems(packet.items)) {
-                    try {
-                        VillagerConfig.villagerFollowItems = new ArrayList<>(packet.items);
-                        VillagerConfig.save();
-                        success = true;
-                    } catch (Throwable ignored) {
-                        success = false;
-                    }
+        public static void handle(SaveFollowItemsPacket packet, ServerPacketContext context) {
+            ServerPlayer sender = context.sender();
+            boolean success = false;
+            if (sender.hasPermissions(2) && VillagerConfig.areValidFollowItems(packet.items)) {
+                try {
+                    VillagerConfig.villagerFollowItems = new ArrayList<>(packet.items);
+                    VillagerConfig.save();
+                    success = true;
+                } catch (Throwable ignored) {
+                    success = false;
                 }
-                CHANNEL.send(PacketDistributor.PLAYER.with(() -> sender), new FollowItemSaveResultPacket(success));
-            });
-            context.setPacketHandled(true);
+            }
+            CHANNEL.sendToPlayer(sender, new FollowItemSaveResultPacket(success));
         }
     }
 
     public record FollowItemSaveResultPacket(boolean success) {
-        public static void encode(FollowItemSaveResultPacket packet, FriendlyByteBuf buffer) {
-            buffer.writeBoolean(packet.success);
+        private void encode(NetworkBuffer buffer) {
+            buffer.writeBoolean(success);
         }
 
-        public static FollowItemSaveResultPacket decode(FriendlyByteBuf buffer) {
+        public static FollowItemSaveResultPacket decode(NetworkBuffer buffer) {
             return new FollowItemSaveResultPacket(buffer.readBoolean());
         }
 
-        public static void handle(FollowItemSaveResultPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                    dev.xyat.contentstudio.villager.client.VillagerClientActions.handleFollowItemSaveResult(packet.success)
-            ));
-            context.setPacketHandled(true);
+        public static void handle(FollowItemSaveResultPacket packet) {
+            dev.xyat.contentstudio.villager.client.VillagerClientActions.handleFollowItemSaveResult(packet.success);
         }
     }
 
@@ -255,45 +251,47 @@ public final class VillagerNetwork {
         private final List<String> groups;
         private final List<String> offers;
         private final List<String> overrides;
+        private final boolean lateOverride;
 
         public OpenTradeEditorPacket() {
             this(
                     VillagerConfig.villagerTradeGroups,
                     VillagerConfig.villagerTradeOffers,
-                    VillagerConfig.villagerDefaultTradeOverrides
+                    VillagerConfig.villagerDefaultTradeOverrides,
+                    VillagerConfig.enableVillagerTradeLateOverride
             );
         }
 
-        private OpenTradeEditorPacket(List<String> groups, List<String> offers, List<String> overrides) {
+        private OpenTradeEditorPacket(List<String> groups, List<String> offers, List<String> overrides, boolean lateOverride) {
             this.groups = new ArrayList<>(groups);
             this.offers = new ArrayList<>(offers);
             this.overrides = new ArrayList<>(overrides);
+            this.lateOverride = lateOverride;
         }
 
-        public static void encode(OpenTradeEditorPacket packet, FriendlyByteBuf buffer) {
-            writeStringList(buffer, packet.groups);
-            writeStringList(buffer, packet.offers);
-            writeStringList(buffer, packet.overrides);
+        private void encode(NetworkBuffer buffer) {
+            writeStringList(buffer, groups);
+            writeStringList(buffer, offers);
+            writeStringList(buffer, overrides);
+            buffer.writeBoolean(lateOverride);
         }
 
-        public static OpenTradeEditorPacket decode(FriendlyByteBuf buffer) {
+        public static OpenTradeEditorPacket decode(NetworkBuffer buffer) {
             return new OpenTradeEditorPacket(
                     readStringList(buffer),
                     readStringList(buffer),
-                    readStringList(buffer)
+                    readStringList(buffer),
+                    buffer.readBoolean()
             );
         }
 
-        public static void handle(OpenTradeEditorPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                    dev.xyat.contentstudio.villager.client.VillagerClientActions.openTradeEditor(
-                            packet.groups,
-                            packet.offers,
-                            packet.overrides
-                    )
-            ));
-            context.setPacketHandled(true);
+        public static void handle(OpenTradeEditorPacket packet) {
+            dev.xyat.contentstudio.villager.client.VillagerClientActions.openTradeEditor(
+                    packet.groups,
+                    packet.offers,
+                    packet.overrides,
+                    packet.lateOverride
+            );
         }
     }
 
@@ -308,25 +306,18 @@ public final class VillagerNetwork {
             this.request = request;
         }
 
-        public static void encode(RequestTradeEditorPacket packet, FriendlyByteBuf buffer) {
-            buffer.writeBoolean(packet.request);
+        private void encode(NetworkBuffer buffer) {
+            buffer.writeBoolean(request);
         }
 
-        public static RequestTradeEditorPacket decode(FriendlyByteBuf buffer) {
+        public static RequestTradeEditorPacket decode(NetworkBuffer buffer) {
             return new RequestTradeEditorPacket(buffer.readBoolean());
         }
 
-        public static void handle(RequestTradeEditorPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            ServerPlayer sender = context.getSender();
-            if (packet.request && sender != null) {
-                context.enqueueWork(() -> {
-                    if (sender.hasPermissions(2)) {
-                        sendTradeEditor(sender);
-                    }
-                });
+        public static void handle(RequestTradeEditorPacket packet, ServerPacketContext context) {
+            if (packet.request && context.sender().hasPermissions(2)) {
+                sendTradeEditor(context.sender());
             }
-            context.setPacketHandled(true);
         }
     }
 
@@ -334,53 +325,50 @@ public final class VillagerNetwork {
         private final List<String> groups;
         private final List<String> offers;
         private final List<String> overrides;
+        private final boolean lateOverride;
         private final boolean notifySuccess;
 
         private SaveTradeEditorPacket(
                 List<String> groups,
                 List<String> offers,
                 List<String> overrides,
+                boolean lateOverride,
                 boolean notifySuccess
         ) {
             this.groups = new ArrayList<>(groups);
             this.offers = new ArrayList<>(offers);
             this.overrides = new ArrayList<>(overrides);
+            this.lateOverride = lateOverride;
             this.notifySuccess = notifySuccess;
         }
 
-        public static void encode(SaveTradeEditorPacket packet, FriendlyByteBuf buffer) {
-            writeStringList(buffer, packet.groups);
-            writeStringList(buffer, packet.offers);
-            writeStringList(buffer, packet.overrides);
-            buffer.writeBoolean(packet.notifySuccess);
+        private void encode(NetworkBuffer buffer) {
+            writeStringList(buffer, groups);
+            writeStringList(buffer, offers);
+            writeStringList(buffer, overrides);
+            buffer.writeBoolean(lateOverride);
+            buffer.writeBoolean(notifySuccess);
         }
 
-        public static SaveTradeEditorPacket decode(FriendlyByteBuf buffer) {
+        public static SaveTradeEditorPacket decode(NetworkBuffer buffer) {
             return new SaveTradeEditorPacket(
                     readStringList(buffer),
                     readStringList(buffer),
                     readStringList(buffer),
+                    buffer.readBoolean(),
                     buffer.readBoolean()
             );
         }
 
-        public static void handle(SaveTradeEditorPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            ServerPlayer sender = context.getSender();
-            if (sender == null) {
-                context.setPacketHandled(true);
-                return;
-            }
-
-            context.enqueueWork(() -> {
-                boolean success = sender.hasPermissions(2) && VillagerTradeRegistry.applyAndSaveLive(
-                        packet.groups,
-                        packet.offers,
-                        packet.overrides
-                );
-                CHANNEL.send(PacketDistributor.PLAYER.with(() -> sender), new TradeSaveResultPacket(success, packet.notifySuccess));
-            });
-            context.setPacketHandled(true);
+        public static void handle(SaveTradeEditorPacket packet, ServerPacketContext context) {
+            ServerPlayer sender = context.sender();
+            boolean success = sender.hasPermissions(2) && VillagerTradeRegistry.applyAndSaveLive(
+                    packet.groups,
+                    packet.offers,
+                    packet.overrides,
+                    packet.lateOverride
+            );
+            CHANNEL.sendToPlayer(sender, new TradeSaveResultPacket(success, packet.notifySuccess));
         }
     }
 
@@ -393,24 +381,20 @@ public final class VillagerNetwork {
             this.notifySuccess = notifySuccess;
         }
 
-        public static void encode(TradeSaveResultPacket packet, FriendlyByteBuf buffer) {
-            buffer.writeBoolean(packet.success);
-            buffer.writeBoolean(packet.notifySuccess);
+        private void encode(NetworkBuffer buffer) {
+            buffer.writeBoolean(success);
+            buffer.writeBoolean(notifySuccess);
         }
 
-        public static TradeSaveResultPacket decode(FriendlyByteBuf buffer) {
+        public static TradeSaveResultPacket decode(NetworkBuffer buffer) {
             return new TradeSaveResultPacket(buffer.readBoolean(), buffer.readBoolean());
         }
 
-        public static void handle(TradeSaveResultPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-            NetworkEvent.Context context = contextSupplier.get();
-            context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                    dev.xyat.contentstudio.villager.client.VillagerClientActions.handleTradeSaveResult(
-                            packet.success,
-                            packet.notifySuccess
-                    )
-            ));
-            context.setPacketHandled(true);
+        public static void handle(TradeSaveResultPacket packet) {
+            dev.xyat.contentstudio.villager.client.VillagerClientActions.handleTradeSaveResult(
+                    packet.success,
+                    packet.notifySuccess
+            );
         }
     }
 }

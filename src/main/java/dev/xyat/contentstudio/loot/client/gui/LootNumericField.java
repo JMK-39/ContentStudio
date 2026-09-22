@@ -1,9 +1,8 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.NumericEditBox;
-import net.minecraft.client.gui.components.EditBox;
+import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import net.minecraft.network.chat.Component;
 
 final class LootNumericField {
@@ -19,7 +18,7 @@ final class LootNumericField {
     private LootNumericField() {
     }
 
-    static EditBox create(
+    static NumericEditBox add(
             KineticScreen screen,
             int x,
             int y,
@@ -30,47 +29,44 @@ final class LootNumericField {
     ) {
         Component tooltip = Component.translatable(tooltipKey);
         NumericEditBox box = switch (type) {
-            case PROBABILITY, RATIO -> screen.createDecimalField(
-                    x, y, width, Component.empty(), false, 0D, 1D, tooltip
+            case PROBABILITY, RATIO -> screen.addDecimalField(
+                    x, y, width, Component.empty(), false, 0D, 1D, null, tooltip
             );
-            case POSITIVE_DECIMAL, NON_NEGATIVE_DECIMAL -> screen.createDecimalField(
-                    x, y, width, Component.empty(), false, 0D, null, tooltip
+            case POSITIVE_DECIMAL, NON_NEGATIVE_DECIMAL -> screen.addDecimalField(
+                    x, y, width, Component.empty(), false, 0D, null, null, tooltip
             );
-            case POSITIVE_INTEGER, NON_NEGATIVE_INTEGER -> screen.createIntegerField(
-                    x, y, width, Component.empty(), false, 0, null, tooltip
+            case POSITIVE_INTEGER, NON_NEGATIVE_INTEGER -> screen.addIntegerField(
+                    x, y, width, Component.empty(), false, 0, null, null, tooltip
             );
         };
-
         box.setMaxLength(16);
         box.setValue(value);
         return box;
     }
 
-    static Integer integer(EditBox box) {
-        if (box instanceof NumericEditBox numeric) {
-            Integer value = numeric.getIntValue();
+    static Integer integer(NumericEditBox box) {
+        if (box != null) {
+            Integer value = box.getIntValue();
             if (value != null) return value;
         }
-
         notifyInvalid("msg.contentstudio.loot.loots.number.integer");
         return null;
     }
 
-    static Double decimal(EditBox box) {
-        if (box instanceof NumericEditBox numeric) {
-            Double value = numeric.getDoubleValue();
+    static Double decimal(NumericEditBox box) {
+        if (box != null) {
+            Double value = box.getDoubleValue();
             if (value != null) return value;
         }
-
         notifyInvalid("msg.contentstudio.loot.loots.number.decimal");
         return null;
     }
 
     static void notifyInvalid(String key) {
-        GuiOverlay.toast(
+        KineticOverlays.toast(
                 "loots_number_input",
                 Component.translatable(key),
-                GuiOverlay.Position.BOTTOM_CENTER,
+                KineticOverlays.Position.BOTTOM_CENTER,
                 3000,
                 0,
                 -30

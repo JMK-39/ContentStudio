@@ -1,21 +1,23 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.GridScrollController;
+import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
 import dev.xyat.contentstudio.recipe.RecipeDatabase;
 import dev.xyat.contentstudio.recipe.RecipeRecord;
 import dev.xyat.contentstudio.recipe.RecipeRegistry;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
+import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -29,14 +31,11 @@ public class RecipePreviewScreen extends KineticScreen {
     private static final int SLOT_GAP = 1;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
     private static final float ITEM_SCALE = 1.2F;
-    private static final int BORDER_COLOR = 0xFFFFFFFF;
-    private static final int HOVER_BORDER_COLOR = 0xFF55AAFF;
-    private static final int INVALID_BORDER_COLOR = 0xFFFF5555;
     private static final int COUNT_COLOR = 0xFF55FF55;
     private static final int SCISSOR_MARGIN = 2;
 
     private final Screen parent;
-    private EditBox searchBox;
+    private KineticEditBox searchBox;
     private int gridX;
     private int gridY;
     private int gridW;
@@ -48,20 +47,15 @@ public class RecipePreviewScreen extends KineticScreen {
             new GridScrollController();
 
     private boolean compactToolbar;
-    private Button saveButton;
+    private StateButton saveButton;
     private final List<RecipeRecord> displayRecords = new ArrayList<>();
     private final Set<RecipeKey> pendingDeletes = new LinkedHashSet<>();
 
     public RecipePreviewScreen(Screen parent) {
         super(Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"));
         this.parent = parent;
-
-        useResponsiveCanvas(
-                640f,
-                360f,
-                6
-        );
-        configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnapshot);
+        setParentScreen(parent);
+configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnapshot);
     }
 
     private record RecipeKey(String uuid, int configIndex, String editorType) {
@@ -89,8 +83,8 @@ public class RecipePreviewScreen extends KineticScreen {
         );
     }
 
-    private boolean isPendingDeleted(RecipeRecord record) {
-        return pendingDeletes.contains(keyOf(record));
+    private boolean isNotPendingDeleted(RecipeRecord record) {
+        return !pendingDeletes.contains(keyOf(record));
     }
 
     private RecipeRecord findRecord(RecipeKey key) {
@@ -105,7 +99,7 @@ public class RecipePreviewScreen extends KineticScreen {
 
     private void refreshPendingDeleteState() {
         if (searchBox != null) onSearchUpdate(searchBox.getValue());
-        if (saveButton != null) saveButton.active = !pendingDeletes.isEmpty();
+        if (saveButton != null) saveButton.setEnabled(!pendingDeletes.isEmpty());
     }
 
     private void savePendingDeletes() {
@@ -133,7 +127,7 @@ public class RecipePreviewScreen extends KineticScreen {
     }
 
     public void showToast(Component msg) {
-        GuiOverlay.toast(msg);
+        KineticOverlays.toast(msg);
     }
 
     public void refreshFromServer() {
@@ -155,19 +149,22 @@ public class RecipePreviewScreen extends KineticScreen {
         int refreshWidth = 60;
         int toolbarGap = 6;
 
-        addButton(sidePadding, buttonY, backWidth, Component.translatable(
-                                        "gui.contentstudio.recipe.recipehud.back"
-                                ), null, button -> {
-                                    if (minecraft == null) {
-                                        return;
-                                    }
+        addButton(
+                sidePadding, buttonY, backWidth,
+                Component.translatable("gui.contentstudio.recipe.recipehud.back"),
+                null,
+                () -> {
+                    if (minecraft == null) {
+                        return;
+                    }
 
-                                    if (parent != null) {
-                                        navigateBack();
-                                    } else if (minecraft.player != null) {
-                                        RecipeNetwork.requestOpenHub();
-                                    }
-                                });
+                    if (parent != null) {
+                        navigateBack();
+                    } else if (KineticClientRuntime.localPlayer() != null) {
+                        RecipeNavigationState.requestHub();
+                    }
+                }
+        );
 
         int refreshX =
                 canvasWidth()
@@ -175,12 +172,20 @@ public class RecipePreviewScreen extends KineticScreen {
                         - refreshWidth;
         int saveX = refreshX - toolbarGap - saveWidth;
 
-        saveButton = addButton(saveX, buttonY, saveWidth, Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"), null, button -> savePendingDeletes());
-        saveButton.active = !pendingDeletes.isEmpty();
+        saveButton = addButton(
+                saveX, buttonY, saveWidth,
+                Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"),
+                null,
+                this::savePendingDeletes
+        );
+        saveButton.setEnabled(!pendingDeletes.isEmpty());
 
-        addButton(refreshX, buttonY, refreshWidth, Component.translatable(
-                                        "gui.contentstudio.recipe.recipehud.preview.refresh"
-                                ), null, button -> RecipeNetwork.requestRecipeRecords());
+        addButton(
+                refreshX, buttonY, refreshWidth,
+                Component.translatable("gui.contentstudio.recipe.recipehud.preview.refresh"),
+                null,
+                RecipeNetwork::requestRecipeRecords
+        );
 
         int searchY;
         int searchX;
@@ -233,8 +238,15 @@ public class RecipePreviewScreen extends KineticScreen {
             gridY = 35;
         }
 
-        searchBox =
-                addTextField(searchX, searchY, searchWidth, Component.empty());
+        searchBox = addTextField(
+                searchX,
+                searchY,
+                searchWidth,
+                Component.empty(),
+                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint"),
+                null,
+                null
+        );
 
         searchBox.setResponder(
                 this::onSearchUpdate
@@ -243,7 +255,9 @@ public class RecipePreviewScreen extends KineticScreen {
         searchBox.setValue(
                 RecipePreviewState.searchQuery
         );
-int scrollbarReserve = 10;
+
+
+        int scrollbarReserve = 10;
 
         int availableGridWidth =
                 Math.max(
@@ -308,7 +322,7 @@ int scrollbarReserve = 10;
     }
 
     @Override
-    public void removed() {
+    protected void screenRemoved() {
         RecipePreviewState.scrollOffset =
                 gridScroll.offset();
 
@@ -316,8 +330,6 @@ int scrollbarReserve = 10;
                 searchBox == null
                         ? ""
                         : searchBox.getValue();
-
-        super.removed();
     }
 
     private void onSearchUpdate(String query) {
@@ -327,12 +339,12 @@ int scrollbarReserve = 10;
         List<RecipeRecord> invalidRecords = new ArrayList<>();
 
         for (RecipeRecord record : RecipeDatabase.records) {
-            if (!isPendingDeleted(record) && isDisplayableRecord(record) && matchesSearch(record, lowerQuery)) {
+            if (isNotPendingDeleted(record) && isDisplayableRecord(record) && matchesSearch(record, lowerQuery)) {
                 validRecords.add(record);
             }
         }
         for (RecipeRecord record : RecipeDatabase.invalidRecords) {
-            if (!isPendingDeleted(record) && isDisplayableRecord(record) && matchesSearch(record, lowerQuery)) {
+            if (isNotPendingDeleted(record) && isDisplayableRecord(record) && matchesSearch(record, lowerQuery)) {
                 invalidRecords.add(record);
             }
         }
@@ -350,7 +362,7 @@ int scrollbarReserve = 10;
         if (lowerQuery.isEmpty()) {
             return true;
         }
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(record.output.getItem());
+        ResourceLocation id = KineticRegistries.items().id(record.output.getItem());
         if (id == null) {
             return false;
         }
@@ -373,8 +385,8 @@ int scrollbarReserve = 10;
         }
         try {
             RecipeRegistry.EditorType.valueOf(record.editorType);
-            ResourceLocation id = ForgeRegistries.ITEMS.getKey(record.output.getItem());
-            return id != null && ForgeRegistries.ITEMS.containsKey(id);
+            ResourceLocation id = KineticRegistries.items().id(record.output.getItem());
+            return id != null && KineticRegistries.items().contains(id);
         } catch (Exception e) {
             return false;
         }
@@ -387,12 +399,14 @@ int scrollbarReserve = 10;
             int mouseY,
             float partialTick
     ) {
-        graphics.fill(
+        GuiTheme.surface(
+                graphics,
                 0,
                 0,
                 canvasWidth(),
                 canvasHeight(),
-                0xBB222222
+                GuiTheme.Surface.PANEL_ALT,
+                0.73F
         );
 
         if (gridW <= 0 || gridH <= 0) {
@@ -404,9 +418,7 @@ int scrollbarReserve = 10;
                 gridX - 2,
                 gridY - 2,
                 gridW + 4,
-                gridH + 4,
-                0x55000000,
-                0xFF555555
+                gridH + 4
         );
 
         gridScroll.update(
@@ -425,7 +437,7 @@ int scrollbarReserve = 10;
                         displayRecords.size()
                 );
 
-        enableCanvasScissor(
+        enableUiScissor(
                 graphics,
                 gridX - SCISSOR_MARGIN,
                 gridY - SCISSOR_MARGIN,
@@ -464,7 +476,6 @@ int scrollbarReserve = 10;
 
             GuiTheme.itemSlot(
                     graphics,
-                    record.output,
                     x,
                     y,
                     SLOT_SIZE,
@@ -472,14 +483,15 @@ int scrollbarReserve = 10;
                     false
             );
 
-            graphics.renderOutline(
+            GuiTheme.stateOutline(
+                    graphics,
                     x,
                     y,
                     SLOT_SIZE,
                     SLOT_SIZE,
+                    false,
+                    hovered,
                     record.invalidConfig
-                            ? INVALID_BORDER_COLOR
-                            : (hovered ? HOVER_BORDER_COLOR : BORDER_COLOR)
             );
 
             GuiTheme.item(
@@ -502,7 +514,7 @@ int scrollbarReserve = 10;
 
         }
 
-        disableCanvasScissor(graphics);
+        disableUiScissor(graphics);
 
         gridScroll.render(
                 graphics,
@@ -512,10 +524,7 @@ int scrollbarReserve = 10;
                 gridY,
                 4,
                 gridH,
-                20,
-                GuiTheme.current().scrollTrack(),
-                GuiTheme.current().scrollThumb(),
-                GuiTheme.current().scrollThumbHover()
+                20
         );
     }
 
@@ -526,11 +535,6 @@ int scrollbarReserve = 10;
             int mouseY,
             float partialTick
     ) {
-        renderTextFieldPlaceholder(
-                graphics,
-                searchBox,
-                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint")
-        );
     }
 
     @Override
@@ -609,7 +613,7 @@ int scrollbarReserve = 10;
                 )
         );
 
-        showTooltip(tooltip, 260);
+        KineticOverlays.requestTooltip(tooltip, 260, mouseX, mouseY);
     }
 
     private boolean sameRecord(RecipeRecord left, RecipeRecord right) {
@@ -704,9 +708,9 @@ int scrollbarReserve = 10;
     }
 
     @Override
-    public void onClose() {
-        super.onClose();
+    protected boolean handleCloseRequest() {
         RecipeEditSessionState.applyPendingAndClear();
+        return false;
     }
 
     @Override
@@ -720,7 +724,7 @@ int scrollbarReserve = 10;
                         mouseX,
                         mouseY
                 )) {
-            searchBox.setFocused(false);
+            blurControl(searchBox);
         }
 
         if (super.canvasMouseClicked(
@@ -736,7 +740,7 @@ int scrollbarReserve = 10;
                 safeVisibleRows()
         );
 
-        if (button == 0
+        if (KineticMouseButtons.isPrimary(button)
                 && gridScroll.beginDrag(
                         mouseX,
                         mouseY,
@@ -750,7 +754,7 @@ int scrollbarReserve = 10;
             return true;
         }
 
-        if ((button != 0 && button != 1)
+        if ((!KineticMouseButtons.isPrimary(button) && !KineticMouseButtons.isSecondary(button))
                 || mouseX < gridX
                 || mouseX >= gridX + gridW
                 || mouseY < gridY
@@ -772,13 +776,11 @@ int scrollbarReserve = 10;
         RecipeRecord record =
                 displayRecords.get(index);
 
-        if (button == 0) {
-            RecipeNetwork.CHANNEL.sendToServer(
-                    new RecipeNetwork.RequestEditPacket(
-                            record.uuid,
-                            record.editorType,
-                            record.configIndex
-                    )
+        if (KineticMouseButtons.isPrimary(button)) {
+            RecipeNetwork.requestEdit(
+                    record.uuid,
+                    record.editorType,
+                    record.configIndex
             );
 
             return true;

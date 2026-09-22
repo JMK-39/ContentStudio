@@ -1,7 +1,7 @@
 package dev.xyat.contentstudio.recipe;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
+import dev.xyat.kineticcore.api.network.NetworkBuffer;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -40,7 +40,7 @@ public class UniversalRecipeMenu extends AbstractContainerMenu {
         }
     }
 
-    public UniversalRecipeMenu(int id, Inventory playerInv, FriendlyByteBuf data) {
+    public UniversalRecipeMenu(int id, Inventory playerInv, NetworkBuffer data) {
         super(RecipeRegistry.EDITOR_MENU.get(), id);
         this.type = RecipeRegistry.EditorType.valueOf(data.readUtf());
         addSlots(playerInv);

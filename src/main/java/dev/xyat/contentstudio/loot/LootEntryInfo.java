@@ -1,6 +1,6 @@
 package dev.xyat.contentstudio.loot;
 
-import net.minecraft.network.FriendlyByteBuf;
+import dev.xyat.kineticcore.api.network.NetworkBuffer;
 
 public record LootEntryInfo(int mode, String targetId, String lootTableId, boolean overridden) {
     public static final int MODE_ENTITY = 0;
@@ -27,14 +27,14 @@ public record LootEntryInfo(int mode, String targetId, String lootTableId, boole
         return isGlobalChestAppend() || isGlobalChestRemove() || isGlobalChestExclude();
     }
 
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeVarInt(mode);
-        buf.writeUtf(targetId);
-        buf.writeUtf(lootTableId);
-        buf.writeBoolean(overridden);
+    public void encode(NetworkBuffer buffer) {
+        buffer.writeVarInt(mode);
+        buffer.writeUtf(targetId);
+        buffer.writeUtf(lootTableId);
+        buffer.writeBoolean(overridden);
     }
 
-    public static LootEntryInfo decode(FriendlyByteBuf buf) {
-        return new LootEntryInfo(buf.readVarInt(), buf.readUtf(), buf.readUtf(), buf.readBoolean());
+    public static LootEntryInfo decode(NetworkBuffer buffer) {
+        return new LootEntryInfo(buffer.readVarInt(), buffer.readUtf(), buffer.readUtf(), buffer.readBoolean());
     }
 }

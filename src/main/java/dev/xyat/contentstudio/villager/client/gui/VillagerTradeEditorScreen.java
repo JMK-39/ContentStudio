@@ -1,26 +1,28 @@
 package dev.xyat.contentstudio.villager.client.gui;
 
-import dev.xyat.kineticcore.api.client.text.KineticText;
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
-import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.AutoCompleteBox;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.GridScrollController;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.NumericEditBox;
-import dev.xyat.kineticcore.api.client.selector.NbtEditorScreen;
+import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.ToggleButton;
+import dev.xyat.kineticcore.api.client.widget.KineticControl;
+import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
+import dev.xyat.kineticcore.api.client.widget.input.KineticAutoComplete;
+import dev.xyat.kineticcore.api.client.widget.input.KineticAutoComplete.AutoCompleteBox;
+import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
+import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
 import dev.xyat.contentstudio.villager.network.VillagerNetwork;
 import dev.xyat.contentstudio.villager.util.VillagerTradeRuntimeUtil;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
@@ -30,9 +32,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.MerchantOffer;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -41,18 +41,12 @@ import java.util.List;
 import java.util.Objects;
 
 public class VillagerTradeEditorScreen extends KineticScreen {
-    private static final int PANEL_COLOR = 0xE0181A22;
-    private static final int PANEL_DARK = 0xE008090D;
-    private static final int PANEL_MID = 0xD0212530;
-    private static final int OUTLINE = 0xFFFFFFFF;
-    private static final int TRADE_SLOT_PANEL = 0xE03C4048;
-    private static final int TRADE_SLOT_OUTLINE = 0xFFBFC4CC;
     private static final int BUY_A_LABEL = 0xFFFFFF55;
     private static final int BUY_B_LABEL = 0xFF55FFFF;
     private static final int SELL_LABEL = 0xFF55FF55;
     private static final int ROW_H = 41;
     private static final int LEVEL_ROW_H = 24;
-    private static final int LEVEL_BUTTON_SIZE = COMPACT_CONTROL_HEIGHT;
+    private static final int LEVEL_BUTTON_SIZE = 14;
 
     public Screen getParent() {
         return parent;
@@ -64,7 +58,8 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             List<String> groups,
             List<String> offers,
             List<String> overrides,
-            boolean enabled
+            boolean enabled,
+            boolean lateOverride
     ) {
     }
 
@@ -79,6 +74,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             List<String> offers,
             List<String> overrides,
             boolean enabled,
+            boolean lateOverride,
             String selectedOwner,
             int selectedLevel,
             String selectedMode,
@@ -115,21 +111,20 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     private static String lastSelectedOwner = "";
     private static int lastSelectedLevel = 1;
     private static int lastListScroll = 0;
-    private static List<String> professionDictionary;
     private static final boolean[] LEVEL_EXPANDED = new boolean[]{false, false, false, false, false};
 
     private final Screen parent;
     private final List<TradeEntry> entries = new ArrayList<>();
     private final List<TradeSearchEntry> tradeSearchSource = new ArrayList<>();
     private final KineticSearch.Model<TradeSearchEntry> tradeSearchModel =
-            new KineticSearch.Model<>(List.of(), TradeSearchEntry::searchText);
+            new KineticSearch.Model<>(List.of(), (entry, query) -> KineticSearch.match(entry.searchText(), query));
     private boolean tradeSearchIndexDirty = true;
-    private final List<AbstractWidget> editorWidgets = new ArrayList<>();
-    private final List<AbstractWidget> levelWidgets = new ArrayList<>();
-    private final List<Button> levelExpandButtons = new ArrayList<>();
+    private final List<KineticControl> editorWidgets = new ArrayList<>();
+    private final List<KineticControl> levelWidgets = new ArrayList<>();
+    private final List<StateButton> levelExpandButtons = new ArrayList<>();
 
     private AutoCompleteBox professionBox;
-    private EditBox tradeSearchBox;
+    private KineticEditBox tradeSearchBox;
     private NumericEditBox buyACountBox;
     private NumericEditBox buyBCountBox;
     private NumericEditBox sellCountBox;
@@ -141,9 +136,10 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     private NumericEditBox demandBox;
     private NumericEditBox specialPriceBox;
     private NumericEditBox usesBox;
-    private Button rewardButton;
-    private Button restockButton;
-    private Button undoButton;
+    private ToggleButton rewardButton;
+    private ToggleButton restockButton;
+    private ToggleButton lateOverrideButton;
+    private StateButton undoButton;
     private final Deque<TradeEditorState> undoHistory = new ArrayDeque<>();
     private boolean restoringUndo;
 
@@ -200,13 +196,8 @@ public class VillagerTradeEditorScreen extends KineticScreen {
 
     public VillagerTradeEditorScreen(Screen parent) {
         super(Component.translatable("gui.contentstudio.villager.villager.trade.title"));
+        setParentScreen(parent);
         this.parent = parent;
-        dev.xyat.kineticcore.api.client.screen.GuiSession.setParent(this, parent);
-        useResponsiveCanvas(
-                640f,
-                360f,
-                6
-        );
         configureDraft(this::captureTradeConfigState, this::restoreTradeConfigState);
     }
 
@@ -215,7 +206,8 @@ public class VillagerTradeEditorScreen extends KineticScreen {
                 List.copyOf(VillagerConfig.villagerTradeGroups),
                 List.copyOf(VillagerConfig.villagerTradeOffers),
                 List.copyOf(VillagerConfig.villagerDefaultTradeOverrides),
-                VillagerConfig.enableCustomVillagerTrades
+                VillagerConfig.enableCustomVillagerTrades,
+                VillagerConfig.enableVillagerTradeLateOverride
         );
     }
 
@@ -223,6 +215,10 @@ public class VillagerTradeEditorScreen extends KineticScreen {
         if (state == null) return;
         VillagerConfig.replaceTradeLists(state.groups(), state.offers(), state.overrides());
         VillagerConfig.enableCustomVillagerTrades = state.enabled();
+        VillagerConfig.enableVillagerTradeLateOverride = state.lateOverride();
+        if (lateOverrideButton != null) {
+            lateOverrideButton.setValue(state.lateOverride());
+        }
         invalidateTradeSearchIndex();
         refreshEntries();
     }
@@ -234,6 +230,7 @@ public class VillagerTradeEditorScreen extends KineticScreen {
                 List.copyOf(VillagerConfig.villagerTradeOffers),
                 List.copyOf(VillagerConfig.villagerDefaultTradeOverrides),
                 VillagerConfig.enableCustomVillagerTrades,
+                VillagerConfig.enableVillagerTradeLateOverride,
                 selectedOwner,
                 selectedLevel,
                 selectedMode,
@@ -270,6 +267,10 @@ public class VillagerTradeEditorScreen extends KineticScreen {
 
         VillagerConfig.replaceTradeLists(state.groups(), state.offers(), state.overrides());
         VillagerConfig.enableCustomVillagerTrades = state.enabled();
+        VillagerConfig.enableVillagerTradeLateOverride = state.lateOverride();
+        if (lateOverrideButton != null) {
+            lateOverrideButton.setValue(state.lateOverride());
+        }
         selectedOwner = state.selectedOwner();
         selectedLevel = state.selectedLevel();
         selectedMode = state.selectedMode();
@@ -321,11 +322,25 @@ public class VillagerTradeEditorScreen extends KineticScreen {
     @Override
     protected void buildUi() {
         setupLayout();
-        this.renderRenderablesOnly = false;
         listScroll.restoreOffset(lastListScroll);
 
         int topY = rootY + 8;
-        this.professionBox = addAutoCompleteField(leftX + 6, topY, leftW - 34, Component.translatable("gui.contentstudio.villager.villager.trade.profession.search"), VillagerTradeEditorScreen::getProfessionDictionary, Component.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip"));
+        int searchLeftPadding = 6;
+        int searchRightPadding = 6;
+        int clearButtonWidth = 40;
+        int searchClearGap = 4;
+        int searchFieldWidth = leftW - searchLeftPadding - searchRightPadding - clearButtonWidth - searchClearGap;
+        int clearButtonX = leftX + searchLeftPadding + searchFieldWidth + searchClearGap;
+
+        this.professionBox = addAutoCompleteField(
+                leftX + searchLeftPadding,
+                topY,
+                searchFieldWidth,
+                Component.translatable("gui.contentstudio.villager.villager.trade.profession.search"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder"),
+                VillagerTradeEditorScreen::getProfessionDictionary,
+                Component.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip")
+        );
         this.professionBox.setValue(lastProfessionText);
         this.professionBox.setResponder(value -> {
             if (!suppressProfessionResponder) {
@@ -334,8 +349,24 @@ public class VillagerTradeEditorScreen extends KineticScreen {
             }
         });
 
-        Button clearSearchButton = addButton(leftX + leftW - 24, topY, 20, Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"), Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip"), button -> clearProfessionSearch());
-this.tradeSearchBox = addTextField(leftX + 6, leftY + 6, leftW - 34, Component.translatable("gui.contentstudio.villager.villager.trade.content_search"));
+        addButton(
+                clearButtonX,
+                topY,
+                clearButtonWidth,
+                Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip"),
+                this::clearProfessionSearch
+        );
+
+        this.tradeSearchBox = addTextField(
+                leftX + searchLeftPadding,
+                leftY + 6,
+                searchFieldWidth,
+                Component.translatable("gui.contentstudio.villager.villager.trade.content_search"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.content_search.placeholder"),
+                null,
+                Component.translatable("gui.contentstudio.villager.villager.trade.content_search.tooltip")
+        );
         this.tradeSearchBox.setMaxLength(128);
         this.tradeSearchBox.setValue(lastTradeSearchText);
         this.tradeSearchBox.setResponder(value -> {
@@ -344,10 +375,17 @@ this.tradeSearchBox = addTextField(leftX + 6, leftY + 6, leftW - 34, Component.t
             lastListScroll = 0;
             refreshEntries();
         });
-        registerWidgetTooltip(this.tradeSearchBox, Component.translatable("gui.contentstudio.villager.villager.trade.content_search.tooltip"));
 
-        Button clearTradeSearchButton = addButton(leftX + leftW - 24, leftY + 6, 20, Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"), Component.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip"), button -> clearTradeSearch());
-int gap = 6;
+        addButton(
+                clearButtonX,
+                leftY + 6,
+                clearButtonWidth,
+                Component.translatable("gui.contentstudio.villager.villager.trade.search.clear.short"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip"),
+                this::clearTradeSearch
+        );
+
+        int gap = 6;
         int backW = 58;
         int saveW = 58;
         int undoW = 78;
@@ -356,27 +394,69 @@ int gap = 6;
         int saveX = backX - gap - saveW;
         int undoX = saveX - gap - undoW;
         int previewX = undoX - gap - previewW;
+        int lateOverrideW = 80;
+        int lateOverrideX = previewX - gap - lateOverrideW;
 
-        addButton(previewX, topY, previewW, Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview"), Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview.tooltip"), button -> openRemovedDefaultTradesScreen());
+        this.lateOverrideButton = addCompactToggleButton(
+                lateOverrideX,
+                topY,
+                lateOverrideW,
+                VillagerConfig.enableVillagerTradeLateOverride,
+                Component.translatable("gui.contentstudio.villager.villager.trade.late_override.on"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.late_override.off"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.late_override.tooltip"),
+                null,
+                value -> VillagerConfig.enableVillagerTradeLateOverride = value
+        );
 
-        this.undoButton = addButton(undoX, topY, undoW, undoButtonText(), Component.translatable("gui.contentstudio.villager.villager.trade.undo.tooltip"), button -> undoLastChange());
+        addButton(
+                previewX,
+                topY,
+                previewW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.removed_preview.tooltip"),
+                this::openRemovedDefaultTradesScreen
+        );
+
+        this.undoButton = addButton(
+                undoX,
+                topY,
+                undoW,
+                undoButtonText(),
+                Component.translatable("gui.contentstudio.villager.villager.trade.undo.tooltip"),
+                this::undoLastChange
+        );
         updateUndoButtonState();
 
-        addButton(saveX, topY, saveW, Component.translatable("gui.contentstudio.villager.villager.trade.save"), Component.translatable("gui.contentstudio.villager.villager.trade.save.tooltip"), button -> {
-            syncFieldValues();
-            if (levelSettingsActive) {
-                applyCurrentLevelSettings();
-            }
-            VillagerConfig.enableCustomVillagerTrades = true;
-            VillagerConfig.normalizeTradeLists();
-            VillagerNetwork.saveTradeConfig(true);
-            commitDraft();
-            undoHistory.clear();
-            updateUndoButtonState();
-            refreshEntries();
-        });
+        addButton(
+                saveX,
+                topY,
+                saveW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.save"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.save.tooltip"),
+                () -> {
+                    syncFieldValues();
+                    if (levelSettingsActive) {
+                        applyCurrentLevelSettings();
+                    }
+                    VillagerConfig.enableCustomVillagerTrades = true;
+                    VillagerConfig.normalizeTradeLists();
+                    VillagerNetwork.saveTradeConfig(true);
+                    commitDraft();
+                    undoHistory.clear();
+                    updateUndoButtonState();
+                    refreshEntries();
+                }
+        );
 
-        addButton(backX, topY, backW, Component.translatable("gui.contentstudio.villager.villager.trade.back"), Component.translatable("gui.contentstudio.villager.villager.trade.back.tooltip"), button -> onClose());
+        addButton(
+                backX,
+                topY,
+                backW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.back"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.back.tooltip"),
+                this::onClose
+        );
 
         addLevelExpandButtons();
         addLevelFields();
@@ -422,13 +502,13 @@ int gap = 6;
         levelExpandButtons.clear();
         for (int level = 1; level <= LEVEL_EXPANDED.length; level++) {
             int targetLevel = level;
-            Button button = addCompactButton(
-                    0,
-                    0,
+            StateButton button = addCompactButton(
+                    -10000,
+                    -10000,
                     LEVEL_BUTTON_SIZE,
                     levelExpandText(level),
-                    Component.translatable("gui.contentstudio.villager.villager.trade.level.arrow.tooltip"),
-                    ignored -> {
+                    null,
+                    () -> {
                         selectedLevel = targetLevel;
                         lastSelectedLevel = targetLevel;
                         loadGroupState();
@@ -436,8 +516,9 @@ int gap = 6;
                         refreshEntries();
                     }
             );
-            button.visible = false;
-            button.active = false;
+            KineticControl control = button;
+            control.setVisible(false);
+            control.setEnabled(false);
             levelExpandButtons.add(button);
         }
     }
@@ -454,10 +535,20 @@ int gap = 6;
 
         this.offerCountBox = addLevelSmallNumberBox(countX, buttonY + 15, selectedOfferCount);
 
-        Button addTradeButton = addButton(buttonX, buttonY, buttonW, Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade"), Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade.tooltip"), button -> beginNewTradeFromLevel());
+        StateButton addTradeButton = addButton(
+                buttonX, buttonY, buttonW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.level.add_trade.tooltip"),
+                this::beginNewTradeFromLevel
+        );
         addLevelWidget(addTradeButton);
 
-        Button clearLevelButton = addButton(buttonX, buttonY + 24, buttonW, Component.translatable("gui.contentstudio.villager.villager.trade.level.clear"), Component.translatable("gui.contentstudio.villager.villager.trade.level.clear.tooltip"), button -> clearCurrentLevel(selectedLevel));
+        StateButton clearLevelButton = addButton(
+                buttonX, buttonY + 24, buttonW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.level.clear"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.level.clear.tooltip"),
+                () -> clearCurrentLevel(selectedLevel)
+        );
         addLevelWidget(clearLevelButton);
     }
 
@@ -492,21 +583,34 @@ int gap = 6;
         usesBox = addIntegerBox(metaX + fieldGap * 2, metaY2, fieldW, uses, "gui.contentstudio.villager.villager.trade.uses.tooltip", 0);
 
         int toggleY = metaY2 + 34;
-        this.rewardButton = addButton(metaX, toggleY, 110, rewardText(), Component.translatable("gui.contentstudio.villager.villager.trade.reward.tooltip"), button -> {
-            rewardExp = !rewardExp;
-            button.setMessage(rewardText());
-        });
+        this.rewardButton = addCompactToggleButton(
+                metaX, toggleY, 110, rewardExp,
+                Component.translatable("gui.contentstudio.villager.villager.trade.reward.on"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.reward.off"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.reward.tooltip"),
+                null,
+                value -> rewardExp = value
+        );
         addEditorWidget(this.rewardButton);
 
-        this.restockButton = addButton(metaX + 116, toggleY, 110, restockText(), Component.translatable("gui.contentstudio.villager.villager.trade.restock.tooltip"), button -> {
-            allowRestock = !allowRestock;
-            button.setMessage(restockText());
-        });
+        this.restockButton = addCompactToggleButton(
+                metaX + 116, toggleY, 110, allowRestock,
+                Component.translatable("gui.contentstudio.villager.villager.trade.restock.on"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.restock.off"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.restock.tooltip"),
+                null,
+                value -> allowRestock = value
+        );
         addEditorWidget(this.restockButton);
     }
 
     private void addClearSlotButton(int slot, int x, int y) {
-        Button clear = addButton(x, y, 36, Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear"), Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear.tooltip"), button -> clearTradeItemSlot(slot));
+        StateButton clear = addCompactButton(
+                x, y, 36,
+                Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.slot.clear.tooltip"),
+                () -> clearTradeItemSlot(slot)
+        );
         addEditorWidget(clear);
     }
 
@@ -534,12 +638,20 @@ int gap = 6;
             String tooltipKey,
             int minValue
     ) {
-        NumericEditBox box = addIntegerField(x, y, 36, Component.empty(), minValue < 0, minValue, 64, null);
+        NumericEditBox box = addIntegerField(
+                x,
+                y,
+                36,
+                Component.empty(),
+                minValue < 0,
+                minValue,
+                64,
+                null,
+                Component.translatable(tooltipKey)
+        );
 
         box.setMaxLength(3);
         box.setValue(value);
-        registerWidgetTooltip(box, Component.translatable(tooltipKey));
-
         addEditorWidget(box);
         return box;
     }
@@ -549,14 +661,20 @@ int gap = 6;
             int y,
             int value
     ) {
-        NumericEditBox box = addIntegerField(x, y, 50, Component.empty(), false, 0, 64, null);
+        NumericEditBox box = addIntegerField(
+                x,
+                y,
+                50,
+                Component.empty(),
+                false,
+                0,
+                64,
+                null,
+                Component.translatable("gui.contentstudio.villager.villager.trade.offer_count.tooltip")
+        );
 
         box.setMaxLength(3);
         box.setIntValue(value);
-        registerWidgetTooltip(box, Component.translatable(
-                                "gui.contentstudio.villager.villager.trade.offer_count.tooltip"
-                        ));
-
         addLevelWidget(box);
         return box;
     }
@@ -569,12 +687,20 @@ int gap = 6;
             String tooltipKey,
             int minValue
     ) {
-        NumericEditBox box = addIntegerField(x, y, width, Component.empty(), minValue < 0, minValue, 999999, null);
+        NumericEditBox box = addIntegerField(
+                x,
+                y,
+                width,
+                Component.empty(),
+                minValue < 0,
+                minValue,
+                999999,
+                null,
+                Component.translatable(tooltipKey)
+        );
 
         box.setMaxLength(10);
         box.setValue(value);
-        registerWidgetTooltip(box, Component.translatable(tooltipKey));
-
         addEditorWidget(box);
         return box;
     }
@@ -585,18 +711,31 @@ int gap = 6;
             int width,
             String value
     ) {
-        NumericEditBox box = addDecimalField(x, y, width, Component.empty(), false, 0.0, 1000.0, null);
+        NumericEditBox box = addDecimalField(
+                x,
+                y,
+                width,
+                Component.empty(),
+                false,
+                0.0,
+                1000.0,
+                null,
+                Component.translatable("gui.contentstudio.villager.villager.trade.price.tooltip")
+        );
 
         box.setMaxLength(10);
         box.setValue(value);
-        registerWidgetTooltip(box, Component.translatable("gui.contentstudio.villager.villager.trade.price.tooltip"));
-
         addEditorWidget(box);
         return box;
     }
 
     private void addNbtButton(int slot, int x, int y) {
-        Button button = addButton(x, y, 36, Component.translatable("gui.contentstudio.villager.villager.trade.nbt.button"), Component.translatable("gui.contentstudio.villager.villager.trade.nbt.tooltip"), b -> openNbtEditor(slot));
+        StateButton button = addCompactButton(
+                x, y, 36,
+                Component.translatable("gui.contentstudio.villager.villager.trade.nbt.button"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.nbt.tooltip"),
+                () -> openNbtEditor(slot)
+        );
         addEditorWidget(button);
     }
 
@@ -608,49 +747,62 @@ int gap = 6;
         int clearW = 96;
         int gap = 8;
 
-        Button saveButton = addButton(x, y, saveW, Component.translatable("gui.contentstudio.villager.villager.trade.offer.save"), Component.translatable("gui.contentstudio.villager.villager.trade.inline.save.tooltip"), button -> saveCurrentOffer());
+        StateButton saveButton = addButton(
+                x, y, saveW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.offer.save"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.inline.save.tooltip"),
+                this::saveCurrentOffer
+        );
         addEditorWidget(saveButton);
 
-        Button deleteButton = addButton(x + saveW + gap, y, deleteW, Component.translatable("gui.contentstudio.villager.villager.trade.offer.delete"), Component.translatable("gui.contentstudio.villager.villager.trade.inline.delete.tooltip"), button -> deleteSelectedEntry());
+        StateButton deleteButton = addButton(
+                x + saveW + gap, y, deleteW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.offer.delete"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.inline.delete.tooltip"),
+                this::deleteSelectedEntry
+        );
         addEditorWidget(deleteButton);
 
-        Button clearCurrentButton = addButton(x + saveW + gap + deleteW + gap, y, clearW, Component.translatable("gui.contentstudio.villager.villager.trade.clear_current"), Component.translatable("gui.contentstudio.villager.villager.trade.inline.clear_current.tooltip"), button -> clearCurrentTarget());
+        StateButton clearCurrentButton = addButton(
+                x + saveW + gap + deleteW + gap, y, clearW,
+                Component.translatable("gui.contentstudio.villager.villager.trade.clear_current"),
+                Component.translatable("gui.contentstudio.villager.villager.trade.inline.clear_current.tooltip"),
+                this::clearCurrentTarget
+        );
         addEditorWidget(clearCurrentButton);
     }
 
-    private void addEditorWidget(AbstractWidget widget) {
+    private void addEditorWidget(KineticControl widget) {
         this.editorWidgets.add(widget);
     }
 
-    private void addLevelWidget(AbstractWidget widget) {
+    private void addLevelWidget(KineticControl widget) {
         this.levelWidgets.add(widget);
     }
 
     private void setEditorWidgetsVisible(boolean visible) {
-        for (AbstractWidget widget : editorWidgets) {
-            widget.visible = visible;
-            widget.active = visible;
+        for (KineticControl widget : editorWidgets) {
+            widget.setVisible(visible);
+            widget.setEnabled(visible);
         }
     }
 
     private void setLevelWidgetsVisible(boolean visible) {
-        for (AbstractWidget widget : levelWidgets) {
-            widget.visible = visible;
-            widget.active = visible;
+        for (KineticControl widget : levelWidgets) {
+            widget.setVisible(visible);
+            widget.setEnabled(visible);
         }
     }
 
     private void closeProfessionBoxFocus() {
         if (professionBox != null) {
             professionBox.clearSuggestions();
-            professionBox.setFocused(false);
         }
-        this.setFocused(null);
+        clearControlFocus();
     }
 
     @Override
-    public void tick() {
-        super.tick();
+    protected void canvasTick() {
         syncFieldValues();
         syncSelectedOwnerFromBox();
         updateUndoButtonState();
@@ -658,12 +810,10 @@ int gap = 6;
 
     @Override
     protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        g.fill(rootX, rootY, rootX + rootW, rootY + rootH, PANEL_COLOR);
-        g.renderOutline(rootX, rootY, rootW, rootH, OUTLINE);
-        g.fill(leftX, leftY, leftX + leftW, leftY + leftH, PANEL_DARK);
-        g.renderOutline(leftX, leftY, leftW, leftH, OUTLINE);
-        g.fill(rightX, rightY, rightX + rightW, rightY + rightH, PANEL_DARK);
-        g.renderOutline(rightX, rightY, rightW, rightH, OUTLINE);
+        updateLevelExpandButtons();
+        GuiTheme.panel(g, rootX, rootY, rootW, rootH);
+        GuiTheme.panelAlt(g, leftX, leftY, leftW, leftH);
+        GuiTheme.panelAlt(g, rightX, rightY, rightW, rightH);
         if (!selectedOwner.isEmpty() && editorActive && !levelSettingsActive) {
             renderTradeSlotPanels(g);
         }
@@ -678,20 +828,7 @@ int gap = 6;
     protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
         renderLeftPanel(g, mx, my);
         renderRightPanel(g, mx, my);
-        renderTextFieldPlaceholder(
-                g,
-                professionBox,
-                Component.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder")
-        );
-        renderTextFieldPlaceholder(
-                g,
-                tradeSearchBox,
-                Component.translatable("gui.contentstudio.villager.villager.trade.content_search.placeholder")
-        );
         renderProfessionSearchHint(g);
-        if (professionBox != null) {
-            professionBox.renderSuggestions(g, mx, my);
-        }
     }
 
     private void renderProfessionSearchHint(GuiGraphics g) {
@@ -718,13 +855,11 @@ int gap = 6;
 
     private void renderLeftPanel(GuiGraphics g, int mx, int my) {
         if (canUseTradeList()) {
-            g.fill(listX, listY, listX + listW, listY + listH, 0x66000000);
-            g.renderOutline(listX, listY, listW, listH, 0xBBFFFFFF);
+            GuiTheme.panelAlt(g, listX, listY, listW, listH);
             return;
         }
 
-        g.fill(listX, listY, listX + listW, listY + listH, 0x66000000);
-        g.renderOutline(listX, listY, listW, listH, 0xFFAAAAAA);
+        GuiTheme.panelAlt(g, listX, listY, listW, listH);
 
         if (isTradeSearching() && entries.isEmpty()) {
             g.drawCenteredString(
@@ -739,7 +874,7 @@ int gap = 6;
 
         int y = listY + 3 - smoothListShift();
         int start = smoothListStart();
-        enableCanvasScissor(g, listX, listY + 3, listX + listW - 10, listY + listH - 3);
+        enableUiScissor(g, listX, listY + 3, listX + listW - 10, listY + listH - 3);
         for (int i = start; i < entries.size(); i++) {
             TradeEntry entry = entries.get(i);
             int h = entry.header() ? LEVEL_ROW_H : ROW_H;
@@ -749,19 +884,17 @@ int gap = 6;
             renderEntry(g, mx, my, entry, y, h);
             y += h;
         }
-        disableCanvasScissor(g);
+        disableUiScissor(g);
         renderListScrollbar(g, mx, my);
     }
 
-    @Override
-    protected void updateCanvasWidgets(int mouseX, int mouseY, float partialTick) {
-        updateLevelExpandButtons();
-    }
-
     private void updateLevelExpandButtons() {
-        for (Button button : levelExpandButtons) {
-            button.visible = false;
-            button.active = false;
+        for (StateButton button : levelExpandButtons) {
+            KineticControl control = button;
+            control.setVisible(false);
+            control.setEnabled(false);
+            control.setX(-10000);
+            control.setY(-10000);
         }
         if (selectedOwner.isEmpty() || !tradeSearchText().isEmpty()) {
             return;
@@ -777,21 +910,23 @@ int gap = 6;
             if (entry.header() && y >= listY + 3 && y + h <= listY + listH - 3) {
                 int index = entry.level() - 1;
                 if (index >= 0 && index < levelExpandButtons.size()) {
-                    Button button = levelExpandButtons.get(index);
+                    StateButton button = levelExpandButtons.get(index);
                     button.setX(listX + 8);
                     button.setY(y + 4);
-                    button.setMessage(levelExpandText(entry.level()));
-                    button.visible = true;
-                    button.active = true;
+                    button.setText(levelExpandText(entry.level()));
+                    KineticControl control = button;
+                    control.setVisible(true);
+                    control.setEnabled(true);
                 }
             }
             y += h;
         }
     }
 
-    private Button hoveredLevelExpandButton(double mx, double my) {
-        for (Button button : levelExpandButtons) {
-            if (button.visible && button.isMouseOver(mx, my)) {
+    private StateButton hoveredLevelExpandButton(double mx, double my) {
+        for (StateButton button : levelExpandButtons) {
+            KineticControl control = button;
+            if (control.isVisible() && control.isMouseOver(mx, my)) {
                 return button;
             }
         }
@@ -801,20 +936,17 @@ int gap = 6;
     private void renderEntry(GuiGraphics g, int mx, int my, TradeEntry entry, int y, int h) {
         boolean hover = mx >= listX + 4 && mx <= listX + listW - 10 && my >= y && my < y + h;
         boolean selected = Objects.equals(selectedKey, entry.key());
-        int bg;
-        int outline;
-        if (entry.header()) {
-            bg = selected ? 0xCC5A3E12 : hover ? 0xAA4A3518 : 0xAA16181E;
-            outline = selected || hover ? 0xFFFFAA00 : 0xCC555555;
-        } else if (entry.custom()) {
-            bg = selected ? 0xAA444444 : hover ? 0x88383838 : 0x66222222;
-            outline = selected ? 0xFFAAAAAA : hover ? 0xFF888888 : 0xAA666666;
-        } else {
-            bg = selected ? 0xAA444444 : hover ? 0x88403A24 : 0x66191B20;
-            outline = selected ? 0xFFAAAAAA : hover ? 0xFFFFAA00 : 0x99FFFFFF;
-        }
-        g.fill(listX + 4, y, listX + listW - 12, y + h - 2, bg);
-        g.renderOutline(listX + 4, y, listW - 16, h - 2, outline);
+        GuiTheme.stateSurface(
+                g,
+                listX + 4,
+                y,
+                listW - 16,
+                h - 2,
+                entry.header() ? GuiTheme.Surface.PANEL : GuiTheme.Surface.PANEL_ALT,
+                selected,
+                hover,
+                false
+        );
 
         if (entry.header()) {
             String left = Component.translatable("gui.contentstudio.villager.villager.trade.trade_list.level", entry.level(), modeName(entry.mode())).getString();
@@ -825,14 +957,14 @@ int gap = 6;
             int minGap = 10;
 
             int maxRightWidth = Math.max(38, listX + listW - rightPadding - leftTextX - 74);
-            int rightTextWidth = Math.min(154, maxRightWidth);
-            int rightEdge = listX + listW - rightPadding;
-            int rightTextX = rightEdge - rightTextWidth;
+            String safeRight = trim(right, Math.min(154, maxRightWidth));
+            int rightTextX = listX + listW - rightPadding - this.font.width(safeRight);
 
             int maxLeftWidth = Math.max(32, rightTextX - leftTextX - minGap);
+            String safeLeft = trim(left, maxLeftWidth);
 
-            KineticText.drawScrollingLeft(g, this.font, left, leftTextX, y + 7, maxLeftWidth, 0xFFFFFF55, false);
-            KineticText.drawScrollingRight(g, this.font, Component.literal(right), rightEdge, y + 7, rightTextWidth, 0xFFFFFFFF, false);
+            g.drawString(this.font, safeLeft, leftTextX, y + 7, 0xFFFFFF55, false);
+            g.drawString(this.font, safeRight, rightTextX, y + 7, 0xFFFFFFFF, false);
             return;
         }
 
@@ -848,9 +980,9 @@ int gap = 6;
                 : offerMeta;
 
         int sourceColor = entry.custom() ? 0xFFFF55FF : 0xFF55FF55;
-        KineticText.drawScrollingLeft(g, this.font, source, listX + 9, y + 4, 48, sourceColor, false);
+        g.drawString(this.font, trim(source.getString(), 48), listX + 9, y + 4, sourceColor, false);
         renderOfferIconLine(g, entry.offer(), listX + 56, y + 2);
-        KineticText.drawScrollingLeft(g, this.font, meta, listX + 9, y + 27, listW - 28, 0xFFFFFFFF, false);
+        g.drawString(this.font, trim(meta, listW - 28), listX + 9, y + 27, 0xFFFFFFFF, false);
     }
 
     private void renderOfferIconLine(GuiGraphics g, MerchantOffer offer, int x, int y) {
@@ -927,10 +1059,7 @@ int gap = 6;
                 listY + 3,
                 4,
                 listH - 6,
-                24,
-                GuiTheme.current().scrollTrack(),
-                GuiTheme.current().scrollThumb(),
-                GuiTheme.current().scrollThumbHover()
+                24
         );
     }
 
@@ -998,15 +1127,14 @@ int gap = 6;
         }
 
         String ownerName = getProfessionName(selectedOwner);
-        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName), rightX + 8, rightY + 8, rightW - 20, 0xFFFFFF55, false);
-        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.selected_state", selectedLevel, modeName(selectedMode), countCustomOffers(selectedOwner, selectedLevel)), rightX + 8, rightY + 24, rightW - 20, 0xFFFFFFFF, false);
+        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName).getString(), rightW - 20), rightX + 8, rightY + 8, 0xFFFFFF55, false);
+        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.selected_state", selectedLevel, modeName(selectedMode), countCustomOffers(selectedOwner, selectedLevel)).getString(), rightW - 20), rightX + 8, rightY + 24, 0xFFFFFFFF, false);
 
         int noticeX = rightX + 8;
         int noticeY = rightY + 64;
-        g.fill(noticeX, noticeY, noticeX + rightW - 16, noticeY + 18, PANEL_MID);
-        g.renderOutline(noticeX, noticeY, rightW - 16, 18, 0xAAFFFFFF);
+        GuiTheme.panelAlt(g, noticeX, noticeY, rightW - 16, 18);
         Component state = editingDefault ? Component.translatable("gui.contentstudio.villager.villager.trade.inline.editing_default") : (editingCustomIndex >= 0 ? Component.translatable("gui.contentstudio.villager.villager.trade.inline.editing_custom") : Component.translatable("gui.contentstudio.villager.villager.trade.inline.creating"));
-        KineticText.drawScrollingLeft(g, this.font, state, noticeX + 6, noticeY + 5, rightW - 28, 0xFFFF55FF, false);
+        g.drawString(this.font, trim(state.getString(), rightW - 28), noticeX + 6, noticeY + 5, 0xFFFF55FF, false);
 
         renderTradeSlots(g, mx, my);
 
@@ -1030,8 +1158,8 @@ int gap = 6;
         int defaultCount = VillagerTradeRuntimeUtil.getDefaultOfferCount(selectedOwner, selectedLevel);
         int controlRightX = rightX + rightW - 190;
 
-        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName), rightX + 8, rightY + 8, controlRightX - rightX - 12, 0xFFFFFF55, false);
-        KineticText.drawScrollingLeft(g, this.font, Component.translatable("gui.contentstudio.villager.villager.trade.level.settings_state", selectedLevel, modeName(selectedMode), selectedOfferCount, defaultCount), rightX + 8, rightY + 24, controlRightX - rightX - 12, 0xFFFFFFFF, false);
+        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName).getString(), controlRightX - rightX - 12), rightX + 8, rightY + 8, 0xFFFFFF55, false);
+        g.drawString(this.font, trim(Component.translatable("gui.contentstudio.villager.villager.trade.level.settings_state", selectedLevel, modeName(selectedMode), selectedOfferCount, defaultCount).getString(), controlRightX - rightX - 12), rightX + 8, rightY + 24, 0xFFFFFFFF, false);
 
         int buttonW = 92;
         int buttonX = rightX + rightW - 110;
@@ -1042,7 +1170,7 @@ int gap = 6;
         g.drawString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.level.settings.title"), rightX + 8, rightY + 48, 0xFFFFFF55, false);
         g.drawString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.level.settings.tip"), rightX + 8, rightY + 64, 0xFFFFFFFF, false);
 
-        g.renderOutline(countX - 8, buttonY - 4, buttonW + 82, 52, 0x55FFFFFF);
+        GuiTheme.stateOutline(g, countX - 8, buttonY - 4, buttonW + 82, 52, false, false, false);
     }
 
     private void renderTradeSlotPanels(GuiGraphics g) {
@@ -1072,8 +1200,7 @@ int gap = 6;
     }
 
     private void renderTradeSlotSection(GuiGraphics g, int x, int y) {
-        g.fill(x - 6, y - 6, x + 72, y + 85, TRADE_SLOT_PANEL);
-        g.renderOutline(x - 6, y - 6, 78, 91, TRADE_SLOT_OUTLINE);
+        GuiTheme.panelAlt(g, x - 6, y - 6, 78, 91);
     }
 
     private void renderLargeTradeSymbol(GuiGraphics g, String text, int centerX, int centerY) {
@@ -1093,7 +1220,7 @@ int gap = 6;
         int slotY = y + 20;
 
         int labelColor = slot == 0 ? BUY_A_LABEL : slot == 1 ? BUY_B_LABEL : SELL_LABEL;
-        KineticText.drawScrollingLeft(g, this.font, label, x, y, 94, labelColor, false);
+        g.drawString(this.font, trim(label.getString(), 94), x, y, labelColor, false);
         renderInsetSlot(g, x, slotY, isHoverSlot(mx, my, slot));
         if (!stack.isEmpty()) {
             g.renderItem(stack, x + 4, slotY + 4);
@@ -1119,20 +1246,24 @@ int gap = 6;
 
     @Override
     protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
+        if (hoveredLevelExpandButton(smx, smy) != null) {
+            KineticOverlays.requestTooltip(Component.translatable("gui.contentstudio.villager.villager.trade.level.arrow.tooltip"), mx, my);
+            return;
+        }
         int hoverSlot = hoveredSlot(smx, smy);
         if (hoverSlot >= 0) {
             String key = hoverSlot == 0 ? "gui.contentstudio.villager.villager.trade.slot.buy_a.tooltip" : hoverSlot == 1 ? "gui.contentstudio.villager.villager.trade.slot.buy_b.tooltip" : "gui.contentstudio.villager.villager.trade.slot.sell.tooltip";
-            showTooltip(Component.translatable(key));
+            KineticOverlays.requestTooltip(Component.translatable(key), mx, my);
             return;
         }
         ItemStack hoveredListStack = findHoveredLeftListStack(smx, smy);
         if (!hoveredListStack.isEmpty()) {
-            showItemTooltip(hoveredListStack);
+            KineticOverlays.requestItemTooltip(hoveredListStack, mx, my);
             return;
         }
         TradeEntry hoveredEntry = findEntryAt(smx, smy);
         if (hoveredEntry != null && hoveredEntry.header()) {
-            showTooltip(Component.translatable("gui.contentstudio.villager.villager.trade.level.row.tooltip"));
+            KineticOverlays.requestTooltip(Component.translatable("gui.contentstudio.villager.villager.trade.level.row.tooltip"), mx, my);
         }
     }
 
@@ -1202,30 +1333,15 @@ int gap = 6;
     }
 
     private boolean handleLevelExpandButtonClick(double mx, double my, int btn) {
-        Button button = hoveredLevelExpandButton(mx, my);
+        StateButton button = hoveredLevelExpandButton(mx, my);
         return button != null && button.mouseClicked(mx, my, btn);
     }
 
     @Override
     protected boolean canvasMouseClicked(double mx, double my, int btn) {
-        if (professionBox != null) {
-            String before = professionBox.getValue();
-            if (professionBox.handleMouseClick(mx, my)) {
-                String after = professionBox.getValue();
-                if (!Objects.equals(before, after)) {
-                    syncSelectedOwnerFromBox();
-                    closeProfessionBoxFocus();
-                }
-                return true;
-            }
-            if (btn == 0 && !professionBox.isMouseOver(mx, my)) {
-                closeProfessionBoxFocus();
-            }
-        }
-
         updateMainListScrollRange();
 
-        if (btn == 0
+        if (KineticMouseButtons.isPrimary(btn)
                 && listScroll.beginDrag(
                 mx,
                 my,
@@ -1247,7 +1363,7 @@ int gap = 6;
         if (handleListClick(mx, my, btn)) {
             return true;
         }
-        if (btn == 0 && handleSlotClick(mx, my)) {
+        if (KineticMouseButtons.isPrimary(btn) && handleSlotClick(mx, my)) {
             return true;
         }
         return super.canvasMouseClicked(mx, my, btn);
@@ -1261,11 +1377,6 @@ int gap = 6;
     ) {
         boolean handled =
                 listScroll.release(btn);
-
-        if (professionBox != null) {
-            handled |=
-                    professionBox.handleMouseReleased(btn);
-        }
 
         return handled
                 || super.canvasMouseReleased(
@@ -1294,11 +1405,6 @@ int gap = 6;
             return true;
         }
 
-        if (professionBox != null
-                && professionBox.handleMouseDragged(my)) {
-            return true;
-        }
-
         return super.canvasMouseDragged(
                 mx,
                 my,
@@ -1310,9 +1416,6 @@ int gap = 6;
 
     @Override
     protected boolean canvasMouseScrolled(double mx, double my, double delta) {
-        if (professionBox != null && professionBox.handleMouseScrolled(delta)) {
-            return true;
-        }
         if (mx >= listX
                 && mx <= listX + listW
                 && my >= listY
@@ -1329,21 +1432,22 @@ int gap = 6;
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_Z && Screen.hasControlDown()) {
+    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
+        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.Z, keyCode) && KineticClientRuntime.controlModifierDown()) {
             if (!undoHistory.isEmpty()) {
                 undoLastChange();
             }
             return true;
         }
-        if (professionBox != null && professionBox.isFocused() && professionBox.handleKeyPressed(keyCode)) {
-            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
-                syncSelectedOwnerFromBox();
-                closeProfessionBoxFocus();
-            }
+        if (professionBox != null
+                && isControlFocused(professionBox)
+                && (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ENTER, keyCode)
+                || KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.KP_ENTER, keyCode))) {
+            syncSelectedOwnerFromBox();
+            closeProfessionBoxFocus();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return false;
     }
 
     private boolean handleListClick(double mx, double my, int btn) {
@@ -1365,22 +1469,22 @@ int gap = 6;
 
                     selectedKey = entry.key();
 
-                    if (btn == 1) {
+                    if (KineticMouseButtons.isSecondary(btn)) {
                         clearCurrentLevel(entry.level());
                         return true;
                     }
 
-                    if (btn == 0) {
+                    if (KineticMouseButtons.isPrimary(btn)) {
                         selectLevelSettings(entry.level());
                         refreshEntries();
                         return true;
                     }
                 }
-                if (btn == 1) {
+                if (KineticMouseButtons.isSecondary(btn)) {
                     deleteEntry(entry);
                     return true;
                 }
-                if (btn == 0) {
+                if (KineticMouseButtons.isPrimary(btn)) {
                     selectEntry(entry);
                     return true;
                 }
@@ -1457,14 +1561,14 @@ int gap = 6;
 
     private String resolveOwner(String text) {
         String raw = text == null ? "" : text.trim();
-        String clean = VillagerConfig.clean(stripDictionaryText(raw));
+        String clean = VillagerConfig.clean(raw);
         if (isValidOwner(clean)) {
             return clean;
         }
-        for (String option : getProfessionDictionary()) {
-            String id = stripDictionaryText(option);
-            String name = getProfessionName(id);
-            if (name.equalsIgnoreCase(raw) || option.equalsIgnoreCase(raw)) {
+        for (KineticAutoComplete.Suggestion option : getProfessionDictionary()) {
+            String id = option.value();
+            String name = option.translation().getString();
+            if ((!name.isBlank() && name.equalsIgnoreCase(raw)) || id.equalsIgnoreCase(raw)) {
                 return id;
             }
         }
@@ -1476,7 +1580,7 @@ int gap = 6;
             return;
         }
         suppressProfessionResponder = true;
-        String display = getProfessionName(owner);
+        String display = VillagerConfig.clean(owner);
         professionBox.setValue(display);
         professionBox.setCursorPosition(display.length());
         closeProfessionBoxFocus();
@@ -1522,8 +1626,8 @@ int gap = 6;
         if (clean.equals(VillagerConfig.WANDERING_TRADER_ID)) {
             return true;
         }
-        ResourceLocation id = ResourceLocation.tryParse(clean);
-        return id != null && BuiltInRegistries.VILLAGER_PROFESSION.containsKey(id);
+        ResourceLocation id = KineticResourceIds.tryParse(clean);
+        return id != null && KineticRegistries.villagerProfessions().contains(id);
     }
 
     private void loadGroupState() {
@@ -1638,8 +1742,8 @@ int gap = 6;
     private void rebuildTradeSearchIndex() {
         tradeSearchSource.clear();
 
-        for (String option : getProfessionDictionary()) {
-            String owner = stripDictionaryText(option);
+        for (KineticAutoComplete.Suggestion option : getProfessionDictionary()) {
+            String owner = option.value();
             if (!isValidOwner(owner)) {
                 continue;
             }
@@ -1803,7 +1907,7 @@ int gap = 6;
 
     private void beginNewTradeFromLevel() {
         if (selectedOwner.isEmpty()) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
             return;
         }
         UndoCheckpoint checkpoint = beginUndoableChange();
@@ -1811,7 +1915,7 @@ int gap = 6;
         clearSelectionToNewOffer();
         refreshEntries();
         finishUndoableChange(checkpoint);
-        GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.new_draft"));
+        KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.new_draft"));
     }
 
     private void selectEntry(TradeEntry entry) {
@@ -1997,8 +2101,8 @@ int gap = 6;
 
     private void updateUndoButtonState() {
         if (undoButton == null) return;
-        undoButton.setMessage(undoButtonText());
-        undoButton.active = !undoHistory.isEmpty();
+        undoButton.setText(undoButtonText());
+        undoButton.setEnabled(!undoHistory.isEmpty());
     }
 
     private void syncFieldValues() {
@@ -2077,10 +2181,10 @@ int gap = 6;
     private void saveCurrentOffer() {
         syncFieldValues();
         if (selectedOwner.isEmpty() || !editorActive) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
             return;
         }
-        if (!validateNbt()) {
+        if (hasInvalidNbt()) {
             showWarningToast(Component.translatable("msg.contentstudio.villager.villager.trade.invalid_nbt"));
             return;
         }
@@ -2094,7 +2198,7 @@ int gap = 6;
                 ensureControlledGroup();
                 refreshEntries();
                 finishUndoableChange(checkpoint);
-                GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_disabled"));
+                KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_disabled"));
                 return;
             }
 
@@ -2103,7 +2207,7 @@ int gap = 6;
                 ensureControlledGroup();
                 refreshEntries();
                 finishUndoableChange(checkpoint);
-                GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_saved"));
+                KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_saved"));
                 return;
             }
 
@@ -2121,7 +2225,7 @@ int gap = 6;
             ensureControlledGroup();
             refreshEntries();
             finishUndoableChange(checkpoint);
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_converted"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_converted"));
             return;
         }
 
@@ -2140,7 +2244,7 @@ int gap = 6;
         ensureControlledGroup();
         refreshEntries();
         finishUndoableChange(checkpoint);
-        GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.offer_saved"));
+        KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.offer_saved"));
     }
 
     private VillagerConfig.TradeOfferData buildOfferData(int index) {
@@ -2181,8 +2285,8 @@ int gap = 6;
         );
     }
 
-    private boolean validateNbt() {
-        return validNbt(buyANbt) && validNbt(buyBNbt) && validNbt(sellNbt);
+    private boolean hasInvalidNbt() {
+        return !validNbt(buyANbt) || !validNbt(buyBNbt) || !validNbt(sellNbt);
     }
 
     private boolean validNbt(String nbt) {
@@ -2199,7 +2303,7 @@ int gap = 6;
     }
 
     private void showWarningToast(Component message) {
-        GuiOverlay.toast("villager_trade_warning", message, GuiOverlay.Position.BOTTOM_CENTER, 5000, 0, -30);
+        KineticOverlays.toast("villager_trade_warning", message, KineticOverlays.Position.BOTTOM_CENTER, 5000, 0, -30);
     }
 
     private void ensureControlledGroup() {
@@ -2242,7 +2346,7 @@ int gap = 6;
     private void deleteSelectedEntry() {
         TradeEntry entry = findSelectedEntry();
         if (entry == null || entry.header()) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_offer_selected"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_offer_selected"));
             return;
         }
         deleteEntry(entry);
@@ -2268,12 +2372,12 @@ int gap = 6;
         loadGroupState();
         if (entry.custom()) {
             VillagerConfig.removeTradeOfferAt(entry.customIndex());
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.offer_deleted"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.offer_deleted"));
         } else {
             VillagerConfig.setVanillaTradeOverride(new VillagerConfig.VanillaTradeOverride(selectedOwner, entry.level(), entry.vanillaIndex(), false, 0));
             selectedLevel = entry.level();
             ensureControlledGroup();
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_disabled"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.default_disabled"));
         }
         selectedKey = "";
         editingCustomIndex = -1;
@@ -2286,7 +2390,7 @@ int gap = 6;
 
     private void clearCurrentTarget() {
         if (selectedOwner.isEmpty()) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
             return;
         }
 
@@ -2298,7 +2402,7 @@ int gap = 6;
 
         if (editorActive) {
             loadBlankOffer();
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.current_content_cleared"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.current_content_cleared"));
             return;
         }
 
@@ -2307,7 +2411,7 @@ int gap = 6;
 
     private void clearCurrentLevel(int level) {
         if (selectedOwner.isEmpty()) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
             return;
         }
 
@@ -2347,7 +2451,7 @@ int gap = 6;
         loadBlankOffer();
         setEditorWidgetsVisible(false);
         finishUndoableChange(checkpoint);
-        GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.current_level_cleared"));
+        KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.current_level_cleared"));
     }
 
     private void openRemovedDefaultTradesScreen() {
@@ -2355,10 +2459,10 @@ int gap = 6;
             return;
         }
         if (selectedOwner.isEmpty()) {
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
             return;
         }
-        this.minecraft.setScreen(new RemovedDefaultTradesScreen(this, selectedOwner));
+        KineticClientRuntime.openScreen(new RemovedDefaultTradesScreen(this, selectedOwner));
     }
 
     private void openItemSelector(int slot) {
@@ -2366,13 +2470,12 @@ int gap = 6;
             return;
         }
         syncFieldValues();
-        this.minecraft.setScreen(new ItemSelectorScreen(this, selection -> {
+        KineticSelectors.openItemSelector(this, selection -> {
             if (selection != null && selection.isItem()) {
                 ItemStack stack = selection.stack().copy();
                 setSlotStack(slot, stack);
             }
-            Minecraft.getInstance().setScreen(this);
-        }));
+        });
     }
 
     private void setSlotStack(int slot, ItemStack stack) {
@@ -2399,7 +2502,7 @@ int gap = 6;
         syncFieldValues();
         String initial = slot == 0 ? buyANbt : slot == 1 ? buyBNbt : sellNbt;
         if (this.minecraft != null) {
-            this.minecraft.setScreen(new NbtEditorScreen(initial, value -> {
+            KineticSelectors.openNbtEditor(this, initial, value -> {
                 if (slot == 0) {
                     buyANbt = value;
                 } else if (slot == 1) {
@@ -2407,7 +2510,7 @@ int gap = 6;
                 } else {
                     sellNbt = value;
                 }
-            }, this));
+            });
         }
     }
 
@@ -2416,11 +2519,11 @@ int gap = 6;
         if (id.isEmpty() || id.equals("minecraft:air") || id.equals("air") || count <= 0) {
             return ItemStack.EMPTY;
         }
-        ResourceLocation location = ResourceLocation.tryParse(id);
+        ResourceLocation location = KineticResourceIds.tryParse(id);
         if (location == null) {
             return ItemStack.EMPTY;
         }
-        Item item = ForgeRegistries.ITEMS.getValue(location);
+        Item item = KineticRegistries.items().get(location);
         if (item == null || item == Items.AIR) {
             return ItemStack.EMPTY;
         }
@@ -2438,10 +2541,10 @@ int gap = 6;
 
     private void updateBoolButtons() {
         if (rewardButton != null) {
-            rewardButton.setMessage(rewardText());
+            rewardButton.setText(rewardText());
         }
         if (restockButton != null) {
-            restockButton.setMessage(restockText());
+            restockButton.setText(restockText());
         }
     }
 
@@ -2453,23 +2556,27 @@ int gap = 6;
         return Component.translatable(allowRestock ? "gui.contentstudio.villager.villager.trade.restock.on" : "gui.contentstudio.villager.villager.trade.restock.off");
     }
 
-    public static List<String> getProfessionDictionary() {
-        if (professionDictionary == null) {
-            professionDictionary = new ArrayList<>();
-            professionDictionary.add(VillagerConfig.WANDERING_TRADER_ID + " - " + Component.translatable("entity.minecraft.wandering_trader").getString());
-            professionDictionary.addAll(BuiltInRegistries.VILLAGER_PROFESSION.keySet().stream()
-                    .map(ResourceLocation::toString)
-                    .sorted()
-                    .map(id -> id + " - " + getProfessionName(id))
-                    .toList());
-        }
-        return professionDictionary;
-    }
-
-    public static String stripDictionaryText(String value) {
-        String text = value == null ? "" : value.trim();
-        int split = text.indexOf(" - ");
-        return split >= 0 ? text.substring(0, split).trim() : text;
+    public static List<KineticAutoComplete.Suggestion> getProfessionDictionary() {
+        List<KineticAutoComplete.Suggestion> result = new ArrayList<>();
+        String wanderingName = KineticSearch.resolveTranslation("entity.minecraft.wandering_trader");
+        result.add(new KineticAutoComplete.Suggestion(
+                VillagerConfig.WANDERING_TRADER_ID,
+                wanderingName == null ? Component.empty() : Component.literal(wanderingName)
+        ));
+        KineticRegistries.villagerProfessions().ids().stream()
+                .map(ResourceLocation::toString)
+                .sorted()
+                .forEach(id -> {
+                    ResourceLocation location = KineticResourceIds.tryParse(id);
+                    String translated = location == null ? null : KineticSearch.resolveTranslation(
+                            "entity.minecraft.villager." + location.getPath()
+                    );
+                    result.add(new KineticAutoComplete.Suggestion(
+                            id,
+                            translated == null ? Component.empty() : Component.literal(translated)
+                    ));
+                });
+        return List.copyOf(result);
     }
 
     public static String getProfessionName(String profession) {
@@ -2477,7 +2584,7 @@ int gap = 6;
         if (id.equals(VillagerConfig.WANDERING_TRADER_ID)) {
             return Component.translatable("entity.minecraft.wandering_trader").getString();
         }
-        ResourceLocation location = ResourceLocation.tryParse(id);
+        ResourceLocation location = KineticResourceIds.tryParse(id);
         if (location == null) {
             return id;
         }
@@ -2492,6 +2599,13 @@ int gap = 6;
             case "disable_level" -> Component.translatable("gui.contentstudio.villager.villager.trade.mode.short.disable").getString();
             default -> Component.translatable("gui.contentstudio.villager.villager.trade.mode.short.replace").getString();
         };
+    }
+
+    private String trim(String text, int width) {
+        if (this.font.width(text) <= width) {
+            return text;
+        }
+        return this.font.plainSubstrByWidth(text, Math.max(1, width - this.font.width("..."))) + "...";
     }
 
     private static class RemovedDefaultTradesScreen extends KineticScreen {
@@ -2511,24 +2625,16 @@ int gap = 6;
         private int listH;
         private final GridScrollController listScroll =
                 new GridScrollController();
-        private boolean resetConfirmOpen;
-        private Button resetConfirmYesButton;
-        private Button resetConfirmNoButton;
 
         RemovedDefaultTradesScreen(VillagerTradeEditorScreen parentScreen, String owner) {
             super(Component.translatable("gui.contentstudio.villager.villager.trade.removed.title"));
+            setParentScreen(parentScreen);
             this.parentScreen = parentScreen;
             this.owner = VillagerConfig.clean(owner);
-            useResponsiveCanvas(
-                    520f,
-                    320f,
-                    6
-            );
         }
 
         @Override
         protected void buildUi() {
-            this.renderRenderablesOnly = false;
             this.rootW = Math.min(this.canvasWidth() - 8, 512);
             this.rootH = Math.min(this.canvasHeight() - 8, 312);
             this.rootX = (this.canvasWidth() - rootW) / 2;
@@ -2539,18 +2645,24 @@ int gap = 6;
             this.listH = rootH - 44;
 
             int buttonY = rootY + 8;
-            addButton(rootX + 10, buttonY, 50, Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all"), Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip"), button -> restoreAllRemovedTrades());
-            addButton(rootX + 68, buttonY, 50, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset"), Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip"), button -> openResetConfirmPopup());
-            addButton(rootX + rootW - 60, buttonY, 50, Component.translatable("gui.contentstudio.villager.villager.trade.removed.back"), null, button -> returnToParent());
-
-            int popupW = 270;
-            int popupH = 112;
-            int popupX = rootX + (rootW - popupW) / 2;
-            int popupY = rootY + (rootH - popupH) / 2;
-            int confirmY = popupY + 78;
-            this.resetConfirmYesButton = addButton(popupX + 32, confirmY, 72, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.yes"), null, button -> resetCurrentProfessionToDefault());
-            this.resetConfirmNoButton = addButton(popupX + popupW - 104, confirmY, 72, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.no"), null, button -> closeResetConfirmPopup());
-            setResetConfirmButtonsVisible(false);
+            addButton(
+                    rootX + 10, buttonY, 50,
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all"),
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip"),
+                    this::restoreAllRemovedTrades
+            );
+            addButton(
+                    rootX + 68, buttonY, 50,
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset"),
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip"),
+                    this::openResetConfirmPopup
+            );
+            addButton(
+                    rootX + rootW - 60, buttonY, 50,
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.back"),
+                    null,
+                    this::returnToParent
+            );
 
             refreshRemovedEntries();
         }
@@ -2581,11 +2693,9 @@ int gap = 6;
 
         @Override
         protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-            g.fill(rootX, rootY, rootX + rootW, rootY + rootH, PANEL_COLOR);
-            g.renderOutline(rootX, rootY, rootW, rootH, OUTLINE);
+            GuiTheme.panel(g, rootX, rootY, rootW, rootH);
             g.drawCenteredString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.removed.title"), rootX + rootW / 2, rootY + 12, 0xFFFFFF55);
-            g.fill(listX, listY, listX + listW, listY + listH, PANEL_DARK);
-            g.renderOutline(listX, listY, listW, listH, 0xFFAAAAAA);
+            GuiTheme.panelAlt(g, listX, listY, listW, listH);
         }
 
         @Override
@@ -2595,7 +2705,7 @@ int gap = 6;
             } else {
                 int visualShift = listScroll.visualShift(ROW_HEIGHT);
                 int y = listY + 4 - visualShift;
-                enableCanvasScissor(g, listX, listY + 4, listX + listW - 10, listY + listH - 4);
+                enableUiScissor(g, listX, listY + 4, listX + listW - 10, listY + listH - 4);
                 for (int i = listScroll.smoothIndexOffset(); i < removedEntries.size(); i++) {
                     RemovedDefaultEntry entry = removedEntries.get(i);
                     if (y >= listY + listH - 4) {
@@ -2604,73 +2714,39 @@ int gap = 6;
                     renderRemovedEntry(g, mx, my, entry, y);
                     y += ROW_HEIGHT;
                 }
-                disableCanvasScissor(g);
+                disableUiScissor(g);
                 renderRemovedScrollbar(g, mx, my);
             }
 
-            if (resetConfirmOpen) {
-                renderResetConfirmPopup(g, mx, my, pt);
-            }
         }
 
-
-        private void renderResetConfirmPopup(GuiGraphics g, int mx, int my, float pt) {
-            int popupW = 270;
-            int popupH = 112;
-            int popupX = rootX + (rootW - popupW) / 2;
-            int popupY = rootY + (rootH - popupH) / 2;
-
-            GuiTheme.shadow(g, this.canvasWidth(), this.canvasHeight());
-            GuiTheme.panel(g, popupX, popupY, popupW, popupH, PANEL_COLOR, 0xFFFFAA00);
-
-            g.drawCenteredString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.title"), popupX + popupW / 2, popupY + 10, 0xFFFFFF55);
-            g.drawString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.line1"), popupX + 12, popupY + 32, 0xFFFFFFFF, false);
-            g.drawString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.line2"), popupX + 12, popupY + 48, 0xFFFF5555, false);
-
-            if (resetConfirmYesButton != null) {
-                resetConfirmYesButton.render(g, mx, my, pt);
-            }
-            if (resetConfirmNoButton != null) {
-                resetConfirmNoButton.render(g, mx, my, pt);
-            }
-        }
 
         private void openResetConfirmPopup() {
-            resetConfirmOpen = true;
-            setResetConfirmButtonsVisible(true);
-        }
-
-        private void closeResetConfirmPopup() {
-            resetConfirmOpen = false;
-            setResetConfirmButtonsVisible(false);
-        }
-
-        private void setResetConfirmButtonsVisible(boolean visible) {
-            if (resetConfirmYesButton != null) {
-                resetConfirmYesButton.visible = visible;
-                resetConfirmYesButton.active = visible;
-            }
-            if (resetConfirmNoButton != null) {
-                resetConfirmNoButton.visible = visible;
-                resetConfirmNoButton.active = visible;
-            }
-        }
-
-        private void handleResetConfirmClick(double mx, double my, int btn) {
-            if (resetConfirmYesButton != null) {
-                resetConfirmYesButton.mouseClicked(mx, my, btn);
-            }
-            if (resetConfirmNoButton != null) {
-                resetConfirmNoButton.mouseClicked(mx, my, btn);
-            }
+            openDialog(
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.title"),
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.line1")
+                            .append("\n")
+                            .append(Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.line2")),
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.yes"),
+                    Component.translatable("gui.contentstudio.villager.villager.trade.removed.reset.confirm.no"),
+                    this::resetCurrentProfessionToDefault,
+                    () -> { }
+            );
         }
 
         private void renderRemovedEntry(GuiGraphics g, int mx, int my, RemovedDefaultEntry entry, int y) {
             boolean hover = mx >= listX + 4 && mx <= listX + listW - 12 && my >= y && my < y + ROW_HEIGHT - 2;
-            int bg = hover ? 0x884A3518 : 0x66191B20;
-            int outline = hover ? 0xFFFFAA00 : 0x99FFFFFF;
-            g.fill(listX + 4, y, listX + listW - 12, y + ROW_HEIGHT - 2, bg);
-            g.renderOutline(listX + 4, y, listW - 16, ROW_HEIGHT - 2, outline);
+            GuiTheme.stateSurface(
+                    g,
+                    listX + 4,
+                    y,
+                    listW - 16,
+                    ROW_HEIGHT - 2,
+                    GuiTheme.Surface.PANEL_ALT,
+                    false,
+                    hover,
+                    false
+            );
             g.drawString(this.font, Component.translatable("gui.contentstudio.villager.villager.trade.removed.entry", entry.level(), entry.index()), listX + 10, y + 5, 0xFFFFFF55, false);
             int iconX = listX + 126;
             int iconY = y + 13;
@@ -2723,25 +2799,18 @@ int gap = 6;
                     listY + 4,
                     4,
                     listH - 8,
-                    24,
-                    GuiTheme.current().scrollTrack(),
-                    GuiTheme.current().scrollThumb(),
-                    GuiTheme.current().scrollThumbHover()
-            );
+                    24
+        );
         }
 
         @Override
         protected boolean canvasMouseClicked(double mx, double my, int btn) {
-            if (resetConfirmOpen) {
-                handleResetConfirmClick(mx, my, btn);
-                return true;
-            }
             listScroll.update(
                     removedEntries.size(),
                     getVisibleRows()
             );
 
-            if (btn == 0
+            if (KineticMouseButtons.isPrimary(btn)
                     && listScroll.beginDrag(
                     mx,
                     my,
@@ -2754,7 +2823,7 @@ int gap = 6;
             )) {
                 return true;
             }
-            if (btn == 1) {
+            if (KineticMouseButtons.isSecondary(btn)) {
                 RemovedDefaultEntry entry = findEntryAt(mx, my);
                 if (entry != null) {
                     restoreOneRemovedTrade(entry);
@@ -2869,7 +2938,7 @@ int gap = 6;
             parentScreen.invalidateTradeSearchIndex();
             parentScreen.refreshEntries();
             parentScreen.finishUndoableChange(checkpoint);
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_restored"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_restored"));
         }
 
         private void restoreAllRemovedTrades() {
@@ -2884,7 +2953,7 @@ int gap = 6;
 
             if (removed <= 0 && fixedLevels <= 0) {
                 parentScreen.finishUndoableChange(checkpoint);
-                GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_empty"));
+                KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_empty"));
                 return;
             }
 
@@ -2896,7 +2965,7 @@ int gap = 6;
             parentScreen.invalidateTradeSearchIndex();
             parentScreen.refreshEntries();
             parentScreen.finishUndoableChange(checkpoint);
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_restored_all"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_restored_all"));
         }
 
         private int restoreAllDisabledLevelModes() {
@@ -2940,7 +3009,6 @@ int gap = 6;
             VillagerConfig.enableCustomVillagerTrades = true;
             VillagerConfig.normalizeTradeLists();
 
-            closeResetConfirmPopup();
             listScroll.reset();
             refreshRemovedEntries();
 
@@ -2953,14 +3021,12 @@ int gap = 6;
             parentScreen.refreshEntries();
             parentScreen.finishUndoableChange(checkpoint);
 
-            GuiOverlay.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_reset_done"));
+            KineticOverlays.toast(Component.translatable("msg.contentstudio.villager.villager.trade.removed_reset_done"));
         }
 
         private void returnToParent() {
-            if (this.minecraft != null) {
-                parentScreen.refreshEntries();
-                this.minecraft.setScreen(parentScreen);
-            }
+            parentScreen.refreshEntries();
+            navigateBack();
         }
 
         private record RemovedDefaultEntry(int level, int index, MerchantOffer offer) {

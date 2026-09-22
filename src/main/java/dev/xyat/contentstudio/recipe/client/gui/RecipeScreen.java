@@ -1,21 +1,21 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import net.minecraft.ChatFormatting;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
-import dev.xyat.kineticcore.api.client.search.ItemSearchIndex;
-import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.HighZButton;
-import dev.xyat.kineticcore.api.client.selector.NbtEditorScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.NumericEditBox;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.search.KineticItemSearch;
+import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.HighZButton;
+import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import dev.xyat.contentstudio.recipe.RecipeRecord;
 import dev.xyat.contentstudio.recipe.RecipeRegistry;
 import dev.xyat.contentstudio.recipe.UniversalRecipeMenu;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork.RecipeChangePacket;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import dev.xyat.kineticcore.api.client.screen.KineticContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
@@ -31,10 +31,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
-    private static final ResourceLocation CRAFTING_BG = new ResourceLocation("textures/gui/container/crafting_table.png");
-    private static final ResourceLocation FURNACE_BG = new ResourceLocation("textures/gui/container/furnace.png");
-    private static final ResourceLocation SMITHING_BG = new ResourceLocation("textures/gui/container/smithing.png");
-    private static final ResourceLocation STONECUTTER_BG = new ResourceLocation("textures/gui/container/stonecutter.png");
+    private static final ResourceLocation CRAFTING_BG = KineticResourceIds.parse("textures/gui/container/crafting_table.png");
+    private static final ResourceLocation FURNACE_BG = KineticResourceIds.parse("textures/gui/container/furnace.png");
+    private static final ResourceLocation SMITHING_BG = KineticResourceIds.parse("textures/gui/container/smithing.png");
+    private static final ResourceLocation STONECUTTER_BG = KineticResourceIds.parse("textures/gui/container/stonecutter.png");
 
     private boolean isShapeless = false;
     private final int[] inputNbtModes = new int[9];
@@ -50,9 +50,7 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
         super(menu, inv, title);
         this.imageWidth = 176;
         this.imageHeight = 166;
-
-        useResponsiveContainer(640F, 360F, 6);
-        loadInitialDraft();
+loadInitialDraft();
         configureStandaloneDraft(this::captureRecipeDraft, this::restoreRecipeDraft);
     }
 
@@ -132,13 +130,13 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
     private void rebuildEditorWidgets() {
         if (minecraft == null) return;
         String preservedCount = draftCountText;
-        init(minecraft, width, height);
+        rebuildUi();
         draftCountText = preservedCount;
         if (countInput != null) countInput.setValue(preservedCount);
     }
 
     public void showToast(Component msg) {
-        GuiOverlay.toast(msg);
+        KineticOverlays.toast(msg);
     }
 
     private void showToast(String key, Object... args) {
@@ -147,7 +145,7 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
 
     @Override
     protected void buildUi() {
-if (menu.type == RecipeRegistry.EditorType.SMITHING) {
+        if (menu.type == RecipeRegistry.EditorType.SMITHING) {
             this.outputUseNbt = false;
             this.titleLabelX = this.imageWidth - this.font.width(this.title) - 10;
             this.titleLabelY = 10;
@@ -159,25 +157,26 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
         int x = this.leftPos - bW - 6;
         int y = this.topPos + 5;
 
-        addHighZButton(x, y, bW, Component.translatable("gui.contentstudio.recipe.recipehud.back"), null, 200, b -> {
-                    if (RecipePreviewState.returnToPreview && Minecraft.getInstance().player != null) {
-                        Minecraft.getInstance().setScreen(new RecipePreviewScreen(null));
-                        RecipeNetwork.requestRecipeRecords();
-                    } else if (Minecraft.getInstance().player != null) {
-                        RecipeNetwork.requestOpenHub();
-                    }
-                });
+        addHighZButton(
+                x, y, bW, Component.translatable("gui.contentstudio.recipe.recipehud.back"), null, 40,
+                this::returnFromRecipeEditor
+        );
         y += bH + sp;
 
         if (menu.type == RecipeRegistry.EditorType.CRAFTING) {
-            addHighZButton(x, y, bW, getModeText(), null, 200, b -> {
-                isShapeless = !isShapeless;
-                b.setMessage(getModeText());
-            });
+            addHighZToggleButton(
+                    x, y, bW, isShapeless,
+                    Component.translatable("gui.contentstudio.recipe.recipehud.mode.shapeless"),
+                    Component.translatable("gui.contentstudio.recipe.recipehud.mode.shaped"),
+                    null, null, value -> isShapeless = value, 40
+            );
             y += bH + sp;
         }
 
-        saveButton = addHighZButton(x, y, bW, Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"), null, 200, b -> handleSave());
+        saveButton = addHighZButton(
+                x, y, bW, Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"),
+                null, 40, this::handleSave
+        );
 
         int outputSlotX;
         int outputSlotY;
@@ -195,13 +194,14 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
             draftCountText = countInput.getValue();
         }
 
-        countInput = addIntegerField(boxX + 4, boxY + 2, 14, Component.empty(), false, 1, 64, null);
-        countInput.setBordered(false);
+        countInput = addIntegerField(
+                boxX + 1, boxY, 14, Component.empty(),
+                false, 1, 64, null, null
+        );
         countInput.setMaxLength(2);
-
         countInput.setValue(draftCountText);
         countInput.setResponder(value -> draftCountText = value);
-}
+    }
 
     private Component getModeText() {
         return isShapeless
@@ -209,7 +209,7 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
                 : Component.translatable("gui.contentstudio.recipe.recipehud.mode.shaped");
     }
 
-    private void handleItemSelectorResult(ItemSelectorScreen.Selection selection, int slotIdx, Container container, boolean allowTag) {
+    private void handleItemSelectorResult(KineticSelectors.ItemSelection selection, int slotIdx, Container container, boolean allowTag) {
         if (selection.isTag()) {
             if (!allowTag) return;
             String tagId = "#" + selection.value();
@@ -247,33 +247,23 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
     }
 
     private void openItemSelectorForSlot(int slotIdx, Container container, boolean allowTag) {
-        ItemSearchIndex.prepareCache(() -> Minecraft.getInstance().setScreen(
-                new ItemSelectorScreen(
-                        this,
-                        selection -> handleItemSelectorResult(selection, slotIdx, container, allowTag)
-                )
-        ));
+        KineticSelectors.openItemSelector(
+                this,
+                selection -> handleItemSelectorResult(selection, slotIdx, container, allowTag)
+        );
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        double virtualMouseX =
-                toVirtualX(mouseX);
-
-        double virtualMouseY =
-                toVirtualY(mouseY);
-
+    protected boolean containerMouseClicked(double mouseX, double mouseY, int button) {
         if (countInput != null) {
-            if (countInput.isMouseOver(virtualMouseX, virtualMouseY)) {
-                countInput.setFocused(true);
-                this.setFocused(countInput);
+            if (countInput.isMouseOver(mouseX, mouseY)) {
+                focusControl(countInput);
             } else {
-                countInput.setFocused(false);
-                if (this.getFocused() == countInput) this.setFocused(null);
+                blurControl(countInput);
             }
         }
 
-        if (button == 0
+        if (KineticMouseButtons.isPrimary(button)
                 && this.hoveredSlot != null
                 && isInvalidPlaceholder(this.hoveredSlot.getItem())
                 && this.menu.getCarried().isEmpty()) {
@@ -288,7 +278,7 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
         }
 
         // Shift+左键有物品：直接召唤全屏统一 NBT 编辑器
-        if (button == 0 && Screen.hasShiftDown() && this.hoveredSlot != null && this.hoveredSlot.hasItem() && this.menu.getCarried().isEmpty()) {
+        if (KineticMouseButtons.isPrimary(button) && KineticClientRuntime.shiftModifierDown() && this.hoveredSlot != null && this.hoveredSlot.hasItem() && this.menu.getCarried().isEmpty()) {
             if (this.hoveredSlot.container == menu.inputContainer || this.hoveredSlot.container == menu.outputContainer) {
                 int slotIdx = this.hoveredSlot.getContainerSlot();
                 Container container = this.hoveredSlot.container;
@@ -296,7 +286,7 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
                 String initNbt = (stack.hasTag() && stack.getTag() != null) ? stack.getTag().toString() : "";
 
                 if (this.minecraft != null) {
-                    this.minecraft.setScreen(new NbtEditorScreen(initNbt, (savedNbt) -> {
+                    KineticSelectors.openNbtEditor(this, initNbt, (savedNbt) -> {
                         try {
                             if (savedNbt == null || savedNbt.trim().isEmpty() || savedNbt.trim().equals("{}")) {
                                 stack.setTag(null);
@@ -307,14 +297,14 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
                             showToast("msg.contentstudio.recipe.saved");
                         } catch (Exception ignored) {
                         }
-                    }, this));
+                    });
                 }
                 return true;
             }
         }
 
         // 左键空槽：打开物品搜索（输入槽支持返回#tag，输出槽只返回物品）
-        if (button == 0 && this.hoveredSlot != null && !this.hoveredSlot.hasItem() && this.menu.getCarried().isEmpty()) {
+        if (KineticMouseButtons.isPrimary(button) && this.hoveredSlot != null && !this.hoveredSlot.hasItem() && this.menu.getCarried().isEmpty()) {
             if (this.hoveredSlot.container == menu.inputContainer || this.hoveredSlot.container == menu.outputContainer) {
                 int slotIdx = this.hoveredSlot.getContainerSlot();
                 Container container = this.hoveredSlot.container;
@@ -326,7 +316,7 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
         }
 
         // 右键输入槽有物品：切换NBT匹配模式（tag物品不可切换）
-        if (button == 1 && this.hoveredSlot != null && this.hoveredSlot.hasItem()) {
+        if (KineticMouseButtons.isSecondary(button) && this.hoveredSlot != null && this.hoveredSlot.hasItem()) {
             if (this.hoveredSlot.container == menu.inputContainer) {
                 int slotIdx = this.hoveredSlot.getContainerSlot();
                 ItemStack stack = this.hoveredSlot.getItem();
@@ -339,7 +329,7 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
             }
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return false;
     }
 
     @Override
@@ -444,10 +434,17 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
         return false;
     }
 
+    private void returnFromRecipeEditor() {
+        onClose();
+    }
+
     @Override
-    public void onClose() {
-        super.onClose();
+    protected boolean handleCloseRequest() {
         RecipeEditSessionState.applyPendingAndClear();
+        if (RecipePreviewState.returnToPreview && KineticClientRuntime.localPlayer() != null) {
+            RecipeNetwork.requestRecipeRecords();
+        }
+        return false;
     }
 
     @Override
@@ -461,12 +458,11 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
         };
         g.blit(t, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
         for (net.minecraft.world.inventory.Slot slot : this.menu.slots) {
-            if (slot.isActive()) {
+            if (slot.isActive() && (slot.container == this.menu.inputContainer || slot.container == this.menu.outputContainer)) {
                 GuiTheme.itemSlot(g, this.leftPos + slot.x - 1, this.topPos + slot.y - 1);
             }
         }
-        g.fill(boxX, boxY, boxX + 18, boxY + 12, 0xFF000000);
-        g.renderOutline(boxX, boxY, 18, 12, 0xFF555555);
+        GuiTheme.panelAlt(g, boxX, boxY, 18, 12);
     }
 
     @Override
@@ -493,7 +489,7 @@ if (menu.type == RecipeRegistry.EditorType.SMITHING) {
             return;
         }
 
-        showTooltip(tooltip);
+        KineticOverlays.requestTooltip(tooltip, mouseX, mouseY);
     }
 
     private List<Component> buildOverlayTooltip(int virtualMouseX, int virtualMouseY) {

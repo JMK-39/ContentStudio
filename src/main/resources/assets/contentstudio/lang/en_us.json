@@ -18,7 +18,7 @@
   "gui.contentstudio.recipe.recipehud.modname.minecraft": "Minecraft",
   "gui.contentstudio.recipe.recipehud.modname.create": "Create",
   "gui.contentstudio.recipe.recipehud.modname.l2complements": "L2 Complements",
-  "gui.contentstudio.recipe.recipehud.title": "Recipe Removal Manager",
+  "gui.contentstudio.recipe.recipehud.title": "Recipe Manager",
   "gui.contentstudio.recipe.recipehud.err.save_failed": "§c§lSave Failed: %s",
   "gui.contentstudio.recipe.recipehud.err.write_failed": "§c§lIO Error: %s",
   "gui.contentstudio.recipe.recipehud.btn.hub": "Manage Removals",
@@ -140,7 +140,7 @@
   "msg.contentstudio.recipe.saved": "§aNBT saved",
   "msg.contentstudio.recipe.invalid_number": "§cEnter a valid item count",
   "gui.contentstudio.recipe.recipehud.save_deferred": "§aSave",
-  "gui.contentstudio.recipe.recipehud.tooltip.save_deferred": "Save to config/kineticcore/datapack/data/contentstudio/recipe_bundle.json\nReload and apply all changes when the recipe UI is fully closed",
+  "gui.contentstudio.recipe.recipehud.tooltip.save_deferred": "Save to config/kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json\nReload and apply all changes when the recipe UI is fully closed",
   "gui.contentstudio.recipe.recipehud.msg.saving_only": "§6Saving to datapack...",
   "gui.contentstudio.recipe.recipehud.msg.saved_pending": "§aRecipe saved. Changes will apply when the recipe UI is closed.",
   "gui.contentstudio.recipe.recipehud.msg.deleted_pending": "§e§lRecipe removed from the datapack. Changes will apply when the recipe UI is closed.",
@@ -468,8 +468,8 @@
   "gui.contentstudio.loot.loots.entry.killed": "Player Kills Only %s",
   "gui.contentstudio.loot.loots.entry.fire_required": "Target Must Be Burning %s",
   "gui.contentstudio.loot.loots.entry.looting": "Affected by Looting %s",
-  "gui.contentstudio.loot.loots.state.on": "On",
-  "gui.contentstudio.loot.loots.state.off": "Off",
+  "gui.contentstudio.loot.loots.state.on": "§aOn",
+  "gui.contentstudio.loot.loots.state.off": "§cOff",
   "gui.contentstudio.loot.loots.tip.entry.random_enchant": "§dPurpose: gives the generated item one random compatible enchantment. §fGood for making chest results vary. §eCannot be used with Enchant by Level.",
   "gui.contentstudio.loot.loots.tip.entry.level_enchant": "§dPurpose: enchants using the minimum and maximum levels below. §fHigher levels usually allow stronger or more enchantments. §eCannot be used with Add One Random Enchant.",
   "gui.contentstudio.loot.loots.tip.entry.furnace": "§dPurpose: converts the generated reward to its furnace result. §fExample: raw beef becomes cooked beef; items without a smelting recipe stay unchanged.",
@@ -797,5 +797,8 @@
   "gui.contentstudio.tooltip.module.tooltip": "Manages item tooltip text, display conditions, and overwrite or append rules.",
   "gui.contentstudio.module.name": "Content Studio",
   "gui.contentstudio.module.function": "Content authoring tools",
-  "gui.contentstudio.module.tooltip": "Recipes, loot, villager trades, and tooltip editors."
+  "gui.contentstudio.module.tooltip": "Recipes, loot, villager trades, and tooltip editors.",
+  "gui.contentstudio.villager.villager.trade.late_override.on": "§aLate Override: ON",
+  "gui.contentstudio.villager.villager.trade.late_override.off": "§eLate Override: OFF",
+  "gui.contentstudio.villager.villager.trade.late_override.tooltip": "§eDoes not poll every tick. §aAfter a villager or wandering trader finishes refreshing trades, ContentStudio applies the current trade rules one final time to override trades dynamically appended by other mods during that refresh."
 }

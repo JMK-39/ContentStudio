@@ -1,9 +1,9 @@
 package dev.xyat.contentstudio.recipe.config;
 
-import dev.xyat.kineticcore.config.client.KTConfigApi;
-import dev.xyat.kineticcore.config.client.KTConfigPage;
-import dev.xyat.kineticcore.config.client.KTConfigScope;
-import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
+import dev.xyat.kineticcore.api.config.client.KTConfigApi;
+import dev.xyat.kineticcore.api.config.client.KTConfigPage;
+import dev.xyat.kineticcore.api.config.client.KTConfigScope;
+import dev.xyat.contentstudio.recipe.client.gui.RecipeNavigationState;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -25,7 +25,7 @@ public final class RecipeConfigGui {
                 .action(
                         "open_recipe_editor",
                         Component.translatable("cfg.contentstudio.recipe.recipehud.open_editor"),
-                        RecipeNetwork::requestOpenHub,
+                        RecipeNavigationState::requestHub,
                         Component.translatable("cfg.contentstudio.recipe.recipehud.open_editor.tooltip")
                 )
                 .build());

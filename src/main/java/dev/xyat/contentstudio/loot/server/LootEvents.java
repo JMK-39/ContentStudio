@@ -1,15 +1,17 @@
 package dev.xyat.contentstudio.loot.server;
 
+import javax.annotation.Nonnull;
+
+import dev.xyat.kineticcore.api.event.KineticEventPriority;
+import dev.xyat.kineticcore.api.loot.event.KineticLootEvents;
+import dev.xyat.kineticcore.api.resource.event.KineticResourceEvents;
+import dev.xyat.kineticcore.api.runtime.KineticServerRuntime;
+import dev.xyat.kineticcore.api.server.event.KineticServerEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.LootTableLoadEvent;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.server.ServerLifecycleHooks;
 
 public final class LootEvents {
     private static final LootOverrideReloadListener RELOAD_LISTENER = new LootOverrideReloadListener();
@@ -18,47 +20,46 @@ public final class LootEvents {
     private LootEvents() {
     }
 
-    public static void register() {
-        if (!registered) {
-            MinecraftForge.EVENT_BUS.addListener(LootEvents::onLootTableLoad);
-            MinecraftForge.EVENT_BUS.addListener(LootEvents::onAddReloadListener);
-            MinecraftForge.EVENT_BUS.addListener(LootEvents::onServerAboutToStart);
-            registered = true;
-        }
-    }
-
-    private static void onLootTableLoad(LootTableLoadEvent event) {
-        if (LootTableOverrideStore.isLoadEventBypass()) {
+    public static synchronized void register() {
+        if (registered) {
             return;
         }
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server == null) {
-            return;
-        }
-        LootTable replacement = LootTableOverrideStore.createLoadEventReplacement(server, event.getName());
-        if (replacement != null) {
-            event.setTable(replacement);
-        }
-    }
 
-    private static void onAddReloadListener(AddReloadListenerEvent event) {
-        LootTableOverrideStore.invalidateLootReferenceCache();
-        event.addListener(RELOAD_LISTENER);
-    }
+        KineticLootEvents.onTableLoad(KineticEventPriority.NORMAL, context -> {
+            if (LootTableOverrideStore.isLoadEventBypass()) {
+                return;
+            }
+            MinecraftServer server = KineticServerRuntime.currentServer();
+            if (server == null) {
+                return;
+            }
+            LootTable replacement = LootTableOverrideStore.createLoadEventReplacement(server, context.id());
+            if (replacement != null) {
+                context.table(replacement);
+            }
+        });
 
-    private static void onServerAboutToStart(ServerAboutToStartEvent event) {
-        LootTableOverrideStore.applyAll(event.getServer());
+        KineticResourceEvents.onAddReloadListener(KineticEventPriority.NORMAL, context -> {
+            LootTableOverrideStore.invalidateLootReferenceCache();
+            context.addListener(RELOAD_LISTENER);
+        });
+
+        KineticServerEvents.onAboutToStart(
+                KineticEventPriority.NORMAL,
+                LootTableOverrideStore::applyAll
+        );
+        registered = true;
     }
 
     private static final class LootOverrideReloadListener extends SimplePreparableReloadListener<Object> {
         @Override
-        protected Object prepare(ResourceManager resourceManager, ProfilerFiller profiler) {
+        protected Object prepare(@Nonnull ResourceManager resourceManager, @Nonnull ProfilerFiller profiler) {
             return new Object();
         }
 
         @Override
-        protected void apply(Object prepared, ResourceManager resourceManager, ProfilerFiller profiler) {
-            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        protected void apply(@Nonnull Object prepared, @Nonnull ResourceManager resourceManager, @Nonnull ProfilerFiller profiler) {
+            MinecraftServer server = KineticServerRuntime.currentServer();
             if (server != null) {
                 LootTableOverrideStore.applyAll(server, resourceManager);
             }

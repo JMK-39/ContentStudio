@@ -1,13 +1,14 @@
 package dev.xyat.contentstudio.tooltip;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -30,7 +31,7 @@ public class TooltipManager {
     private static final int MAX_TEXT_LENGTH = 32767;
 
     public static final Gson GSON = new GsonBuilder().create();
-    private static final File KJS_DIR = FMLPaths.GAMEDIR.get().resolve("kubejs/client_scripts").toFile();
+    private static final File KJS_DIR = KineticPaths.gameDirectory().resolve("kubejs/client_scripts").toFile();
     private static final File SCRIPT_FILE = new File(KJS_DIR, "tooltipadd.js");
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -81,7 +82,7 @@ public class TooltipManager {
                 }
                 loaded.put(entry.getKey(), rules);
             }
-            if (!isStructurallyValidData(loaded)) {
+            if (hasInvalidDataStructure(loaded)) {
                 LOGGER.error("Rejected invalid tooltip database in {}", SCRIPT_FILE);
                 return false;
             }
@@ -94,38 +95,38 @@ public class TooltipManager {
     }
 
     public static boolean isValidData(Map<String, List<TooltipRule>> data) {
-        if (!isStructurallyValidData(data)) return false;
+        if (hasInvalidDataStructure(data)) return false;
         for (String itemId : data.keySet()) {
-            if (!isValidItemId(itemId)) return false;
+            if (isInvalidItemId(itemId)) return false;
         }
         return true;
     }
 
-    private static boolean isStructurallyValidData(Map<String, List<TooltipRule>> data) {
-        if (data == null || data.size() > MAX_ITEMS) return false;
+    private static boolean hasInvalidDataStructure(Map<String, List<TooltipRule>> data) {
+        if (data == null || data.size() > MAX_ITEMS) return true;
         int totalRules = 0;
         for (Map.Entry<String, List<TooltipRule>> entry : data.entrySet()) {
-            if (entry.getKey() == null || ResourceLocation.tryParse(entry.getKey().trim()) == null) return false;
+            if (entry.getKey() == null || KineticResourceIds.tryParse(entry.getKey().trim()) == null) return true;
             List<TooltipRule> rules = entry.getValue();
-            if (rules == null || rules.size() > MAX_RULES_PER_ITEM) return false;
+            if (rules == null || rules.size() > MAX_RULES_PER_ITEM) return true;
             totalRules += rules.size();
-            if (totalRules > MAX_TOTAL_RULES) return false;
+            if (totalRules > MAX_TOTAL_RULES) return true;
             for (TooltipRule rule : rules) {
-                if (rule == null || (rule.mode != 0 && rule.mode != 1)) return false;
-                if (rule.line < 0 || rule.line > 9999) return false;
-                if (rule.keyCond < 0 || rule.keyCond > 3) return false;
-                if (rule.text == null || rule.text.isBlank() || rule.text.length() > MAX_TEXT_LENGTH) return false;
+                if (rule == null || (rule.mode != 0 && rule.mode != 1)) return true;
+                if (rule.line < 0 || rule.line > 9999) return true;
+                if (rule.keyCond < 0 || rule.keyCond > 3) return true;
+                if (rule.text == null || rule.text.isBlank() || rule.text.length() > MAX_TEXT_LENGTH) return true;
             }
         }
-        return true;
+        return false;
     }
 
-    private static boolean isValidItemId(String value) {
-        if (value == null || value.isBlank()) return false;
-        ResourceLocation id = ResourceLocation.tryParse(value.trim());
-        if (id == null || !ForgeRegistries.ITEMS.containsKey(id)) return false;
-        Item item = ForgeRegistries.ITEMS.getValue(id);
-        return item != null && item != Items.AIR;
+    private static boolean isInvalidItemId(String value) {
+        if (value == null || value.isBlank()) return true;
+        ResourceLocation id = KineticResourceIds.tryParse(value.trim());
+        if (id == null || !KineticRegistries.items().contains(id)) return true;
+        Item item = KineticRegistries.items().get(id);
+        return item == null || item == Items.AIR;
     }
 
     public static boolean saveAndGenerateJS() {

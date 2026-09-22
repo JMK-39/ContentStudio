@@ -1,8 +1,9 @@
 package dev.xyat.contentstudio.villager.util;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
 import dev.xyat.contentstudio.villager.trade.VillagerTradeRegistry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -38,12 +39,12 @@ public final class VillagerTradeRuntimeUtil {
             return VillagerTrades.WANDERING_TRADER_TRADES.get(safeLevel);
         }
 
-        ResourceLocation id = ResourceLocation.tryParse(cleanOwner);
+        ResourceLocation id = KineticResourceIds.tryParse(cleanOwner);
         if (id == null) {
             return null;
         }
 
-        VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.get(id);
+        VillagerProfession profession = KineticRegistries.villagerProfessions().get(id);
 
         var tradesByLevel = VillagerTrades.TRADES.get(profession);
         if (tradesByLevel == null) {

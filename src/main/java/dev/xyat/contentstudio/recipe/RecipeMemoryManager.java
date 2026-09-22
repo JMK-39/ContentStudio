@@ -1,7 +1,9 @@
 package dev.xyat.contentstudio.recipe;
 
+import javax.annotation.Nonnull;
+
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import com.mojang.logging.LogUtils;
-import dev.xyat.contentstudio.recipe.RecipeModule;
 import dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import net.minecraft.core.NonNullList;
@@ -28,11 +30,9 @@ import net.minecraft.world.item.crafting.SmokingRecipe;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 import net.minecraftforge.common.crafting.PartialNBTIngredient;
 import net.minecraftforge.common.crafting.StrictNBTIngredient;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.ForgeRegistries;
+import dev.xyat.kineticcore.api.event.KineticEventPriority;
+import dev.xyat.kineticcore.api.resource.event.KineticResourceEvents;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -41,10 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-@Mod.EventBusSubscriber(modid = RecipeModule.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class RecipeMemoryManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Map<RecipeManager, List<Recipe<?>>> CATALOGS = new java.util.WeakHashMap<>();
+    private static boolean registered;
 
     public static List<Recipe<?>> recipeCatalog(RecipeManager manager) {
         return CATALOGS.getOrDefault(manager, List.copyOf(manager.getRecipes()));
@@ -53,12 +53,17 @@ public final class RecipeMemoryManager {
     private RecipeMemoryManager() {
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onAddReloadListener(AddReloadListenerEvent event) {
-        event.addListener(new DatapackRecipeReloadListener(
-                event.getServerResources().getRecipeManager(),
-                event.getRegistryAccess()
-        ));
+    public static synchronized void register() {
+        if (registered) {
+            return;
+        }
+        KineticResourceEvents.onAddReloadListener(KineticEventPriority.LOWEST, context ->
+                context.addListener(new DatapackRecipeReloadListener(
+                        context.serverResources().getRecipeManager(),
+                        context.registryAccess()
+                ))
+        );
+        registered = true;
     }
 
     public static CompletableFuture<Void> reloadDatapacks(MinecraftServer server) {
@@ -136,7 +141,7 @@ public final class RecipeMemoryManager {
         }
 
         @Override
-        public void onResourceManagerReload(ResourceManager resourceManager) {
+        public void onResourceManagerReload(@Nonnull ResourceManager resourceManager) {
             try {
                 RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager);
                 applySnapshot(recipeManager, registryAccess, snapshot);
@@ -245,7 +250,7 @@ public final class RecipeMemoryManager {
                 throw new IllegalArgumentException("item tag must start with #");
             }
             raw = raw.substring(1);
-            TagKey<Item> tag = TagKey.create(Registries.ITEM, new ResourceLocation(raw));
+            TagKey<Item> tag = TagKey.create(Registries.ITEM, KineticResourceIds.parse(raw));
             return Ingredient.of(tag);
         }
 
@@ -277,7 +282,7 @@ public final class RecipeMemoryManager {
                     }
                     case OUTPUT -> {
                         ItemStack result = recipe.getResultItem(registryAccess);
-                        ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(result.getItem());
+                        ResourceLocation itemId = KineticRegistries.items().id(result.getItem());
                         if (itemId != null && itemId.toString().equals(entry.value())) {
                             return true;
                         }
@@ -285,12 +290,12 @@ public final class RecipeMemoryManager {
                     case TAG -> {
                         ItemStack result = recipe.getResultItem(registryAccess);
                         String raw = entry.value().startsWith("#") ? entry.value().substring(1) : entry.value();
-                        if (result.is(TagKey.create(Registries.ITEM, new ResourceLocation(raw)))) {
+                        if (result.is(TagKey.create(Registries.ITEM, KineticResourceIds.parse(raw)))) {
                             return true;
                         }
                     }
                     case TYPE -> {
-                        ResourceLocation typeId = ForgeRegistries.RECIPE_TYPES.getKey(recipe.getType());
+                        ResourceLocation typeId = KineticRegistries.recipeTypes().id(recipe.getType());
                         if (typeId != null && typeId.toString().equals(entry.value())) {
                             return true;
                         }
@@ -306,11 +311,11 @@ public final class RecipeMemoryManager {
         if (stack == null || stack.isEmpty()) {
             throw new IllegalArgumentException(role + " is empty");
         }
-        ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
-        if (itemId == null || !ForgeRegistries.ITEMS.containsKey(itemId)) {
+        ResourceLocation itemId = KineticRegistries.items().id(stack.getItem());
+        if (itemId == null || !KineticRegistries.items().contains(itemId)) {
             throw new IllegalArgumentException(role + " references an unregistered item");
         }
-        Item registered = ForgeRegistries.ITEMS.getValue(itemId);
+        Item registered = KineticRegistries.items().get(itemId);
         if (registered == null || registered != stack.getItem()) {
             throw new IllegalArgumentException(role + " references missing item " + itemId);
         }
@@ -324,7 +329,7 @@ public final class RecipeMemoryManager {
             return record.uuid;
         }
         if (record.output != null && !record.output.isEmpty()) {
-            ResourceLocation outputId = ForgeRegistries.ITEMS.getKey(record.output.getItem());
+            ResourceLocation outputId = KineticRegistries.items().id(record.output.getItem());
             if (outputId != null) {
                 return outputId.toString();
             }

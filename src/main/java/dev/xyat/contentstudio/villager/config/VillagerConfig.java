@@ -1,10 +1,12 @@
 package dev.xyat.contentstudio.villager.config;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticPaths;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.core.io.WritingMode;
 import dev.xyat.contentstudio.villager.VillagerModule;
 import dev.xyat.contentstudio.villager.util.IMerchantOfferAccess;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.ResourceLocation;
@@ -12,8 +14,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.MerchantOffer;
-import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,11 +30,12 @@ import java.util.Set;
 public class VillagerConfig {
     public static final String WANDERING_TRADER_ID = "minecraft:wandering_trader";
 
-    private static final Path CONFIG_PATH = FMLPaths.CONFIGDIR.get().resolve("kineticcore/villager.toml");
+    private static final Path CONFIG_PATH = KineticPaths.configDirectory().resolve("kineticcore/villager.toml");
     private static CommentedFileConfig configData;
 
     public static int villagerTickInterval = 100;
     public static boolean enableVillagerTradeUpdateProtection = true;
+    public static boolean enableVillagerTradeLateOverride = false;
 
     public static final Set<String> VILLAGER_FOLLOW_ITEMS_CACHE = new HashSet<>();
     public static boolean enableVillagerFollow = true;
@@ -97,6 +98,11 @@ public class VillagerConfig {
           交易/升级保护。开启后，被脑叶切除的村民在交易升级倒计时期间仍会执行最低限度更新。
           Trade/level-up protection. When enabled, lobotomized villagers still run the minimal merchant update needed for vanilla trade level-up timers.""");
 
+        configData.set("villager.trade_late_override", enableVillagerTradeLateOverride);
+        configData.setComment("villager.trade_late_override", """
+          村民交易后覆盖模式。开启后不会使用 Tick 轮询，而是在村民/流浪商人的交易刷新完成后最后一次应用 ContentStudio 交易规则，用于覆盖其它模组在刷新过程中动态追加的交易。
+          Villager trade late-override mode. Does not poll every tick. When enabled, ContentStudio applies its trade rules once after villager/wandering-trader trade refresh completes, so dynamically appended trades from other mods can be overridden.""");
+
         configData.set("villager.follow_enable", enableVillagerFollow);
         configData.setComment("villager.follow_enable", """
           是否允许村民跟随手持特定物品的玩家。
@@ -140,6 +146,7 @@ public class VillagerConfig {
         }
 
         enableVillagerTradeUpdateProtection = configData.getOrElse("villager.trade_update_protection", true);
+        enableVillagerTradeLateOverride = configData.getOrElse("villager.trade_late_override", false);
         enableVillagerFollow = configData.getOrElse("villager.follow_enable", true);
         villagerFollowItems = new ArrayList<>(configData.getOrElse(
                 "villager.follow_items",
@@ -166,7 +173,7 @@ public class VillagerConfig {
         if (!enableVillagerFollow || stack.isEmpty()) {
             return false;
         }
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = KineticRegistries.items().id(stack.getItem());
         return id != null && VILLAGER_FOLLOW_ITEMS_CACHE.contains(id.toString());
     }
 
@@ -490,7 +497,7 @@ public class VillagerConfig {
     public static boolean areValidFollowItems(List<String> values) {
         if (values == null || values.size() > 4096) return false;
         for (String value : values) {
-            if (!isValidItemId(value, false)) return false;
+            if (isInvalidItemId(value, false)) return false;
         }
         return true;
     }
@@ -512,7 +519,7 @@ public class VillagerConfig {
 
     private static boolean isValidTradeGroupLine(String line) {
         List<String> parts = splitConfigLine(line);
-        if (parts.size() != 4 || !isValidProfession(parts.get(0))) return false;
+        if (parts.size() != 4 || isInvalidProfession(parts.get(0))) return false;
         Integer level = strictInt(parts.get(1), 1, 5);
         Integer count = strictInt(parts.get(3), 0, 64);
         if (level == null || count == null || level != clampTradeLevel(parts.get(0), level)) return false;
@@ -522,63 +529,63 @@ public class VillagerConfig {
 
     private static boolean isValidVanillaOverrideLine(String line) {
         List<String> parts = splitConfigLine(line);
-        if (parts.size() != 5 || !isValidProfession(parts.get(0))) return false;
+        if (parts.size() != 5 || isInvalidProfession(parts.get(0))) return false;
         Integer level = strictInt(parts.get(1), 1, 5);
         if (level == null || level != clampTradeLevel(parts.get(0), level)) return false;
         if (strictInt(parts.get(2), 0, 999999) == null) return false;
-        if (!isStrictBoolean(parts.get(3))) return false;
+        if (isNotStrictBoolean(parts.get(3))) return false;
         return strictInt(parts.get(4), 0, 999999) != null;
     }
 
     private static boolean isValidTradeOfferLine(String line) {
         List<String> parts = splitConfigLine(line);
-        if ((parts.size() != 19 && parts.size() != 20) || !isValidProfession(parts.get(0))) return false;
+        if ((parts.size() != 19 && parts.size() != 20) || isInvalidProfession(parts.get(0))) return false;
         Integer level = strictInt(parts.get(1), 1, 5);
         if (level == null || level != clampTradeLevel(parts.get(0), level)) return false;
-        if (!isValidItemId(parts.get(2), false) || strictInt(parts.get(3), 1, 64) == null || !isValidNbt(parts.get(4))) return false;
+        if (isInvalidItemId(parts.get(2), false) || strictInt(parts.get(3), 1, 64) == null || isInvalidNbt(parts.get(4))) return false;
 
         Integer buyBCount = strictInt(parts.get(6), 0, 64);
-        if (buyBCount == null || !isValidNbt(parts.get(7))) return false;
-        if (buyBCount > 0 && !isValidItemId(parts.get(5), false)) return false;
-        if (buyBCount == 0 && !isValidItemId(parts.get(5), true)) return false;
+        if (buyBCount == null || isInvalidNbt(parts.get(7))) return false;
+        if (buyBCount > 0 && isInvalidItemId(parts.get(5), false)) return false;
+        if (buyBCount == 0 && isInvalidItemId(parts.get(5), true)) return false;
 
-        if (!isValidItemId(parts.get(8), false) || strictInt(parts.get(9), 1, 64) == null || !isValidNbt(parts.get(10))) return false;
+        if (isInvalidItemId(parts.get(8), false) || strictInt(parts.get(9), 1, 64) == null || isInvalidNbt(parts.get(10))) return false;
         if (strictInt(parts.get(11), 0, 999999) == null) return false;
         if (strictInt(parts.get(12), 0, 999999) == null) return false;
         if (strictFloat(parts.get(13), 0.0F, 1000.0F) == null) return false;
         if (strictInt(parts.get(14), -999999, 999999) == null) return false;
         if (strictInt(parts.get(15), -999999, 999999) == null) return false;
-        if (!isStrictBoolean(parts.get(16))) return false;
+        if (isNotStrictBoolean(parts.get(16))) return false;
         if (strictInt(parts.get(17), 0, 999999) == null) return false;
-        if (!isStrictBoolean(parts.get(18))) return false;
+        if (isNotStrictBoolean(parts.get(18))) return false;
         return parts.size() == 19 || strictInt(parts.get(19), 0, 999999) != null;
     }
 
-    private static boolean isValidProfession(String value) {
+    private static boolean isInvalidProfession(String value) {
         String profession = clean(value);
-        if (WANDERING_TRADER_ID.equals(profession)) return true;
-        ResourceLocation id = ResourceLocation.tryParse(profession);
-        return id != null && BuiltInRegistries.VILLAGER_PROFESSION.containsKey(id);
+        if (WANDERING_TRADER_ID.equals(profession)) return false;
+        ResourceLocation id = KineticResourceIds.tryParse(profession);
+        return id == null || !KineticRegistries.villagerProfessions().contains(id);
     }
 
-    private static boolean isValidItemId(String value, boolean allowEmpty) {
+    private static boolean isInvalidItemId(String value, boolean allowEmpty) {
         String itemId = clean(value);
-        if (allowEmpty && (itemId.isEmpty() || itemId.equals("air") || itemId.equals("minecraft:air"))) return true;
-        ResourceLocation id = ResourceLocation.tryParse(itemId);
-        if (id == null || !ForgeRegistries.ITEMS.containsKey(id)) return false;
-        Item item = ForgeRegistries.ITEMS.getValue(id);
-        return item != null && item != Items.AIR;
+        if (allowEmpty && (itemId.isEmpty() || itemId.equals("air") || itemId.equals("minecraft:air"))) return false;
+        ResourceLocation id = KineticResourceIds.tryParse(itemId);
+        if (id == null || !KineticRegistries.items().contains(id)) return true;
+        Item item = KineticRegistries.items().get(id);
+        return item == null || item == Items.AIR;
     }
 
-    private static boolean isValidNbt(String value) {
+    private static boolean isInvalidNbt(String value) {
         String nbt = value == null ? "" : value.trim();
-        if (nbt.length() > 32767) return false;
-        if (nbt.isEmpty() || nbt.equals("{}")) return true;
+        if (nbt.length() > 32767) return true;
+        if (nbt.isEmpty() || nbt.equals("{}")) return false;
         try {
             TagParser.parseTag(nbt);
-            return true;
-        } catch (Exception exception) {
             return false;
+        } catch (Exception exception) {
+            return true;
         }
     }
 
@@ -602,17 +609,17 @@ public class VillagerConfig {
         }
     }
 
-    private static boolean isStrictBoolean(String value) {
-        if (value == null) return false;
+    private static boolean isNotStrictBoolean(String value) {
+        if (value == null) return true;
         String cleanValue = value.trim().toLowerCase(Locale.ROOT);
-        return cleanValue.equals("true") || cleanValue.equals("false");
+        return !cleanValue.equals("true") && !cleanValue.equals("false");
     }
 
     public static String itemId(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return "minecraft:air";
         }
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = KineticRegistries.items().id(stack.getItem());
         return id == null ? "minecraft:air" : id.toString();
     }
 
@@ -629,12 +636,12 @@ public class VillagerConfig {
             return ItemStack.EMPTY;
         }
 
-        ResourceLocation location = ResourceLocation.tryParse(id);
+        ResourceLocation location = KineticResourceIds.tryParse(id);
         if (location == null) {
             return ItemStack.EMPTY;
         }
 
-        Item item = ForgeRegistries.ITEMS.getValue(location);
+        Item item = KineticRegistries.items().get(location);
         if (item == null || item == Items.AIR) {
             return ItemStack.EMPTY;
         }

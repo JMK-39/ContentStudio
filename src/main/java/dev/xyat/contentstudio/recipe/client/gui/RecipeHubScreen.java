@@ -1,38 +1,36 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.contentstudio.recipe.RecipeMenu;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
 import dev.xyat.contentstudio.recipe.RecipeRegistry;
-import dev.xyat.kineticcore.api.client.search.ItemSearchIndex;
-import net.minecraft.client.Minecraft;
+import dev.xyat.kineticcore.api.client.search.KineticItemSearch;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import dev.xyat.kineticcore.api.client.screen.KineticContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 public class RecipeHubScreen extends KineticContainerScreen<RecipeMenu> {
 
     public RecipeHubScreen(RecipeMenu recipeMenu, Inventory inv, Component title) {
         super(recipeMenu, inv, title);
+        setParentScreen(RecipeNavigationState.resolveHubParent(KineticClientRuntime.currentScreen()));
         this.imageWidth = 460;
         this.imageHeight = 250;
         this.inventoryLabelY = 1000;
         this.titleLabelY = 10;
-
-        useResponsiveContainer(640F, 360F, 6);
-    }
+}
 
     public void showToast(Component msg) {
-        GuiOverlay.toast(msg);
+        KineticOverlays.toast(msg);
     }
 
     @Override
     protected void buildUi() {
-RecipePreviewState.returnToPreview = false;
+        RecipePreviewState.returnToPreview = false;
 
         int buttonW = 128;
         int buttonH = 38;
@@ -51,13 +49,14 @@ RecipePreviewState.returnToPreview = false;
             int x = startX + col * (buttonW + paddingX);
             int y = startY + row * (buttonH + paddingY);
 
-            addControl(new IconButton(x, y, buttonW, buttonH, type, button -> {
-                if (Minecraft.getInstance().player != null) {
-                    RecipeNetwork.CHANNEL.sendToServer(
-                            new RecipeNetwork.RequestEditPacket("", type.name(), -1)
-                    );
-                }
-            }), null);
+            addItemButton(
+                    x, y, buttonW, new net.minecraft.world.item.ItemStack(type.getIcon()), type.getTitle(), type.getTitle(),
+                    () -> {
+                        if (KineticClientRuntime.localPlayer() != null) {
+                            RecipeNetwork.requestEdit("", type.name(), -1);
+                        }
+                    }
+            );
             i++;
         }
 
@@ -67,21 +66,36 @@ RecipePreviewState.returnToPreview = false;
         int totalBottomWidth = bottomBtnW * 3 + bottomSpacing * 2;
         int bottomStartX = this.leftPos + (this.imageWidth - totalBottomWidth) / 2;
 
-        addButton(bottomStartX, bottomY, bottomBtnW, Component.translatable("gui.contentstudio.recipe.recipehud.back"), null, b -> onClose());
+        addButton(
+                bottomStartX, bottomY, bottomBtnW,
+                Component.translatable("gui.contentstudio.recipe.recipehud.back"),
+                null,
+                this::onClose
+        );
 
-        addButton(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW, Component.translatable("gui.contentstudio.recipe.recipehud.btn.hub"), null, b -> {
-            if (this.minecraft != null && this.minecraft.player != null) {
-                ItemSearchIndex.prepareCache(() -> {
-                    this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_data"));
-                    RecipeNetwork.requestOpen();
-                });
-            }
-        });
+        addButton(
+                bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW,
+                Component.translatable("gui.contentstudio.recipe.recipehud.btn.hub"),
+                null,
+                () -> {
+                    if (KineticClientRuntime.localPlayer() != null) {
+                        KineticItemSearch.prepare(() -> {
+                            this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_data"));
+                            RecipeNetwork.requestOpen();
+                        });
+                    }
+                }
+        );
 
-        addButton(bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW, Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"), null, b -> {
-            this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_recipes"));
-            RecipeNetwork.requestRecipeRecords();
-        });
+        addButton(
+                bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW,
+                Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"),
+                null,
+                () -> {
+                    this.showToast(Component.translatable("msg.contentstudio.recipe.recipehud.requesting_recipes"));
+                    RecipeNetwork.requestRecipeRecords();
+                }
+        );
     }
 
     @Override
@@ -90,49 +104,14 @@ RecipePreviewState.returnToPreview = false;
     }
 
     @Override
-    public void onClose() {
-        super.onClose();
+    protected boolean handleCloseRequest() {
         RecipeEditSessionState.applyPendingAndClear();
+        return false;
     }
 
     @Override
     protected void renderBg(@NotNull GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, 0xDD000000);
-        graphics.renderOutline(leftPos, topPos, imageWidth, imageHeight, 0xFFFFFFFF);
+        GuiTheme.panelAlt(graphics, leftPos, topPos, imageWidth, imageHeight);
     }
 
-    @Override
-    protected void renderScreenOverlay(
-            GuiGraphics graphics,
-            int virtualMouseX,
-            int virtualMouseY,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        for (var renderable : renderables) {
-            if (renderable instanceof IconButton button
-                    && button.isMouseOver(virtualMouseX, virtualMouseY)) {
-                showTooltip(java.util.List.of(button.type.getTitle()));
-                return;
-            }
-        }
-    }
-
-    private static class IconButton extends Button {
-        private final RecipeRegistry.EditorType type;
-        public IconButton(int x, int y, int w, int h, RecipeRegistry.EditorType type, OnPress onPress) {
-            super(x, y, w, h, Component.empty(), onPress, DEFAULT_NARRATION);
-            this.type = type;
-        }
-        @Override
-        public void renderWidget(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            super.renderWidget(graphics, mouseX, mouseY, partialTick);
-            graphics.renderFakeItem(new ItemStack(type.getIcon()), this.getX() + 8, this.getY() + 11);
-            Component label = type.getTitle();
-            int textX = this.getX() + 32;
-            int textY = this.getY() + (this.height - 8) / 2;
-            graphics.drawString(Minecraft.getInstance().font, label, textX, textY, 0xFFFFFFFF, false);
-        }
-    }
 }

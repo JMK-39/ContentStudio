@@ -27,7 +27,7 @@
   "gui.contentstudio.recipe.recipehud.tooltip.right_remove": "§c右键: 从列表中移除",
   "gui.contentstudio.recipe.recipehud.msg.already_exists": "该规则已存在于列表中",
   "gui.contentstudio.recipe.recipehud.tooltip.shift_edit_nbt": "§dShift + 左键: 编辑精确匹配 NBT",
-  "gui.contentstudio.recipe.recipehud.title": "配方移除管理器",
+  "gui.contentstudio.recipe.recipehud.title": "配方管理器",
   "gui.contentstudio.recipe.recipehud.btn.hub": "配方移除管理",
   "gui.contentstudio.recipe.recipehud.mode_prefix": "模式: ",
   "gui.contentstudio.recipe.recipehud.view_prefix": "视图: ",
@@ -140,7 +140,7 @@
   "msg.contentstudio.recipe.saved": "§aNBT 已保存",
   "msg.contentstudio.recipe.invalid_number": "§c请输入有效的物品数量",
   "gui.contentstudio.recipe.recipehud.save_deferred": "§a保存",
-  "gui.contentstudio.recipe.recipehud.tooltip.save_deferred": "保存到 config/kineticcore/datapack/data/contentstudio/recipe_bundle.json\n关闭整个配方界面后通过数据包重载统一应用",
+  "gui.contentstudio.recipe.recipehud.tooltip.save_deferred": "保存到 config/kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json\n关闭整个配方界面后通过数据包重载统一应用",
   "gui.contentstudio.recipe.recipehud.msg.saving_only": "§6正在保存到数据包...",
   "gui.contentstudio.recipe.recipehud.msg.saved_pending": "§a配方已保存，关闭配方界面后统一应用",
   "gui.contentstudio.recipe.recipehud.msg.deleted_pending": "§e§l配方已从数据包删除，关闭配方界面后统一应用",
@@ -468,8 +468,8 @@
   "gui.contentstudio.loot.loots.entry.killed": "仅玩家击杀掉落 %s",
   "gui.contentstudio.loot.loots.entry.fire_required": "仅目标着火时掉落 %s",
   "gui.contentstudio.loot.loots.entry.looting": "受抢夺附魔加成 %s",
-  "gui.contentstudio.loot.loots.state.on": "开",
-  "gui.contentstudio.loot.loots.state.off": "关",
+  "gui.contentstudio.loot.loots.state.on": "§a开",
+  "gui.contentstudio.loot.loots.state.off": "§c关",
   "gui.contentstudio.loot.loots.tip.entry.random_enchant": "§d用途：奖励生成时，随机得到一种该物品能用的附魔。 §f适合：让每次开箱结果略有不同。 §e注意：不能和“按等级随机附魔”同时开启。",
   "gui.contentstudio.loot.loots.tip.entry.level_enchant": "§d用途：按下方的最小/最大等级随机附魔。 §f等级越高，通常越容易得到更强或更多附魔。 §e注意：不能和“随机加一种附魔”同时开启。",
   "gui.contentstudio.loot.loots.tip.entry.furnace": "§d用途：奖励生成时自动换成对应的熔炉产物。 §f例如：生牛肉变熟牛肉；没有熔炉配方时保持原物品。",
@@ -797,5 +797,8 @@
   "gui.contentstudio.tooltip.module.tooltip": "管理物品悬浮提示文本、显示条件以及覆盖或追加规则。",
   "gui.contentstudio.module.name": "内容工坊",
   "gui.contentstudio.module.function": "内容编辑工具",
-  "gui.contentstudio.module.tooltip": "配方、战利品、村民交易与物品提示编辑。"
+  "gui.contentstudio.module.tooltip": "配方、战利品、村民交易与物品提示编辑。",
+  "gui.contentstudio.villager.villager.trade.late_override.on": "§a后覆盖:开",
+  "gui.contentstudio.villager.villager.trade.late_override.off": "§e后覆盖:关",
+  "gui.contentstudio.villager.villager.trade.late_override.tooltip": "§e开启后不使用 Tick 轮询。§a村民或流浪商人完成交易刷新后，ContentStudio 会最后一次应用当前交易规则，覆盖其它模组在刷新过程中动态追加的交易。"
 }

@@ -1,28 +1,29 @@
 package dev.xyat.contentstudio.recipe;
 
-import dev.xyat.contentstudio.recipe.RecipeModule;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticMenuTypes;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.registry.KineticRegistryHandle;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
-import net.minecraftforge.common.extensions.IForgeMenuType;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 
-public class RecipeRegistry {
-    public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, RecipeModule.MODID);
+public final class RecipeRegistry {
+    public static final KineticRegistryHandle<MenuType<RecipeMenu>> HUB_MENU = KineticMenuTypes.register(
+            KineticResourceIds.of(RecipeModule.MODID, "recipe_hub"),
+            (windowId, inventory, data) -> new RecipeMenu(windowId, inventory)
+    );
 
-    public static final RegistryObject<MenuType<RecipeMenu>> HUB_MENU = MENUS.register("recipe_hub",
-            () -> IForgeMenuType.create((windowId, inv, data) -> new RecipeMenu(windowId, inv)));
+    public static final KineticRegistryHandle<MenuType<UniversalRecipeMenu>> EDITOR_MENU = KineticMenuTypes.register(
+            KineticResourceIds.of(RecipeModule.MODID, "recipehud"),
+            UniversalRecipeMenu::new
+    );
 
-    // 【修改点】由于采用了客户端友好型构造函数，这里直接传 data 即可
-    public static final RegistryObject<MenuType<UniversalRecipeMenu>> EDITOR_MENU = MENUS.register("recipehud",
-            () -> IForgeMenuType.create(UniversalRecipeMenu::new));
+    private RecipeRegistry() {
+    }
 
-    public static void register(IEventBus eventBus) {
-        MENUS.register(eventBus);
+    public static void register() {
     }
 
     public enum EditorType {
@@ -44,7 +45,7 @@ public class RecipeRegistry {
         }
 
         public Item getIcon() {
-            return ForgeRegistries.ITEMS.getValue(new ResourceLocation(iconId));
+            return KineticRegistries.items().get(KineticResourceIds.parse(iconId));
         }
 
         public Component getTitle() {

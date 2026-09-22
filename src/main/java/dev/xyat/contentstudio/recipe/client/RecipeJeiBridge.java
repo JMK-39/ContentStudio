@@ -1,10 +1,10 @@
 package dev.xyat.contentstudio.recipe.client;
 
+import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.ModList;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -175,7 +175,7 @@ public final class RecipeJeiBridge {
 
     private static boolean isLoaded(String modId) {
         try {
-            return ModList.get().isLoaded(modId);
+            return KineticPlatform.isModLoaded(modId);
         } catch (RuntimeException ignored) {
             return false;
         }

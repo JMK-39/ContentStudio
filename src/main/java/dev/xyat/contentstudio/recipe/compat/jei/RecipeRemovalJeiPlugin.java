@@ -1,5 +1,9 @@
 package dev.xyat.contentstudio.recipe.compat.jei;
 
+import javax.annotation.Nonnull;
+
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.contentstudio.recipe.client.RecipeJeiBridge;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
 import mezz.jei.api.IModPlugin;
@@ -11,7 +15,6 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.runtime.IJeiRuntime;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
@@ -23,11 +26,11 @@ import java.util.List;
 public final class RecipeRemovalJeiPlugin implements IModPlugin {
     @Override
     public ResourceLocation getPluginUid() {
-        return new ResourceLocation("contentstudio", "recipe_removal");
+        return KineticResourceIds.of("contentstudio", "recipe_removal");
     }
 
     @Override
-    public void onRuntimeAvailable(IJeiRuntime runtime) {
+    public void onRuntimeAvailable(@Nonnull IJeiRuntime runtime) {
         RecipeJeiBridge.setAccess(new Access(runtime));
     }
 
@@ -64,7 +67,7 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
                             try {
                                 ResourceLocation id = category.getRegistryName(recipe);
                                 if (id == null && recipe instanceof Recipe<?> vanilla) id = vanilla.getId();
-                                var level = Minecraft.getInstance().level;
+                                var level = KineticClientRuntime.currentLevel();
                                 var registered = level == null || id == null ? null
                                         : level.getRecipeManager().byKey(id).orElse(null);
                                 RecipeSummary summary = registered == null

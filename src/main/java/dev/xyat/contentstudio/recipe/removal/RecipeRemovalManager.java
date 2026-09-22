@@ -6,7 +6,6 @@ import dev.xyat.contentstudio.recipe.RecipeMemoryManager;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -66,10 +65,7 @@ public final class RecipeRemovalManager {
                 // Recipes with dynamic results are identified by JEI when browsing the item.
             }
         }
-        RecipeNetwork.CHANNEL.send(
-                PacketDistributor.PLAYER.with(() -> player),
-                new RecipeNetwork.SyncPacket(entries, List.copyOf(modifiedItems.values()))
-        );
+        RecipeNetwork.sendSyncToPlayer(player, entries, List.copyOf(modifiedItems.values()));
     }
 
     public static void saveAndApply(ServerPlayer player) {

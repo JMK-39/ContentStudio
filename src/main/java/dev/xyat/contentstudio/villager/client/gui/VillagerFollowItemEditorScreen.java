@@ -1,22 +1,23 @@
 package dev.xyat.contentstudio.villager.client.gui;
 
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
-import dev.xyat.kineticcore.api.client.search.ItemSearchIndex;
-import dev.xyat.kineticcore.api.client.selector.ItemSelectorScreen;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.search.KineticItemSearch;
+import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.GridScrollController;
+import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
 import dev.xyat.contentstudio.villager.network.VillagerNetwork;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     private VillagerFollowItemEditorScreen(Screen parent, List<String> initialItems) {
         super(Component.translatable("gui.contentstudio.villager.follow_item_editor.title"));
         this.parent = parent;
+        setParentScreen(parent);
         if (initialItems != null) {
             Set<String> unique = new LinkedHashSet<>();
             for (String itemId : initialItems) {
@@ -61,8 +63,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
             }
             items.addAll(unique);
         }
-        useStandardCanvas();
-}
+    }
 
     public static Screen create(Screen parent, List<String> items) {
         return new VillagerFollowItemEditorScreen(parent, items);
@@ -72,28 +73,41 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     protected void buildUi() {
         updateScrollRange();
 
-        addButton(70, 316, 130, Component.translatable("gui.kineticcore.items.list_editor.add"), null, ignored -> openSelector());
-        addButton(255, 316, 130, Component.translatable("gui.kineticcore.config.back"), null, ignored -> onClose());
-        addButton(440, 316, 130, Component.translatable("gui.kineticcore.hud_editor.save"), null, ignored -> saveAndClose());
+        addButton(
+                70, 316, 130,
+                Component.translatable("gui.kineticcore.items.list_editor.add"),
+                null,
+                this::openSelector
+        );
+        addButton(
+                255, 316, 130,
+                Component.translatable("gui.kineticcore.config.back"),
+                null,
+                this::onClose
+        );
+        addButton(
+                440, 316, 130,
+                Component.translatable("gui.kineticcore.hud_editor.save"),
+                null,
+                this::saveAndClose
+        );
     }
 
     private void openSelector() {
-        ItemSearchIndex.prepareCache(() -> Minecraft.getInstance().setScreen(
-                new ItemSelectorScreen(this, this::acceptSelection)
-        ));
+        KineticSelectors.openItemSelector(this, this::acceptSelection);
     }
 
-    private void acceptSelection(ItemSelectorScreen.Selection selection) {
+    private void acceptSelection(KineticSelectors.ItemSelection selection) {
         if (selection == null) return;
         if (!selection.isItem()) {
-            GuiOverlay.toast(
+            KineticOverlays.toast(
                     "contentstudio_follow_item_item_only",
                     Component.translatable("gui.kineticcore.items.list_editor.item_only")
             );
             return;
         }
 
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(selection.stack().getItem());
+        ResourceLocation id = KineticRegistries.items().id(selection.stack().getItem());
         if (id == null) return;
         String value = id.toString();
         if (!items.contains(value)) {
@@ -122,25 +136,9 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
             int mouseY,
             float partialTick
     ) {
-        GuiTheme.panel(
-                graphics,
-                PANEL_X,
-                PANEL_Y,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                PANEL_BACKGROUND,
-                PANEL_OUTLINE
-        );
+        GuiTheme.panel(graphics, PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT);
         graphics.drawCenteredString(font, title, canvasWidth() / 2, 30, 0xFFFFAA00);
-        GuiTheme.panel(
-                graphics,
-                GRID_X,
-                GRID_Y,
-                GRID_WIDTH,
-                GRID_HEIGHT,
-                PANEL_BACKGROUND,
-                PANEL_OUTLINE
-        );
+        GuiTheme.panel(graphics, GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT);
         renderItems(graphics, mouseX, mouseY);
         GuiTheme.scrollbar(
                 scroll,
@@ -180,7 +178,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
         int first = baseRow * COLUMNS;
         int last = Math.min(items.size(), first + (ROWS_VISIBLE + 2) * COLUMNS);
 
-        enableCanvasScissor(graphics, GRID_X, GRID_Y, GRID_X + GRID_WIDTH, GRID_Y + GRID_HEIGHT);
+        enableUiScissor(graphics, GRID_X, GRID_Y, GRID_X + GRID_WIDTH, GRID_Y + GRID_HEIGHT);
         for (int index = first; index < last; index++) {
             int visible = index - first;
             int column = visible % COLUMNS;
@@ -204,7 +202,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
                 );
             }
         }
-        disableCanvasScissor(graphics);
+        disableUiScissor(graphics);
     }
 
     private ItemStack previewStack(String itemId) {
@@ -213,9 +211,9 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     }
 
     private static ItemStack buildPreviewStack(String itemId) {
-        ResourceLocation id = ResourceLocation.tryParse(itemId);
+        ResourceLocation id = KineticResourceIds.tryParse(itemId);
         if (id == null) return ItemStack.EMPTY;
-        Item item = ForgeRegistries.ITEMS.getValue(id);
+        Item item = KineticRegistries.items().get(id);
         return item == null ? ItemStack.EMPTY : new ItemStack(item);
     }
 
@@ -238,7 +236,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     protected boolean canvasMouseClicked(double mouseX, double mouseY, int button) {
         boolean widget = super.canvasMouseClicked(mouseX, mouseY, button);
 
-        if (button == 0 && scroll.beginDrag(
+        if (KineticMouseButtons.isPrimary(button) && scroll.beginDrag(
                 mouseX,
                 mouseY,
                 SCROLL_X,
@@ -251,7 +249,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
             return true;
         }
 
-        if (button == 1) {
+        if (KineticMouseButtons.isSecondary(button)) {
             int index = indexAt(mouseX, mouseY);
             if (index >= 0) {
                 items.remove(index);
@@ -309,18 +307,19 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
                 Component.translatable("gui.kineticcore.items.list_editor.remove_hint"),
                 300
         ));
-        showFormattedTooltip(lines);
+        KineticOverlays.requestFormattedTooltip(lines, mouseX, mouseY);
     }
 
     private static String normalizeItemId(String itemId) {
         if (itemId == null) return "";
         String normalized = itemId.trim();
-        return ResourceLocation.tryParse(normalized) == null ? "" : normalized;
+        return KineticResourceIds.tryParse(normalized) == null ? "" : normalized;
     }
 
     @Override
-    public void onClose() {
+    protected boolean handleCloseRequest() {
         navigateBack();
+        return true;
     }
 
     @Override

@@ -1,5 +1,8 @@
 package dev.xyat.contentstudio.loot.server;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -23,8 +26,6 @@ import net.minecraft.world.level.storage.loot.LootDataManager;
 import net.minecraft.world.level.storage.loot.LootDataType;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -49,9 +50,9 @@ public class LootTableOverrideStore {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String LOG_PREFIX = "[LootModule]";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final Path ROOT = FMLPaths.CONFIGDIR.get().resolve("kineticcore");
+    private static final Path ROOT = KineticPaths.configDirectory().resolve("kineticcore");
     private static final Path OVERRIDES_FILE = ROOT.resolve("loot_overrides.json");
-    private static final ResourceLocation GLOBAL_CHEST_APPEND = new ResourceLocation(LootEntryInfo.GLOBAL_CHEST_APPEND_ID);
+    private static final ResourceLocation GLOBAL_CHEST_APPEND = KineticResourceIds.parse(LootEntryInfo.GLOBAL_CHEST_APPEND_ID);
     private static final Object STORAGE_LOCK = new Object();
     private static final Object LOOT_REFERENCE_LOCK = new Object();
     private static final String GLOBAL_POOL_NAME_PREFIX = "contentstudio_global_append#";
@@ -71,8 +72,8 @@ public class LootTableOverrideStore {
         List<LootEntryInfo> result = new ArrayList<>();
 
         if (mode == LootEntryInfo.MODE_ENTITY) {
-            ForgeRegistries.ENTITY_TYPES.getEntries().forEach(entry -> {
-                ResourceLocation targetId = entry.getKey().location();
+            KineticRegistries.entityTypes().entries().entrySet().forEach(entry -> {
+                ResourceLocation targetId = entry.getKey();
                 EntityType<?> type = entry.getValue();
                 ResourceLocation lootTable = type.getDefaultLootTable();
                 if (isValidLootTable(lootTable)) {
@@ -80,8 +81,8 @@ public class LootTableOverrideStore {
                 }
             });
         } else if (mode == LootEntryInfo.MODE_BLOCK) {
-            ForgeRegistries.BLOCKS.getEntries().forEach(entry -> {
-                ResourceLocation targetId = entry.getKey().location();
+            KineticRegistries.blocks().entries().entrySet().forEach(entry -> {
+                ResourceLocation targetId = entry.getKey();
                 Block block = entry.getValue();
                 ResourceLocation lootTable = block.getLootTable();
                 if (isValidLootTable(lootTable)) {
@@ -146,7 +147,7 @@ public class LootTableOverrideStore {
 
             try (Reader reader = resource.openAsReader()) {
                 JsonElement element = JsonParser.parseReader(reader);
-                if (isContainerLootTable(lootTableId, element) && !isAutomaticallyNonContainerLootTable(lootTableId)) {
+                if (isContainerLootTable(lootTableId, element) && isNotAutomaticallyNonContainerLootTable(lootTableId)) {
                     result.add(new LootEntryInfo(
                             LootEntryInfo.MODE_CHEST,
                             lootTableId.toString(),
@@ -491,7 +492,7 @@ public class LootTableOverrideStore {
                 if (value == null || value.isBlank()) {
                     continue;
                 }
-                ResourceLocation id = ResourceLocation.tryParse(value.trim());
+                ResourceLocation id = KineticResourceIds.tryParse(value.trim());
                 if (id != null) {
                     validated.add(id);
                 }
@@ -621,7 +622,7 @@ public class LootTableOverrideStore {
                 : "";
         if (("minecraft:item".equals(type) || "item".equals(type)) && object.has("name")) {
             String itemId = object.get("name").isJsonPrimitive() ? object.get("name").getAsString() : "";
-            if (!isRegisteredItem(itemId)) {
+            if (isUnregisteredItem(itemId)) {
                 LOGGER.error("{} 无效战利品物品已安全替换 lootTable={} item={}", LOG_PREFIX, lootTableId, itemId);
                 object.addProperty("name", "minecraft:barrier");
                 replaced++;
@@ -634,16 +635,16 @@ public class LootTableOverrideStore {
         return replaced;
     }
 
-    private static boolean isRegisteredItem(String itemId) {
+    private static boolean isUnregisteredItem(String itemId) {
         if (itemId == null || itemId.isBlank()) {
-            return false;
+            return true;
         }
         try {
-            ResourceLocation id = new ResourceLocation(itemId);
-            var item = ForgeRegistries.ITEMS.getValue(id);
-            return item != null && item != net.minecraft.world.item.Items.AIR;
+            ResourceLocation id = KineticResourceIds.parse(itemId);
+            var item = KineticRegistries.items().get(id);
+            return item == null || item == net.minecraft.world.item.Items.AIR;
         } catch (Exception ignored) {
-            return false;
+            return true;
         }
     }
 
@@ -728,11 +729,11 @@ public class LootTableOverrideStore {
         if (!path.startsWith(prefix) || !path.endsWith(suffix) || path.length() <= prefix.length() + suffix.length()) {
             return null;
         }
-        return new ResourceLocation(resourceId.getNamespace(), path.substring(prefix.length(), path.length() - suffix.length()));
+        return KineticResourceIds.of(resourceId.getNamespace(), path.substring(prefix.length(), path.length() - suffix.length()));
     }
 
     private static ResourceLocation lootTableResourceId(ResourceLocation lootTableId) {
-        return new ResourceLocation(lootTableId.getNamespace(), "loot_tables/" + lootTableId.getPath() + ".json");
+        return KineticResourceIds.of(lootTableId.getNamespace(), "loot_tables/" + lootTableId.getPath() + ".json");
     }
 
     private static boolean shouldApplyGlobalChestRules(ResourceLocation lootTableId) {
@@ -740,17 +741,17 @@ public class LootTableOverrideStore {
             return false;
         }
         return !globalExcludedLootTableSet().contains(lootTableId)
-                && !isAutomaticallyNonContainerLootTable(lootTableId);
+                && isNotAutomaticallyNonContainerLootTable(lootTableId);
     }
 
-    private static boolean isAutomaticallyNonContainerLootTable(ResourceLocation lootTableId) {
+    private static boolean isNotAutomaticallyNonContainerLootTable(ResourceLocation lootTableId) {
         if (lootTableId == null) {
-            return false;
+            return true;
         }
         String path = lootTableId.getPath();
         if (path.startsWith("entities/") || path.contains("/entities/")
                 || path.startsWith("blocks/") || path.contains("/blocks/")) {
-            return true;
+            return false;
         }
 
         Set<ResourceLocation> cached = automaticNonContainerLootTableCache;
@@ -759,13 +760,13 @@ public class LootTableOverrideStore {
                 cached = automaticNonContainerLootTableCache;
                 if (cached == null) {
                     LinkedHashSet<ResourceLocation> values = new LinkedHashSet<>();
-                    ForgeRegistries.ENTITY_TYPES.getValues().forEach(type -> {
+                    KineticRegistries.entityTypes().values().forEach(type -> {
                         ResourceLocation id = type.getDefaultLootTable();
                         if (isValidLootTable(id)) {
                             values.add(id);
                         }
                     });
-                    ForgeRegistries.BLOCKS.getValues().forEach(block -> {
+                    KineticRegistries.blocks().values().forEach(block -> {
                         ResourceLocation id = block.getLootTable();
                         if (isValidLootTable(id)) {
                             values.add(id);
@@ -776,7 +777,7 @@ public class LootTableOverrideStore {
                 }
             }
         }
-        return cached.contains(lootTableId);
+        return !cached.contains(lootTableId);
     }
 
     private static boolean removeDirectItemsFromTable(JsonObject table, Set<ResourceLocation> removedItems) {
@@ -806,7 +807,7 @@ public class LootTableOverrideStore {
             JsonObject entry = element.getAsJsonObject();
             String type = stringValue(entry.get("type"));
             String name = stringValue(entry.get("name"));
-            ResourceLocation itemId = ResourceLocation.tryParse(name);
+            ResourceLocation itemId = KineticResourceIds.tryParse(name);
             if (("minecraft:item".equals(type) || "item".equals(type))
                     && itemId != null
                     && removedItems.contains(itemId)) {
@@ -892,7 +893,7 @@ public class LootTableOverrideStore {
                     if (!value.isJsonPrimitive()) {
                         continue;
                     }
-                    ResourceLocation id = ResourceLocation.tryParse(value.getAsString());
+                    ResourceLocation id = KineticResourceIds.tryParse(value.getAsString());
                     if (id != null) {
                         result.add(id);
                     }

@@ -1,17 +1,17 @@
 package dev.xyat.contentstudio.villager.command;
 
-import dev.xyat.kineticcore.command.KTCommandApi;
-import dev.xyat.kineticcore.command.KTCommandExtension;
 import dev.xyat.contentstudio.villager.VillagerModule;
 import dev.xyat.contentstudio.villager.trade.VillagerTradeRegistry;
+import dev.xyat.kineticcore.api.command.CommandExtension;
+import dev.xyat.kineticcore.api.command.KineticCommands;
 import net.minecraft.commands.CommandSourceStack;
 
-public final class VillagerCommandExtension implements KTCommandExtension {
+public final class VillagerCommandExtension implements CommandExtension {
     private VillagerCommandExtension() {
     }
 
     public static void install() {
-        KTCommandApi.register(VillagerModule.MODID, new VillagerCommandExtension());
+        KineticCommands.registerExtension(VillagerModule.MODID, new VillagerCommandExtension());
     }
 
     @Override

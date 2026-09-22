@@ -1,225 +1,247 @@
 package dev.xyat.contentstudio.recipe.network;
 
-import dev.xyat.contentstudio.recipe.RecipeModule;
-import dev.xyat.contentstudio.recipe.RecipeConfigStore;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.contentstudio.recipe.RecipeDatabase;
-import dev.xyat.contentstudio.recipe.RecipeRecord;
+import dev.xyat.contentstudio.recipe.RecipeMemoryManager;
 import dev.xyat.contentstudio.recipe.RecipeMenu;
+import dev.xyat.contentstudio.recipe.RecipeModule;
+import dev.xyat.contentstudio.recipe.RecipeRecord;
 import dev.xyat.contentstudio.recipe.RecipeRegistry;
 import dev.xyat.contentstudio.recipe.RecipeSaveManager;
 import dev.xyat.contentstudio.recipe.UniversalRecipeMenu;
 import dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager;
-import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
-import dev.xyat.contentstudio.recipe.RecipeMemoryManager;
+import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
+import dev.xyat.kineticcore.api.menu.KineticMenus;
+import dev.xyat.kineticcore.api.network.NetworkBuffer;
+import dev.xyat.kineticcore.api.network.NetworkCodec;
+import dev.xyat.kineticcore.api.network.NetworkVersionPolicy;
+import dev.xyat.kineticcore.api.network.PacketChannel;
+import dev.xyat.kineticcore.api.network.PacketRegistrations;
+import dev.xyat.kineticcore.api.network.ServerPacketContext;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkHooks;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Supplier;
 
 public final class RecipeNetwork {
     private static final String PROTOCOL_VERSION = "2";
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(RecipeModule.MODID, "recipe_network"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
+    private static final PacketChannel CHANNEL = PacketChannel.create(
+            KineticResourceIds.of(RecipeModule.MODID, "recipe_network"),
+            PROTOCOL_VERSION,
+            NetworkVersionPolicy.EXACT
     );
+    private static final boolean[] PACKET_REGISTERED = new boolean[12];
+    private static boolean registered;
 
     private RecipeNetwork() {
     }
 
-    public static void register() {
-        int id = 0;
-        CHANNEL.registerMessage(id++, ActionPacket.class, ActionPacket::encode, ActionPacket::new, ActionPacket::handle);
-        CHANNEL.registerMessage(id++, RequestSyncPacket.class, RequestSyncPacket::encode, RequestSyncPacket::new, RequestSyncPacket::handle);
-        CHANNEL.registerMessage(id++, SyncPacket.class, SyncPacket::encode, SyncPacket::new, SyncPacket::handle);
-        CHANNEL.registerMessage(id++, RecipeChangePacket.class, RecipeChangePacket::encode, RecipeChangePacket::new, RecipeChangePacket::handle);
-        CHANNEL.registerMessage(id++, RequestEditPacket.class, RequestEditPacket::encode, RequestEditPacket::new, RequestEditPacket::handle);
-        CHANNEL.registerMessage(id++, RequestRecipeRecordsPacket.class, RequestRecipeRecordsPacket::encode, RequestRecipeRecordsPacket::new, RequestRecipeRecordsPacket::handle);
-        CHANNEL.registerMessage(id++, RecipeRecordsSyncPacket.class, RecipeRecordsSyncPacket::encode, RecipeRecordsSyncPacket::new, RecipeRecordsSyncPacket::handle);
-        CHANNEL.registerMessage(id++, ToastPacket.class, ToastPacket::encode, ToastPacket::new, ToastPacket::handle);
-        CHANNEL.registerMessage(id++, ApplyPendingRecipesPacket.class, ApplyPendingRecipesPacket::encode, ApplyPendingRecipesPacket::new, ApplyPendingRecipesPacket::handle);
-        CHANNEL.registerMessage(id++, RequestOpenHubPacket.class, RequestOpenHubPacket::encode, RequestOpenHubPacket::new, RequestOpenHubPacket::handle);
-        CHANNEL.registerMessage(id++, RequestItemRecipesPacket.class, RequestItemRecipesPacket::encode, RequestItemRecipesPacket::new, RequestItemRecipesPacket::handle);
-        CHANNEL.registerMessage(id, ItemRecipesPacket.class, ItemRecipesPacket::encode, ItemRecipesPacket::new, ItemRecipesPacket::handle);
+    public static synchronized void register() {
+        if (registered) {
+            return;
+        }
+        PacketRegistrations.runIndependent(
+                () -> registerServerbound(0, ActionPacket.class, (buffer, packet) -> packet.encode(buffer), ActionPacket::new, ActionPacket::handle),
+                () -> registerServerbound(1, RequestSyncPacket.class, (buffer, packet) -> packet.encode(buffer), RequestSyncPacket::new, RequestSyncPacket::handle),
+                () -> registerClientbound(2, SyncPacket.class, (buffer, packet) -> packet.encode(buffer), SyncPacket::new, SyncPacket::handle),
+                () -> registerServerbound(3, RecipeChangePacket.class, (buffer, packet) -> packet.encode(buffer), RecipeChangePacket::new, RecipeChangePacket::handle),
+                () -> registerServerbound(4, RequestEditPacket.class, (buffer, packet) -> packet.encode(buffer), RequestEditPacket::new, RequestEditPacket::handle),
+                () -> registerServerbound(5, RequestRecipeRecordsPacket.class, (buffer, packet) -> packet.encode(buffer), RequestRecipeRecordsPacket::new, RequestRecipeRecordsPacket::handle),
+                () -> registerClientbound(6, RecipeRecordsSyncPacket.class, (buffer, packet) -> packet.encode(buffer), RecipeRecordsSyncPacket::new, RecipeRecordsSyncPacket::handle),
+                () -> registerClientbound(7, ToastPacket.class, (buffer, packet) -> packet.encode(buffer), ToastPacket::new, ToastPacket::handle),
+                () -> registerServerbound(8, ApplyPendingRecipesPacket.class, (buffer, packet) -> packet.encode(buffer), ApplyPendingRecipesPacket::new, ApplyPendingRecipesPacket::handle),
+                () -> registerServerbound(9, RequestOpenHubPacket.class, (buffer, packet) -> packet.encode(buffer), RequestOpenHubPacket::new, RequestOpenHubPacket::handle),
+                () -> registerServerbound(10, RequestItemRecipesPacket.class, (buffer, packet) -> packet.encode(buffer), RequestItemRecipesPacket::new, RequestItemRecipesPacket::handle),
+                () -> registerClientbound(11, ItemRecipesPacket.class, (buffer, packet) -> packet.encode(buffer), ItemRecipesPacket::new, ItemRecipesPacket::handle),
+                () -> registered = allPacketsRegistered()
+        );
+    }
+
+    private static <T> void registerServerbound(
+            int id,
+            Class<T> type,
+            java.util.function.BiConsumer<NetworkBuffer, T> encoder,
+            java.util.function.Function<NetworkBuffer, T> decoder,
+            dev.xyat.kineticcore.api.network.ServerboundPacketHandler<T> handler
+    ) {
+        if (PACKET_REGISTERED[id]) return;
+        CHANNEL.registerServerbound(id, type, NetworkCodec.of(encoder, decoder), handler);
+        PACKET_REGISTERED[id] = true;
+    }
+
+    private static <T> void registerClientbound(
+            int id,
+            Class<T> type,
+            java.util.function.BiConsumer<NetworkBuffer, T> encoder,
+            java.util.function.Function<NetworkBuffer, T> decoder,
+            java.util.function.Consumer<T> handler
+    ) {
+        if (PACKET_REGISTERED[id]) return;
+        CHANNEL.registerClientbound(id, type, NetworkCodec.of(encoder, decoder), handler);
+        PACKET_REGISTERED[id] = true;
+    }
+
+    private static boolean allPacketsRegistered() {
+        for (boolean value : PACKET_REGISTERED) {
+            if (!value) return false;
+        }
+        return true;
     }
 
     public record RequestItemRecipesPacket(ItemStack item) {
-        public RequestItemRecipesPacket(FriendlyByteBuf buf) { this(buf.readItem()); }
-        public void encode(FriendlyByteBuf buf) { buf.writeItem(item); }
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player == null || !player.hasPermissions(2) || item.isEmpty()) return;
-                List<RecipeSummary> recipes = new ArrayList<>();
-                boolean dataError = false;
-                for (var recipe : RecipeMemoryManager.recipeCatalog(player.server.getRecipeManager())) {
-                    try {
-                        if (recipe.getResultItem(player.level().registryAccess()).is(item.getItem())) {
-                            try {
-                                recipes.add(RecipeSummary.of(recipe, player.level().registryAccess()));
-                            } catch (RuntimeException exception) {
-                                dataError = true;
-                            }
+        public RequestItemRecipesPacket(NetworkBuffer buffer) {
+            this(buffer.readItemStack());
+        }
+
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeItemStack(item);
+        }
+
+        public static void handle(RequestItemRecipesPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (!player.hasPermissions(2) || packet.item.isEmpty()) return;
+            List<RecipeSummary> recipes = new ArrayList<>();
+            boolean dataError = false;
+            for (var recipe : RecipeMemoryManager.recipeCatalog(player.server.getRecipeManager())) {
+                try {
+                    if (recipe.getResultItem(player.level().registryAccess()).is(packet.item.getItem())) {
+                        try {
+                            recipes.add(RecipeSummary.of(recipe, player.level().registryAccess()));
+                        } catch (RuntimeException exception) {
+                            dataError = true;
                         }
-                    } catch (RuntimeException ignored) {
-                        // Dynamic recipes without a static result remain available through JEI.
                     }
+                } catch (RuntimeException ignored) {
                 }
-                CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ItemRecipesPacket(item, recipes, dataError));
-            });
-            ctx.get().setPacketHandled(true);
+            }
+            CHANNEL.sendToPlayer(player, new ItemRecipesPacket(packet.item, recipes, dataError));
         }
     }
 
     public record ItemRecipesPacket(ItemStack item, List<RecipeSummary> recipes, boolean dataError) {
-        public ItemRecipesPacket(FriendlyByteBuf buf) {
-            this(buf.readItem(), buf.readList(RecipeSummary::decode), buf.readBoolean());
+        public ItemRecipesPacket(NetworkBuffer buffer) {
+            this(buffer.readItemStack(), buffer.readList(RecipeSummary::decode), buffer.readBoolean());
         }
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeItem(item);
-            buf.writeCollection(recipes, (buffer, recipe) -> recipe.encode(buffer));
-            buf.writeBoolean(dataError);
+
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeItemStack(item);
+            buffer.writeList(recipes, (target, recipe) -> recipe.encode(target));
+            buffer.writeBoolean(dataError);
         }
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-                    () -> () -> RecipeNetworkClient.handleItemRecipes(this)));
-            ctx.get().setPacketHandled(true);
+
+        public static void handle(ItemRecipesPacket packet) {
+            RecipeNetworkClient.handleItemRecipes(packet);
         }
     }
 
     public record RequestOpenHubPacket() {
-        public RequestOpenHubPacket(FriendlyByteBuf buf) {
+        public RequestOpenHubPacket(NetworkBuffer buffer) {
             this();
         }
 
-        public void encode(FriendlyByteBuf buf) {
+        public void encode(NetworkBuffer buffer) {
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player == null || !player.hasPermissions(2)) return;
-                RecipeDatabase.loadDatabase();
-                NetworkHooks.openScreen(
-                        player,
-                        new SimpleMenuProvider(
-                                (id, inv, p) -> new RecipeMenu(id, inv),
-                                Component.translatable("gui.contentstudio.recipe.recipehud.title")
-                        )
-                );
-            });
-            ctx.get().setPacketHandled(true);
+        public static void handle(RequestOpenHubPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (!player.hasPermissions(2)) return;
+            RecipeDatabase.loadDatabase();
+            KineticMenus.open(
+                    player,
+                    Component.translatable("gui.contentstudio.recipe.recipehud.title"),
+                    (id, inventory, menuPlayer) -> new RecipeMenu(id, inventory)
+            );
         }
     }
 
     public record ToastPacket(Component message) {
-        public ToastPacket(FriendlyByteBuf buf) {
-            this(buf.readComponent());
+        public ToastPacket(NetworkBuffer buffer) {
+            this(buffer.readComponent());
         }
 
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeComponent(message);
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeComponent(message);
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> RecipeNetworkClient.handleToast(this)));
-            ctx.get().setPacketHandled(true);
+        public static void handle(ToastPacket packet) {
+            RecipeNetworkClient.handleToast(packet);
         }
     }
 
     public record RequestEditPacket(String uuid, String editorType, int configIndex) {
-        public RequestEditPacket(FriendlyByteBuf buf) {
-            this(buf.readUtf(), buf.readUtf(), buf.readInt());
+        public RequestEditPacket(NetworkBuffer buffer) {
+            this(buffer.readUtf(), buffer.readUtf(), buffer.readInt());
         }
 
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeUtf(uuid == null ? "" : uuid);
-            buf.writeUtf(editorType == null ? "" : editorType);
-            buf.writeInt(configIndex);
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeUtf(uuid == null ? "" : uuid);
+            buffer.writeUtf(editorType == null ? "" : editorType);
+            buffer.writeInt(configIndex);
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player == null || !player.hasPermissions(2)) {
-                    return;
-                }
-                if (configIndex < 0 && !uuid.isEmpty() && !isValidUuid(uuid)) {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
-                    return;
-                }
-                RecipeDatabase.reloadDatabase();
+        public static void handle(RequestEditPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (!player.hasPermissions(2)) {
+                return;
+            }
+            if (packet.configIndex < 0 && !packet.uuid.isEmpty() && isInvalidUuid(packet.uuid)) {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                return;
+            }
+            RecipeDatabase.reloadDatabase();
 
-                RecipeRecord record = null;
-                if (configIndex >= 0) {
-                    record = RecipeDatabase.editorSnapshot().stream()
-                            .filter(value -> value.configIndex == configIndex)
-                            .findFirst()
-                            .orElse(null);
-                } else if (!uuid.isEmpty()) {
-                    record = RecipeDatabase.records.stream()
-                            .filter(value -> value.uuid != null && value.uuid.equals(uuid))
-                            .findFirst()
-                            .orElse(null);
-                }
+            RecipeRecord record = null;
+            if (packet.configIndex >= 0) {
+                record = RecipeDatabase.editorSnapshot().stream()
+                        .filter(value -> value.configIndex == packet.configIndex)
+                        .findFirst()
+                        .orElse(null);
+            } else if (!packet.uuid.isEmpty()) {
+                record = RecipeDatabase.records.stream()
+                        .filter(value -> value.uuid != null && value.uuid.equals(packet.uuid))
+                        .findFirst()
+                        .orElse(null);
+            }
 
-                if (configIndex >= 0 && record == null) {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
-                    return;
-                }
+            if (packet.configIndex >= 0 && record == null) {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                return;
+            }
 
-                String resolvedType = record == null ? editorType : record.editorType;
-                RecipeRegistry.EditorType type;
-                try {
-                    type = RecipeRegistry.EditorType.valueOf(resolvedType);
-                } catch (IllegalArgumentException exception) {
-                    sendToast(
-                            player,
-                            Component.translatable(
-                                    "msg.contentstudio.recipe.recipehud.invalid_type",
-                                    resolvedType
-                            )
-                    );
-                    return;
-                }
-
-                RecipeRecord finalRecord = record;
-                NetworkHooks.openScreen(
+            String resolvedType = record == null ? packet.editorType : record.editorType;
+            RecipeRegistry.EditorType type;
+            try {
+                type = RecipeRegistry.EditorType.valueOf(resolvedType);
+            } catch (IllegalArgumentException exception) {
+                sendToast(
                         player,
-                        new SimpleMenuProvider(
-                                (id, inv, p) -> new UniversalRecipeMenu(id, inv, type, finalRecord),
-                                type.getTitle()
-                        ),
-                        buf -> {
-                            buf.writeUtf(type.name());
-                            buf.writeBoolean(finalRecord != null);
-                            if (finalRecord != null) {
-                                buf.writeNbt(finalRecord.saveToNBT());
-                                buf.writeUtf(finalRecord.uuid == null ? "" : finalRecord.uuid);
-                                buf.writeInt(finalRecord.configIndex);
-                            }
-                        }
+                        Component.translatable("msg.contentstudio.recipe.recipehud.invalid_type", resolvedType)
                 );
-            });
-            ctx.get().setPacketHandled(true);
+                return;
+            }
+
+            RecipeRecord finalRecord = record;
+            KineticMenus.open(
+                    player,
+                    type.getTitle(),
+                    (id, inventory, menuPlayer) -> new UniversalRecipeMenu(id, inventory, type, finalRecord),
+                    buffer -> {
+                        buffer.writeUtf(type.name());
+                        buffer.writeBoolean(finalRecord != null);
+                        if (finalRecord != null) {
+                            buffer.writeNbt(finalRecord.saveToNBT());
+                            buffer.writeUtf(finalRecord.uuid == null ? "" : finalRecord.uuid);
+                            buffer.writeInt(finalRecord.configIndex);
+                        }
+                    }
+            );
         }
     }
 
@@ -234,231 +256,220 @@ public final class RecipeNetwork {
             List<ItemStack> inputs,
             ItemStack output
     ) {
-        public RecipeChangePacket(FriendlyByteBuf buf) {
+        public RecipeChangePacket(NetworkBuffer buffer) {
             this(
-                    buf.readUtf(),
-                    buf.readInt(),
-                    buf.readUtf(),
-                    buf.readBoolean(),
-                    readIntList(buf),
-                    buf.readBoolean(),
-                    buf.readInt(),
-                    readItemList(buf),
-                    buf.readItem()
+                    buffer.readUtf(),
+                    buffer.readInt(),
+                    buffer.readUtf(),
+                    buffer.readBoolean(),
+                    readIntList(buffer),
+                    buffer.readBoolean(),
+                    buffer.readInt(),
+                    readItemList(buffer),
+                    buffer.readItemStack()
             );
         }
 
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeUtf(uuid == null ? "" : uuid);
-            buf.writeInt(configIndex);
-            buf.writeUtf(editorType);
-            buf.writeBoolean(isShapeless);
-            buf.writeInt(inputNbtModes.size());
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeUtf(uuid == null ? "" : uuid);
+            buffer.writeInt(configIndex);
+            buffer.writeUtf(editorType);
+            buffer.writeBoolean(isShapeless);
+            buffer.writeInt(inputNbtModes.size());
             for (int mode : inputNbtModes) {
-                buf.writeInt(mode);
+                buffer.writeInt(mode);
             }
-            buf.writeBoolean(outputUseNbt);
-            buf.writeInt(action);
-            buf.writeInt(inputs.size());
+            buffer.writeBoolean(outputUseNbt);
+            buffer.writeInt(action);
+            buffer.writeInt(inputs.size());
             for (ItemStack stack : inputs) {
-                buf.writeItem(stack);
+                buffer.writeItemStack(stack);
             }
-            buf.writeItem(output);
+            buffer.writeItemStack(output);
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player == null || !player.hasPermissions(2)) {
-                    return;
-                }
-                if (action != 0 && action != 1) {
+        public static void handle(RecipeChangePacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (!player.hasPermissions(2)) {
+                return;
+            }
+            if (packet.action != 0 && packet.action != 1) {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                return;
+            }
+            if (packet.action == 1) {
+                if (packet.configIndex < 0 && isInvalidUuid(packet.uuid)) {
                     sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
                     return;
                 }
-                if (action == 1) {
-                    if (configIndex < 0 && !isValidUuid(uuid)) {
-                        sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
-                        return;
-                    }
-                    RecipeSaveManager.deleteOnly(player, uuid, configIndex);
-                    return;
-                }
-                if (!isValidRecipeChange(this)) {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
-                    return;
-                }
-                if (inputs.stream().allMatch(ItemStack::isEmpty)) {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.input_empty"));
-                    return;
-                }
-                if (output.isEmpty()) {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.output_empty"));
-                    return;
-                }
-                RecipeSaveManager.saveOnly(player, this);
-            });
-            ctx.get().setPacketHandled(true);
+                RecipeSaveManager.deleteOnly(player, packet.uuid, packet.configIndex);
+                return;
+            }
+            if (isInvalidRecipeChange(packet)) {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                return;
+            }
+            if (packet.inputs.stream().allMatch(ItemStack::isEmpty)) {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.input_empty"));
+                return;
+            }
+            if (packet.output.isEmpty()) {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.output_empty"));
+                return;
+            }
+            RecipeSaveManager.saveOnly(player, packet);
         }
     }
 
     public record ActionPacket(int action, RemovalEntry entry) {
-        public ActionPacket(FriendlyByteBuf buf) {
-            this(buf.readInt(), buf.readBoolean() ? RemovalEntry.fromNetwork(buf) : null);
+        public ActionPacket(NetworkBuffer buffer) {
+            this(buffer.readInt(), buffer.readBoolean() ? RemovalEntry.fromNetwork(buffer) : null);
         }
 
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeInt(action);
-            buf.writeBoolean(entry != null);
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeInt(action);
+            buffer.writeBoolean(entry != null);
             if (entry != null) {
-                entry.toNetwork(buf);
+                entry.toNetwork(buffer);
             }
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player == null || !player.hasPermissions(2)) return;
-                if (action == 0 && isValidRemovalEntry(entry)) {
-                    RecipeRemovalManager.addEntry(entry);
-                } else if (action == 1 && isValidRemovalEntry(entry)) {
-                    RecipeRemovalManager.removeEntry(entry);
-                } else if (action == 2 && entry == null) {
-                    RecipeRemovalManager.saveAndApply(player);
-                } else {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
-                }
-            });
-            ctx.get().setPacketHandled(true);
+        public static void handle(ActionPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (!player.hasPermissions(2)) return;
+            if (packet.action == 0 && isValidRemovalEntry(packet.entry)) {
+                RecipeRemovalManager.addEntry(packet.entry);
+            } else if (packet.action == 1 && isValidRemovalEntry(packet.entry)) {
+                RecipeRemovalManager.removeEntry(packet.entry);
+            } else if (packet.action == 2 && packet.entry == null) {
+                RecipeRemovalManager.saveAndApply(player);
+            } else {
+                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+            }
         }
     }
 
     public record ApplyPendingRecipesPacket() {
-        public ApplyPendingRecipesPacket(FriendlyByteBuf buf) {
+        public ApplyPendingRecipesPacket(NetworkBuffer buffer) {
             this();
         }
 
-        public void encode(FriendlyByteBuf buf) {
+        public void encode(NetworkBuffer buffer) {
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player != null && player.hasPermissions(2)) {
-                    RecipeSaveManager.applyPending(player);
-                }
-            });
-            ctx.get().setPacketHandled(true);
+        public static void handle(ApplyPendingRecipesPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (player.hasPermissions(2)) {
+                RecipeSaveManager.applyPending(player);
+            }
         }
     }
 
     public record RequestSyncPacket() {
-        public RequestSyncPacket(FriendlyByteBuf buf) {
+        public RequestSyncPacket(NetworkBuffer buffer) {
             this();
         }
 
-        public void encode(FriendlyByteBuf buf) {
+        public void encode(NetworkBuffer buffer) {
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player != null && player.hasPermissions(2)) {
-                    RecipeRemovalManager.syncToPlayer(player);
-                }
-            });
-            ctx.get().setPacketHandled(true);
+        public static void handle(RequestSyncPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (player.hasPermissions(2)) {
+                RecipeRemovalManager.syncToPlayer(player);
+            }
         }
     }
 
     public record SyncPacket(List<RemovalEntry> entries, List<ItemStack> modifiedItems) {
-        public SyncPacket(FriendlyByteBuf buf) {
-            this(readEntries(buf), buf.readList(FriendlyByteBuf::readItem));
+        public SyncPacket(NetworkBuffer buffer) {
+            this(readEntries(buffer), buffer.readList(NetworkBuffer::readItemStack));
         }
 
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeInt(entries.size());
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeInt(entries.size());
             for (RemovalEntry entry : entries) {
-                entry.toNetwork(buf);
+                entry.toNetwork(buffer);
             }
-            buf.writeCollection(modifiedItems, FriendlyByteBuf::writeItem);
+            buffer.writeList(modifiedItems, (target, stack) -> target.writeItemStack(stack));
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> RecipeNetworkClient.handleSync(this)));
-            ctx.get().setPacketHandled(true);
+        public static void handle(SyncPacket packet) {
+            RecipeNetworkClient.handleSync(packet);
         }
     }
 
     public record RequestRecipeRecordsPacket() {
-        public RequestRecipeRecordsPacket(FriendlyByteBuf buf) {
+        public RequestRecipeRecordsPacket(NetworkBuffer buffer) {
             this();
         }
 
-        public void encode(FriendlyByteBuf buf) {
+        public void encode(NetworkBuffer buffer) {
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player != null && player.hasPermissions(2)) {
-                    syncRecipeRecords(player);
-                }
-            });
-            ctx.get().setPacketHandled(true);
+        public static void handle(RequestRecipeRecordsPacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            if (player.hasPermissions(2)) {
+                syncRecipeRecords(player);
+            }
         }
     }
 
     public record RecipeRecordsSyncPacket(List<RecipeRecord> records) {
-        public RecipeRecordsSyncPacket(FriendlyByteBuf buf) {
-            this(readRecords(buf));
+        public RecipeRecordsSyncPacket(NetworkBuffer buffer) {
+            this(readRecords(buffer));
         }
 
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeInt(records.size());
+        public void encode(NetworkBuffer buffer) {
+            buffer.writeInt(records.size());
             for (RecipeRecord record : records) {
-                buf.writeNbt(record.saveToNBT());
+                buffer.writeNbt(record.saveToNBT());
             }
         }
 
-        public void handle(Supplier<NetworkEvent.Context> ctx) {
-            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> RecipeNetworkClient.handleRecipeRecords(this)));
-            ctx.get().setPacketHandled(true);
+        public static void handle(RecipeRecordsSyncPacket packet) {
+            RecipeNetworkClient.handleRecipeRecords(packet);
         }
     }
 
-    private static List<Integer> readIntList(FriendlyByteBuf buf) {
-        int size = readBoundedSize(buf, 64);
+    private static List<Integer> readIntList(NetworkBuffer buffer) {
+        int size = readBoundedSize(buffer, 64);
         List<Integer> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            list.add(buf.readInt());
+            list.add(buffer.readInt());
         }
         return list;
     }
 
-    private static List<ItemStack> readItemList(FriendlyByteBuf buf) {
-        int size = readBoundedSize(buf, 64);
+    private static List<ItemStack> readItemList(NetworkBuffer buffer) {
+        int size = readBoundedSize(buffer, 64);
         List<ItemStack> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            list.add(buf.readItem());
+            list.add(buffer.readItemStack());
         }
         return list;
     }
 
-    private static List<RemovalEntry> readEntries(FriendlyByteBuf buf) {
-        int size = buf.readInt();
+    private static List<RemovalEntry> readEntries(NetworkBuffer buffer) {
+        int size = buffer.readInt();
+        if (size < 0) {
+            throw new IllegalArgumentException("invalid list size");
+        }
         List<RemovalEntry> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            list.add(RemovalEntry.fromNetwork(buf));
+            list.add(RemovalEntry.fromNetwork(buffer));
         }
         return list;
     }
 
-    private static List<RecipeRecord> readRecords(FriendlyByteBuf buf) {
-        int size = buf.readInt();
+    private static List<RecipeRecord> readRecords(NetworkBuffer buffer) {
+        int size = buffer.readInt();
+        if (size < 0) {
+            throw new IllegalArgumentException("invalid list size");
+        }
         List<RecipeRecord> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            CompoundTag tag = buf.readNbt();
+            CompoundTag tag = buffer.readNbt();
             if (tag != null) {
                 try {
                     RecipeRecord record = RecipeRecord.loadFromNBT(tag);
@@ -472,39 +483,38 @@ public final class RecipeNetwork {
         return list;
     }
 
-
-    private static int readBoundedSize(FriendlyByteBuf buf, int maximum) {
-        int size = buf.readInt();
+    private static int readBoundedSize(NetworkBuffer buffer, int maximum) {
+        int size = buffer.readInt();
         if (size < 0 || size > maximum) {
             throw new IllegalArgumentException("invalid list size");
         }
         return size;
     }
 
-    private static boolean isValidUuid(String value) {
-        if (value == null || value.isBlank()) return false;
+    private static boolean isInvalidUuid(String value) {
+        if (value == null || value.isBlank()) return true;
         try {
             UUID.fromString(value);
-            return true;
-        } catch (IllegalArgumentException exception) {
             return false;
+        } catch (IllegalArgumentException exception) {
+            return true;
         }
     }
 
-    private static boolean isValidRecipeChange(RecipeChangePacket packet) {
+    private static boolean isInvalidRecipeChange(RecipeChangePacket packet) {
         if (packet == null || packet.editorType() == null || packet.inputs() == null
                 || packet.inputNbtModes() == null || packet.output() == null) {
-            return false;
+            return true;
         }
-        if (packet.uuid() != null && !packet.uuid().isEmpty() && !isValidUuid(packet.uuid())) {
-            return false;
+        if (packet.uuid() != null && !packet.uuid().isEmpty() && isInvalidUuid(packet.uuid())) {
+            return true;
         }
 
         RecipeRegistry.EditorType type;
         try {
             type = RecipeRegistry.EditorType.valueOf(packet.editorType());
         } catch (IllegalArgumentException exception) {
-            return false;
+            return true;
         }
 
         int required = switch (type) {
@@ -513,32 +523,33 @@ public final class RecipeNetwork {
             default -> 1;
         };
         if (packet.inputs().size() != required || packet.inputNbtModes().size() != required) {
-            return false;
+            return true;
         }
         if (type != RecipeRegistry.EditorType.CRAFTING && packet.isShapeless()) {
-            return false;
+            return true;
         }
         if (type == RecipeRegistry.EditorType.SMITHING && packet.outputUseNbt()) {
-            return false;
+            return true;
         }
         for (Integer mode : packet.inputNbtModes()) {
-            if (mode == null || mode < 0 || mode > 2) return false;
+            if (mode == null || mode < 0 || mode > 2) return true;
         }
         for (ItemStack stack : packet.inputs()) {
-            if (stack == null || isInvalidPlaceholder(stack)) return false;
-            if (!stack.isEmpty() && ForgeRegistries.ITEMS.getKey(stack.getItem()) == null) return false;
+            if (stack == null || isInvalidPlaceholder(stack)) return true;
+            if (!stack.isEmpty() && KineticRegistries.items().id(stack.getItem()) == null) return true;
         }
-        if (isInvalidPlaceholder(packet.output()) || packet.output().isEmpty() || ForgeRegistries.ITEMS.getKey(packet.output().getItem()) == null
+        if (isInvalidPlaceholder(packet.output()) || packet.output().isEmpty()
+                || KineticRegistries.items().id(packet.output().getItem()) == null
                 || packet.output().getCount() < 1 || packet.output().getCount() > 64) {
-            return false;
+            return true;
         }
         if (type == RecipeRegistry.EditorType.SMITHING) {
-            return packet.inputs().stream().noneMatch(ItemStack::isEmpty);
+            return packet.inputs().stream().anyMatch(ItemStack::isEmpty);
         }
         if (type != RecipeRegistry.EditorType.CRAFTING) {
-            return !packet.inputs().get(0).isEmpty();
+            return packet.inputs().get(0).isEmpty();
         }
-        return packet.inputs().stream().anyMatch(stack -> !stack.isEmpty());
+        return packet.inputs().stream().allMatch(ItemStack::isEmpty);
     }
 
     private static boolean isInvalidPlaceholder(ItemStack stack) {
@@ -555,23 +566,27 @@ public final class RecipeNetwork {
         String value = entry.value().trim();
         return switch (entry.mode()) {
             case MOD -> {
-                ResourceLocation probe = ResourceLocation.tryParse(value + ":entry");
+                ResourceLocation probe = KineticResourceIds.tryParse(value + ":entry");
                 yield probe != null && probe.getNamespace().equals(value);
             }
             case OUTPUT -> {
-                ResourceLocation id = ResourceLocation.tryParse(value);
-                yield id != null && ForgeRegistries.ITEMS.containsKey(id);
+                ResourceLocation id = KineticResourceIds.tryParse(value);
+                yield id != null && KineticRegistries.items().contains(id);
             }
             case TYPE -> {
-                ResourceLocation id = ResourceLocation.tryParse(value);
-                yield id != null && ForgeRegistries.RECIPE_TYPES.containsKey(id);
+                ResourceLocation id = KineticResourceIds.tryParse(value);
+                yield id != null && KineticRegistries.recipeTypes().contains(id);
             }
-            case RECIPE_ID, TAG -> ResourceLocation.tryParse(value) != null;
+            case RECIPE_ID, TAG -> KineticResourceIds.tryParse(value) != null;
         };
     }
 
     public static void sendToast(ServerPlayer player, Component message) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ToastPacket(message));
+        CHANNEL.sendToPlayer(player, new ToastPacket(message));
+    }
+
+    public static void sendSyncToPlayer(ServerPlayer player, List<RemovalEntry> entries, List<ItemStack> modifiedItems) {
+        CHANNEL.sendToPlayer(player, new SyncPacket(entries, modifiedItems));
     }
 
     public static void sendAdd(RemovalEntry entry) {
@@ -590,6 +605,9 @@ public final class RecipeNetwork {
         CHANNEL.sendToServer(new RequestOpenHubPacket());
     }
 
+    public static void requestItemRecipes(ItemStack item) {
+        CHANNEL.sendToServer(new RequestItemRecipesPacket(item));
+    }
 
     public static void requestOpen() {
         CHANNEL.sendToServer(new RequestSyncPacket());
@@ -597,6 +615,10 @@ public final class RecipeNetwork {
 
     public static void requestRecipeRecords() {
         CHANNEL.sendToServer(new RequestRecipeRecordsPacket());
+    }
+
+    public static void requestEdit(String uuid, String editorType, int configIndex) {
+        CHANNEL.sendToServer(new RequestEditPacket(uuid, editorType, configIndex));
     }
 
     public static void sendRecipeChange(RecipeChangePacket packet) {
@@ -609,9 +631,6 @@ public final class RecipeNetwork {
 
     public static void syncRecipeRecords(ServerPlayer player) {
         RecipeDatabase.reloadDatabase();
-        CHANNEL.send(
-                PacketDistributor.PLAYER.with(() -> player),
-                new RecipeRecordsSyncPacket(RecipeDatabase.editorSnapshot())
-        );
+        CHANNEL.sendToPlayer(player, new RecipeRecordsSyncPacket(RecipeDatabase.editorSnapshot()));
     }
 }

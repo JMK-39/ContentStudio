@@ -1,17 +1,17 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import dev.xyat.kineticcore.api.client.overlay.GuiOverlay;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
+import dev.xyat.kineticcore.api.client.theme.GuiTheme;
+import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
+import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
 
 final class LootPoolEditScreen extends KineticScreen {
     private static final int WIDTH = 440;
@@ -20,22 +20,18 @@ final class LootPoolEditScreen extends KineticScreen {
     private final AbstractLootEditorScreen parent;
     private final int poolIndex;
     private final JsonObject workingPool;
-    private EditBox rollsMinBox;
-    private EditBox rollsMaxBox;
-    private EditBox bonusMinBox;
-    private EditBox bonusMaxBox;
+    private NumericEditBox rollsMinBox;
+    private NumericEditBox rollsMaxBox;
+    private NumericEditBox bonusMinBox;
+    private NumericEditBox bonusMaxBox;
 
     LootPoolEditScreen(AbstractLootEditorScreen parent, int poolIndex, JsonObject pool) {
         super(Component.translatable("gui.contentstudio.loot.loots.pool_editor.title"));
         this.parent = parent;
+        setParentScreen(parent);
         this.poolIndex = poolIndex;
         this.workingPool = pool;
-        useResponsiveCanvas(
-                WIDTH,
-                HEIGHT,
-                6
-        );
-    }
+}
 
     @Override
     protected void buildUi() {
@@ -50,20 +46,29 @@ final class LootPoolEditScreen extends KineticScreen {
         bonusMaxBox = numericBox(324, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_max");
 
-        addButton(196, 194, 70, Component.translatable("gui.contentstudio.loot.loots.pool_editor.apply"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.apply"), button -> applyChanges());
-        addButton(272, 194, 70, Component.translatable("gui.contentstudio.loot.loots.pool_editor.delete"), Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), button -> openDeleteConfirm());
-        addButton(348, 194, 70, Component.translatable("gui.contentstudio.loot.loots.pool_editor.cancel"), null, button -> closeToParent());
+        addButton(196, 194, 70,
+                Component.translatable("gui.contentstudio.loot.loots.pool_editor.apply"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.pool.apply"),
+                this::applyChanges);
+        addButton(272, 194, 70,
+                Component.translatable("gui.contentstudio.loot.loots.pool_editor.delete"),
+                Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"),
+                this::openDeleteConfirm);
+        addButton(348, 194, 70,
+                Component.translatable("gui.contentstudio.loot.loots.pool_editor.cancel"),
+                null,
+                this::closeToParent);
 
     }
 
-    private EditBox numericBox(
+    private NumericEditBox numericBox(
             int x,
             String value,
             LootNumericField.Type type,
             String tooltipKey
     ) {
-        EditBox box =
-                LootNumericField.create(
+        NumericEditBox box =
+                LootNumericField.add(
                         this,
                         x,
                         84,
@@ -73,7 +78,6 @@ final class LootPoolEditScreen extends KineticScreen {
                         tooltipKey
                 );
 
-        addControl(box, null);
         return box;
     }
 
@@ -92,14 +96,24 @@ final class LootPoolEditScreen extends KineticScreen {
         workingPool.add("rolls", LootJsonEditUtil.rangeValue(rollsMin, rollsMax));
         workingPool.add("bonus_rolls", LootJsonEditUtil.rangeValue(bonusMin, bonusMax));
         parent.applyPoolEdit(poolIndex, workingPool);
-        GuiOverlay.toast(Component.translatable("msg.contentstudio.loot.loots.pool.applied"));
+        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.applied"));
         closeToParent();
     }
 
     private void openDeleteConfirm() {
-        if (minecraft != null) {
-            minecraft.setScreen(new LootPoolDeleteConfirmScreen(parent, this, poolIndex));
-        }
+        openDialog(
+                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
+                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
+                Component.translatable("gui.contentstudio.loot.loots.confirm.delete"),
+                Component.translatable("gui.contentstudio.loot.loots.confirm.cancel"),
+                () -> {
+                    if (parent.deletePoolFromEditor(poolIndex)) {
+                        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.deleted"));
+                    }
+                    closeToParent();
+                },
+                () -> { }
+        );
     }
 
     private void closeToParent() {
@@ -108,10 +122,18 @@ final class LootPoolEditScreen extends KineticScreen {
 
     @Override
     protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, WIDTH, HEIGHT, 0xFA1E1E1E);
-        g.renderOutline(0, 0, WIDTH, HEIGHT, 0xFF555555);
-        g.fill(12, 12, WIDTH - 12, HEIGHT - 12, 0xE0000000);
-        g.renderOutline(12, 12, WIDTH - 24, HEIGHT - 24, 0xFFFFAA00);
+        GuiTheme.panel(g, 0, 0, WIDTH, HEIGHT);
+        GuiTheme.stateSurface(
+                g,
+                12,
+                12,
+                WIDTH - 24,
+                HEIGHT - 24,
+                GuiTheme.Surface.PANEL_ALT,
+                true,
+                false,
+                false
+        );
     }
 
     @Override
@@ -144,12 +166,12 @@ final class LootPoolEditScreen extends KineticScreen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
+        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ESCAPE, keyCode)) {
             closeToParent();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return false;
     }
 
     private String format(double value) {

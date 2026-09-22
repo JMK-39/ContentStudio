@@ -14,7 +14,7 @@ Visual content authoring tools for recipes, loot, villager trades, and item tool
 [[dependencies.contentstudio]]
 modId="forge"
 mandatory=true
-versionRange="[47.4.0,)"
+versionRange="[47.4.2,)"
 ordering="NONE"
 side="BOTH"
 
@@ -28,7 +28,7 @@ side="BOTH"
 [[dependencies.contentstudio]]
 modId="kineticcore"
 mandatory=true
-versionRange="[26.9.8,)"
+versionRange="[26.9.20,)"
 ordering="AFTER"
 side="BOTH"
 

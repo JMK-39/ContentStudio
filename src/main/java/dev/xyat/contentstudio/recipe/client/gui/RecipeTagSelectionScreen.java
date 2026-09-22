@@ -1,20 +1,20 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
+import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets.GridScrollController;
+import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
+import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 public class RecipeTagSelectionScreen extends KineticScreen {
@@ -26,7 +26,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
     private final KineticSearch.Model<String> tagModel;
     private final GridScrollController listScroll = new GridScrollController();
 
-    private EditBox searchBox;
+    private KineticEditBox searchBox;
     private int listX;
     private int listY;
     private int listW;
@@ -42,24 +42,16 @@ public class RecipeTagSelectionScreen extends KineticScreen {
         ));
 
         this.parent = parent;
+        setParentScreen(parent);
         this.onSelected = onSelected;
-
-        useResponsiveCanvas(
-                640f,
-                360f,
-                6
-        );
-
-        Objects.requireNonNull(
-                ForgeRegistries.ITEMS.tags()
-        ).getTagNames().forEach(tagKey ->
-                allTags.add("#" + tagKey.location())
+        KineticRegistries.items().tagIds().forEach(tagId ->
+                allTags.add("#" + tagId)
         );
 
         allTags.sort(String::compareTo);
         tagModel = new KineticSearch.Model<>(
                 allTags,
-                tag -> tag
+                KineticSearch::match
         );
         tagModel.refresh("");
     }
@@ -74,9 +66,18 @@ public class RecipeTagSelectionScreen extends KineticScreen {
         listW = Math.max(100, Math.min(360, canvasWidth() - 24));
         listX = (canvasWidth() - listW) / 2;
 
-        searchBox = addTextField(listX, 20, listW, Component.empty());
+        searchBox = addTextField(
+                listX,
+                20,
+                listW,
+                Component.empty(),
+                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint"),
+                null,
+                null
+        );
         searchBox.setResponder(this::onSearchUpdate);
-listY = 50;
+
+        listY = 50;
         listH = Math.max(ITEM_HEIGHT, canvasHeight() - listY - 40);
         visibleRows = Math.max(1, listH / ITEM_HEIGHT);
 
@@ -86,15 +87,19 @@ listY = 50;
         );
 
         int btnW = 80;
-        int btnH = 20;
 
-        addButton(canvasWidth() / 2 - btnW / 2, canvasHeight() - 30, btnW, Component.translatable(
-                                        "gui.contentstudio.recipe.recipehud.back"
-                                ), null, button -> {
-                                    if (minecraft != null) {
-                                        navigateBack();
-                                    }
-                                });
+        addButton(
+                canvasWidth() / 2 - btnW / 2,
+                canvasHeight() - 30,
+                btnW,
+                Component.translatable("gui.contentstudio.recipe.recipehud.back"),
+                null,
+                () -> {
+                    if (minecraft != null) {
+                        navigateBack();
+                    }
+                }
+        );
     }
 
     private void onSearchUpdate(String query) {
@@ -129,7 +134,7 @@ listY = 50;
                 listH
         );
 
-        enableCanvasScissor(
+        enableUiScissor(
                 graphics,
                 listX,
                 listY,
@@ -165,22 +170,10 @@ listY = 50;
                             && mouseY >= y
                             && mouseY < y + ITEM_HEIGHT;
 
-            int backgroundColor =
-                    row % 2 == 0
-                            ? 0x44FFFFFF
-                            : 0x44888888;
-
-            if (hovered) {
-                backgroundColor =
-                        0x88FFFFFF;
-            }
-
-            graphics.fill(
-                    listX,
-                    y,
-                    listX + listW,
-                    y + ITEM_HEIGHT,
-                    backgroundColor
+            GuiTheme.stateSurface(
+                    graphics, listX, y, listW, ITEM_HEIGHT,
+                    row % 2 == 0 ? GuiTheme.Surface.PANEL_ALT : GuiTheme.Surface.PANEL,
+                    false, hovered, false
             );
 
             graphics.drawString(
@@ -192,7 +185,7 @@ listY = 50;
             );
         }
 
-        disableCanvasScissor(graphics);
+        disableUiScissor(graphics);
 
         listScroll.render(
                 graphics,
@@ -207,20 +200,6 @@ listY = 50;
     }
 
     @Override
-    protected void renderCanvasForeground(
-            @NotNull GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        renderTextFieldPlaceholder(
-                graphics,
-                searchBox,
-                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint")
-        );
-    }
-
-    @Override
     protected boolean canvasMouseClicked(
             double mouseX,
             double mouseY,
@@ -228,14 +207,14 @@ listY = 50;
     ) {
         if (searchBox != null
                 && !searchBox.isMouseOver(mouseX, mouseY)) {
-            searchBox.setFocused(false);
+            blurControl(searchBox);
         }
 
         if (super.canvasMouseClicked(mouseX, mouseY, button)) {
             return true;
         }
 
-        if (button == 0
+        if (KineticMouseButtons.isPrimary(button)
                 && listScroll.beginDrag(
                         mouseX,
                         mouseY,
@@ -249,7 +228,7 @@ listY = 50;
             return true;
         }
 
-        if (button == 0
+        if (KineticMouseButtons.isPrimary(button)
                 && mouseX >= listX
                 && mouseX < listX + listW
                 && mouseY >= listY

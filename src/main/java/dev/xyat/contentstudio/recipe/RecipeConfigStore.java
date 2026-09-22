@@ -1,5 +1,8 @@
 package dev.xyat.contentstudio.recipe;
 
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import dev.xyat.kineticcore.api.runtime.KineticPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -20,8 +23,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -37,8 +38,8 @@ import java.util.Set;
 public final class RecipeConfigStore {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    public static final Path CONFIG_FILE = FMLPaths.CONFIGDIR.get().resolve("kineticcore/datapack/data/contentstudio/recipe_bundle.json");
-    public static final ResourceLocation DATAPACK_RESOURCE = new ResourceLocation("contentstudio", "recipe/recipe_bundle.json");
+    public static final Path CONFIG_FILE = KineticPaths.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json");
+    public static final ResourceLocation DATAPACK_RESOURCE = KineticResourceIds.of("contentstudio", "recipe/recipe_bundle.json");
 
     private RecipeConfigStore() {
     }
@@ -541,7 +542,7 @@ public final class RecipeConfigStore {
             return object;
         }
 
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = KineticRegistries.items().id(stack.getItem());
         if (id == null) {
             object.addProperty("empty", true);
             return object;
@@ -588,10 +589,10 @@ public final class RecipeConfigStore {
         }
 
         ResourceLocation id = parseResourceLocation(object.get("item").getAsString(), "item");
-        if (!ForgeRegistries.ITEMS.containsKey(id)) {
+        if (!KineticRegistries.items().contains(id)) {
             throw new IllegalArgumentException("missing registered item " + id);
         }
-        Item item = ForgeRegistries.ITEMS.getValue(id);
+        Item item = KineticRegistries.items().get(id);
         if (item == null || item == Items.AIR) {
             throw new IllegalArgumentException("missing registered item " + id);
         }
@@ -643,7 +644,7 @@ public final class RecipeConfigStore {
             throw new IllegalArgumentException(kind + " id is blank");
         }
         try {
-            return new ResourceLocation(raw);
+            return KineticResourceIds.parse(raw);
         } catch (Exception e) {
             throw new IllegalArgumentException("invalid " + kind + " id " + raw, e);
         }
@@ -686,7 +687,7 @@ public final class RecipeConfigStore {
         if (value.isBlank()) {
             value = Integer.toHexString(System.identityHashCode(record));
         }
-        return new ResourceLocation("contentstudio", "memory/" + value);
+        return KineticResourceIds.of("contentstudio", "memory/" + value);
     }
 
     private static String getString(JsonObject object, String key, String fallback) {

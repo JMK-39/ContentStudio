@@ -1,34 +1,31 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.text.KineticText;
-import dev.xyat.kineticcore.api.client.screen.GuiSession;
+import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
 import dev.xyat.contentstudio.recipe.client.RecipeJeiBridge;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayList;
 import java.util.List;
 
 final class RecipeRemovalPreviewScreen extends KineticScreen {
     private final RecipeRemovalScreen parent;
     private final RecipeJeiBridge.Entry entry;
     private RecipeJeiBridge.Preview preview;
-    private Button toggle;
-    private Button viewerButton;
+    private StateButton toggle;
+    private StateButton viewerButton;
     private boolean dataError;
     private float previewScale = 1;
     private int previewX, previewY;
 
     RecipeRemovalPreviewScreen(RecipeRemovalScreen parent, RecipeJeiBridge.Entry entry) {
         super(entry.category());
+        setParentScreen(parent);
         this.parent = parent;
         this.entry = entry;
-        useStandardCanvas();
-        GuiSession.setParent(this, parent);
         if (entry.preview() != null) {
             try { preview = entry.preview().get(); }
             catch (RuntimeException ignored) { markError(); }
@@ -36,24 +33,20 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     }
 
     @Override protected void buildUi() {
-        Button backButton = addButton(366, 328, 60, RecipeRemovalScreen.tr("back"), null, button -> onClose());
+        addButton(366, 328, 60, RecipeRemovalScreen.tr("back"), null, this::onClose);
         viewerButton = addButton(
                 432, 328, 60, RecipeRemovalScreen.tr("open_viewer"),
                 RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"),
-                button -> openViewerMenu()
+                this::openViewerMenu
         );
-        viewerButton.active = RecipeJeiBridge.available();
-        toggle = addButton(
-                498, 328, 60, parent.recipeAction(entry),
-                RecipeRemovalScreen.tr(entry.removable() ? "exact_hint" : "view_only_hint"),
-                button -> {
+        viewerButton.setEnabled(RecipeJeiBridge.available());
+        toggle = addButton(498, 328, 60, parent.recipeAction(entry), null, () -> {
             parent.toggleRecipe(entry);
             refreshAction();
-                }
-        );
-        Button saveButton = addButton(
-                564, 328, 60, RecipeRemovalScreen.tr("save"), RecipeRemovalScreen.tr("save_hint"),
-                button -> parent.save()
+        });
+        addButton(
+                564, 328, 60, RecipeRemovalScreen.tr("save"),
+                RecipeRemovalScreen.tr("save_hint"), parent::save
         );
         refreshAction();
         if (preview != null) {
@@ -73,15 +66,14 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
             openViewer(viewers.get(0));
             return;
         }
-        List<dev.xyat.kineticcore.api.client.overlay.GuiOverlay.MenuItem> items = new ArrayList<>();
-        for (RecipeJeiBridge.Viewer viewer : viewers) {
-            items.add(dev.xyat.kineticcore.api.client.overlay.GuiOverlay.MenuItem.action(
-                    viewer.displayName(),
-                    RecipeRemovalScreen.tr("viewer_choice_hint", viewer.displayName()),
-                    () -> openViewer(viewer)
-            ));
-        }
-        openContextMenu(432, 324, items);
+        List<KineticOverlays.MenuItem> items = viewers.stream()
+                .map(viewer -> KineticOverlays.MenuItem.action(
+                        viewer.displayName(),
+                        RecipeRemovalScreen.tr("viewer_choice_hint", viewer.displayName()),
+                        () -> openViewer(viewer)
+                ))
+                .toList();
+        openContextMenu(432, 328, items);
     }
 
     private void openViewer(RecipeJeiBridge.Viewer viewer) {
@@ -92,11 +84,11 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     }
 
     private void refreshAction() {
-        toggle.setMessage(parent.recipeAction(entry));
-        toggle.active = parent.canToggle(entry) && !dataError;
+        toggle.setText(parent.recipeAction(entry));
+        toggle.setEnabled(parent.canToggle(entry) && !dataError);
         registerWidgetTooltip(toggle, RecipeRemovalScreen.tr(entry.removable() ? "exact_hint" : "view_only_hint"));
         if (viewerButton != null) {
-            viewerButton.active = RecipeJeiBridge.available();
+            viewerButton.setEnabled(RecipeJeiBridge.available());
             registerWidgetTooltip(viewerButton, RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
         }
     }
@@ -107,8 +99,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         if (toggle != null) refreshAction();
     }
 
-    @Override public void tick() {
-        super.tick();
+    @Override protected void canvasTick() {
         if (preview != null && !dataError) {
             try { preview.tick(); } catch (RuntimeException ignored) { markError(); }
         }
@@ -119,7 +110,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         GuiTheme.panel(graphics, 0, 0, 640, 360);
         graphics.drawCenteredString(font, title, 320, 16, GuiTheme.current().text());
         Component id = entry.recipe().id() == null ? RecipeRemovalScreen.tr("no_id") : Component.literal(entry.recipe().id().toString());
-        KineticText.drawScrollingCentered(graphics, font, id, 320, 36, 608, GuiTheme.current().mutedText(), false);
+        graphics.drawCenteredString(font, font.plainSubstrByWidth(id.getString(), 608), 320, 36, GuiTheme.current().mutedText());
         GuiTheme.panelAlt(graphics, 16, 62, 608, 250);
         if (dataError) graphics.drawCenteredString(font, RecipeRemovalScreen.tr("data_error"), 320, 170, GuiTheme.current().danger());
         else if (preview != null) drawPreview(graphics, mouseX, mouseY, false);
@@ -167,7 +158,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     @Override protected void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY, int screenMouseX, int screenMouseY) {
         if (preview != null || dataError) return;
         ItemStack hovered = hoveredFallbackStack(mouseX, mouseY);
-        if (!hovered.isEmpty()) showItemTooltip(hovered);
+        if (!hovered.isEmpty()) KineticOverlays.requestItemTooltip(hovered, screenMouseX, screenMouseY);
     }
 
     private ItemStack hoveredFallbackStack(double mouseX, double mouseY) {
@@ -188,30 +179,6 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         }
         if (mouseX >= 412 && mouseX < 432 && mouseY >= 164 && mouseY < 184) return recipe.output();
         return ItemStack.EMPTY;
-    }
-
-    @Override protected boolean canvasMouseClicked(double mouseX, double mouseY, int button) {
-        return super.canvasMouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override protected boolean canvasMouseScrolled(double mouseX, double mouseY, double delta) {
-        return super.canvasMouseScrolled(mouseX, mouseY, delta);
-    }
-
-    @Override protected boolean canvasMouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        return super.canvasMouseDragged(mouseX, mouseY, button, dragX, dragY);
-    }
-
-    @Override protected boolean canvasMouseReleased(double mouseX, double mouseY, int button) {
-        return super.canvasMouseReleased(mouseX, mouseY, button);
-    }
-
-    @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override public boolean charTyped(char codePoint, int modifiers) {
-        return super.charTyped(codePoint, modifiers);
     }
 
     @Override public boolean isPauseScreen() { return false; }

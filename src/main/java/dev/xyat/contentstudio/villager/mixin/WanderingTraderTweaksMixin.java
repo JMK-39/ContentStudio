@@ -32,6 +32,10 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
             return;
         }
 
+        if (VillagerConfig.enableVillagerTradeLateOverride) {
+            return;
+        }
+
         MerchantOffers offers = this.getOffers();
         offers.clear();
         VillagerTradeRuntimeUtil.addConfiguredOffers(
@@ -51,5 +55,38 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
                 VillagerTradeRuntimeUtil.getDefaultOfferCount(owner, 2)
         );
         ci.cancel();
+    }
+
+    @Inject(method = "updateTrades", at = @At("TAIL"))
+    private void contentstudio_villager$applyWanderingTraderTradesLate(CallbackInfo ci) {
+        if (!VillagerConfig.enableVillagerTradeLateOverride || VillagerTradeRegistry.isSessionUnavailable()) {
+            return;
+        }
+
+        String owner = VillagerConfig.WANDERING_TRADER_ID;
+        boolean levelOneChanged = VillagerTradeRegistry.hasActiveLevelChanges(owner, 1);
+        boolean levelTwoChanged = VillagerTradeRegistry.hasActiveLevelChanges(owner, 2);
+        if (!levelOneChanged && !levelTwoChanged) {
+            return;
+        }
+
+        MerchantOffers offers = this.getOffers();
+        offers.clear();
+        VillagerTradeRuntimeUtil.addConfiguredOffers(
+                offers,
+                this,
+                this.getRandom(),
+                owner,
+                1,
+                VillagerTradeRuntimeUtil.getDefaultOfferCount(owner, 1)
+        );
+        VillagerTradeRuntimeUtil.addConfiguredOffers(
+                offers,
+                this,
+                this.getRandom(),
+                owner,
+                2,
+                VillagerTradeRuntimeUtil.getDefaultOfferCount(owner, 2)
+        );
     }
 }
