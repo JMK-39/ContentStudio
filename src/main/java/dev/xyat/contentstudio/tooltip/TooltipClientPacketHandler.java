@@ -8,6 +8,10 @@ public final class TooltipClientPacketHandler {
         TooltipClientHandlers.openHubScreen(packet.jsonPayload());
     }
 
+    public static void handleRules(TooltipNetwork.RulesToClientPacket packet) {
+        TooltipRuntimeClient.acceptRules(packet.jsonPayload());
+    }
+
     public static void handleOpenFailure(TooltipNetwork.EditorOpenFailurePacket packet) {
         TooltipClientHandlers.handleOpenFailure(packet.reason());
     }

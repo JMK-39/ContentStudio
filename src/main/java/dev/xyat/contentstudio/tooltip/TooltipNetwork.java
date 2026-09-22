@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.Map;
 
 public final class TooltipNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
     private static final int MAX_COMPRESSED_BYTES = NetworkProtocolLimits.DEFAULT.maxByteArrayBytes();
     private static final int MAX_DECOMPRESSED_BYTES = KineticCompression.DEFAULT_MAX_DECOMPRESSED_BYTES;
     private static final PacketChannel CHANNEL = PacketChannel.create(
             KineticResourceIds.of(TooltipModule.MODID, "tooltip_network"),
             PROTOCOL_VERSION,
-            NetworkVersionPolicy.ANY
+            NetworkVersionPolicy.EXACT
     );
 
     private static boolean syncRegistered;
@@ -30,6 +30,7 @@ public final class TooltipNetwork {
     private static boolean requestRegistered;
     private static boolean saveResultRegistered;
     private static boolean openFailureRegistered;
+    private static boolean rulesRegistered;
     private static boolean registered;
 
     private TooltipNetwork() {
@@ -94,8 +95,20 @@ public final class TooltipNetwork {
                         openFailureRegistered = true;
                     }
                 },
+                () -> {
+                    if (!rulesRegistered) {
+                        CHANNEL.registerClientbound(5, RulesToClientPacket.class,
+                                NetworkCodec.of(
+                                        (buffer, packet) -> buffer.writeByteArray(compress(packet.jsonPayload()), MAX_COMPRESSED_BYTES),
+                                        buffer -> new RulesToClientPacket(decompress(buffer.readByteArray(MAX_COMPRESSED_BYTES)))
+                                ),
+                                TooltipClientPacketHandler::handleRules
+                        );
+                        rulesRegistered = true;
+                    }
+                },
                 () -> registered = syncRegistered && saveRegistered && requestRegistered
-                        && saveResultRegistered && openFailureRegistered
+                        && saveResultRegistered && openFailureRegistered && rulesRegistered
         );
     }
 
@@ -107,6 +120,18 @@ public final class TooltipNetwork {
 
     public static void saveToServer(String jsonPayload) {
         CHANNEL.sendToServer(new SaveToServerPacket(jsonPayload));
+    }
+
+    public static void sendRulesTo(ServerPlayer player) {
+        if (registered) {
+            CHANNEL.sendToPlayer(player, new RulesToClientPacket(TooltipManager.GSON.toJson(TooltipManager.tooltipData)));
+        }
+    }
+
+    public static void broadcastRules() {
+        if (registered) {
+            CHANNEL.broadcast(new RulesToClientPacket(TooltipManager.GSON.toJson(TooltipManager.tooltipData)));
+        }
     }
 
     private static void sendSnapshot(ServerPlayer player) {
@@ -127,7 +152,8 @@ public final class TooltipNetwork {
                         packet.jsonPayload(),
                         new TypeToken<Map<String, List<TooltipManager.TooltipRule>>>() {}.getType()
                 );
-                success = TooltipManager.isValidData(next) && TooltipManager.saveAndGenerateJS(next);
+                success = TooltipManager.save(next);
+                if (success) broadcastRules();
             } catch (RuntimeException exception) {
                 TooltipModule.LOGGER.error("Rejected invalid tooltip save payload", exception);
             }
@@ -153,6 +179,9 @@ public final class TooltipNetwork {
     }
 
     public record SyncToClientPacket(String jsonPayload) {
+    }
+
+    public record RulesToClientPacket(String jsonPayload) {
     }
 
     public record SaveToServerPacket(String jsonPayload) {

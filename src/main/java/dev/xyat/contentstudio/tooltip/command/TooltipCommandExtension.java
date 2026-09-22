@@ -2,6 +2,7 @@ package dev.xyat.contentstudio.tooltip.command;
 
 import dev.xyat.contentstudio.tooltip.TooltipManager;
 import dev.xyat.contentstudio.tooltip.TooltipModule;
+import dev.xyat.contentstudio.tooltip.TooltipNetwork;
 import dev.xyat.kineticcore.api.command.CommandExtension;
 import dev.xyat.kineticcore.api.command.KineticCommands;
 import net.minecraft.commands.CommandSourceStack;
@@ -15,6 +16,8 @@ public final class TooltipCommandExtension implements CommandExtension {
 
     @Override
     public void reload(CommandSourceStack source) {
-        TooltipManager.load();
+        if (TooltipManager.loadForEditor()) {
+            TooltipNetwork.broadcastRules();
+        }
     }
 }

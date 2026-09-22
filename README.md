@@ -16,7 +16,7 @@ Content Studio gives pack authors and server administrators in-game editors for 
 | Forge | 47.4.2 or newer |
 | KineticCore | 26.9.20 or newer; required |
 | Recipe viewers | JEI 15.20+, EMI, and REI are optional |
-| Tooltip scripts | KubeJS executes the generated client script; it is not a mandatory dependency of the whole mod |
+| Item tooltips | Rendered by Content Studio on clients; no KubeJS dependency |
 
 Install Content Studio and its required dependencies on the client and server for multiplayer editing. Press **F6**, the default KineticCore configuration-center key, and open the relevant Content Studio page. Editor data requests and changes are checked on the server and require permission level **2**.
 
@@ -67,9 +67,9 @@ The module also provides villager follow items and AI check/pathfinding interval
 
 ### Tooltip authoring
 
-The tooltip editor generates **`kubejs/client_scripts/tooltipadd.js`**. Rules are keyed by item ID and append text or replace a specified line; line 0 is the item name. Conditions are always, Shift only, Alt only, or Shift+Alt. Text-color controls are included.
+The tooltip editor saves rules to **`config/kineticcore/contentstudio_tooltips.json`**. Rules are keyed by item ID and append text or replace a specified line; line 0 is the item name. Conditions are always, Shift only, Alt only, or Shift+Alt. Text-color controls are included.
 
-This is a KubeJS client-script workflow. Saving writes the script on the server side of the editor session; it does not automatically distribute or execute that script on remote clients. Include the generated file in the client pack and load it through KubeJS. These tooltip rules do not contain an NBT matching condition.
+Content Studio renders the rules directly on clients. The server sends them when a player joins and after an editor save or `/kt reload`, so saved changes apply immediately to connected players. These rules do not contain an NBT matching condition. Existing KubeJS tooltip scripts are neither imported nor modified; remove an old `tooltipadd.js` yourself if KubeJS still runs it and duplicates the new tooltips.
 
 ### Files and application behavior
 
@@ -80,7 +80,7 @@ Paths are relative to the game/server instance running the editor's server side.
 | `config/kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json` | Added recipes and removal rules; applied through the recipe reload flow |
 | `config/kineticcore/loot_overrides.json` | Table overrides, global container rules, and exclusions; editor saves update runtime tables |
 | `config/kineticcore/villager.toml` | Trade rules, follow items, and villager settings; trade editor saves apply live |
-| `kubejs/client_scripts/tooltipadd.js` | Generated tooltip rules and executable KubeJS client script |
+| `config/kineticcore/contentstudio_tooltips.json` | Native tooltip rules; server synchronizes them to clients |
 
 These paths belong to the instance, rather than separate editor files in each world. Include the relevant files when distributing a pack, and retain a copy before replacing a set of rules.
 
@@ -90,9 +90,9 @@ These paths belong to the instance, rather than separate editor files in each wo
 2. Start with one recipe, loot table, or profession and make a small change.
 3. Save using that editor's workflow; leave the complete recipe interface to apply pending recipe additions.
 4. Verify by crafting, generating fresh loot, or checking refreshed trades.
-5. For tooltips, distribute and load the generated KubeJS client script before testing.
+5. For tooltips, save a rule and inspect that item's tooltip on a connected client.
 
-Implementation references: [recipe store](src/main/java/dev/xyat/contentstudio/recipe/RecipeConfigStore.java), [loot override store](src/main/java/dev/xyat/contentstudio/loot/server/LootTableOverrideStore.java), [villager configuration](src/main/java/dev/xyat/contentstudio/villager/config/VillagerConfig.java), and [tooltip generator](src/main/java/dev/xyat/contentstudio/tooltip/TooltipManager.java).
+Implementation references: [recipe store](src/main/java/dev/xyat/contentstudio/recipe/RecipeConfigStore.java), [loot override store](src/main/java/dev/xyat/contentstudio/loot/server/LootTableOverrideStore.java), [villager configuration](src/main/java/dev/xyat/contentstudio/villager/config/VillagerConfig.java), and [tooltip rules](src/main/java/dev/xyat/contentstudio/tooltip/TooltipManager.java).
 
 License: LGPLv3. Dependencies: [mods.toml](src/main/resources/META-INF/mods.toml).
 
@@ -112,7 +112,7 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 | Forge | 47.4.2 或更新版本 |
 | KineticCore | 必需，26.9.20 或更新版本 |
 | 配方查看器 | JEI 15.20+、EMI、REI 为可选依赖 |
-| Tooltip 脚本 | 生成的客户端脚本需要 KubeJS 执行；KubeJS 不是整个模组的强制依赖 |
+| 物品提示 | 由 Content Studio 客户端直接渲染，无需 KubeJS |
 
 多人游戏中，在客户端和服务端安装 Content Studio 及必需前置。按 **F6** 打开 KineticCore 配置中心，再进入对应页面。F6 是默认按键；编辑器的数据请求与修改由服务端校验，需要 **2 级管理权限**。
 
@@ -163,9 +163,9 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 
 ### 物品提示编辑
 
-Tooltip 编辑器生成 **`kubejs/client_scripts/tooltipadd.js`**。规则按物品 ID 保存，可追加文本或替换指定行，其中第 0 行为物品名称。显示条件包括始终显示、仅 Shift、仅 Alt、Shift+Alt，并提供文字颜色编辑。
+Tooltip 编辑器把规则保存到 **`config/kineticcore/contentstudio_tooltips.json`**。规则按物品 ID 保存，可追加文本或替换指定行，其中第 0 行为物品名称。显示条件包括始终显示、仅 Shift、仅 Alt、Shift+Alt，并提供文字颜色编辑。
 
-这是 KubeJS 客户端脚本工作流。保存成功表示脚本已写入编辑会话的服务端所在实例；不会自动向远程客户端分发或执行。制作整合包时，需要把生成文件放入客户端包，并通过 KubeJS 加载。此处保存的规则不包含 NBT 匹配条件。
+Content Studio 客户端直接渲染规则。玩家加入时、编辑器保存后以及执行 `/kt reload` 后，服务端会同步规则，已连接玩家无需重进世界即可看到修改。规则不包含 NBT 匹配条件。旧 KubeJS 提示脚本不会迁移或修改；若仍通过 KubeJS 运行旧 `tooltipadd.js`，请自行移除，以免提示重复。
 
 ### 文件位置与生效方式
 
@@ -176,7 +176,7 @@ Tooltip 编辑器生成 **`kubejs/client_scripts/tooltipadd.js`**。规则按物
 | `config/kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json` | 新增配方和移除规则，通过配方重载流程应用 |
 | `config/kineticcore/loot_overrides.json` | 战利品表覆盖、容器全局规则及排除名单，编辑器保存后更新运行时表 |
 | `config/kineticcore/villager.toml` | 交易、跟随物品与村民设置，交易编辑保存实时应用 |
-| `kubejs/client_scripts/tooltipadd.js` | 生成的 Tooltip 规则及 KubeJS 客户端执行脚本 |
+| `config/kineticcore/contentstudio_tooltips.json` | 原生 Tooltip 规则，由服务端同步至客户端 |
 
 这些配置属于游戏实例，不是分别保存在每个世界目录中的编辑器文件。分发整合包时应携带所需文件，替换整套规则前可保留一份副本。
 
@@ -186,9 +186,9 @@ Tooltip 编辑器生成 **`kubejs/client_scripts/tooltipadd.js`**。规则按物
 2. 先针对一个配方、一张战利品表或一个职业进行小范围修改。
 3. 按当前编辑器流程保存；新增配方还需退出完整配方界面，应用待处理修改。
 4. 通过实际合成、新生成的掉落或刷新后的交易检查结果。
-5. Tooltip 需要先分发并加载生成的 KubeJS 客户端脚本，再检查物品提示。
+5. 保存 Tooltip 规则后，直接在已连接的客户端检查对应物品的提示。
 
-实现参考：[配方存储](src/main/java/dev/xyat/contentstudio/recipe/RecipeConfigStore.java)、[战利品覆盖](src/main/java/dev/xyat/contentstudio/loot/server/LootTableOverrideStore.java)、[村民配置](src/main/java/dev/xyat/contentstudio/villager/config/VillagerConfig.java)、[提示脚本生成器](src/main/java/dev/xyat/contentstudio/tooltip/TooltipManager.java)。
+实现参考：[配方存储](src/main/java/dev/xyat/contentstudio/recipe/RecipeConfigStore.java)、[战利品覆盖](src/main/java/dev/xyat/contentstudio/loot/server/LootTableOverrideStore.java)、[村民配置](src/main/java/dev/xyat/contentstudio/villager/config/VillagerConfig.java)、[提示规则](src/main/java/dev/xyat/contentstudio/tooltip/TooltipManager.java)。
 
 许可证：LGPLv3。依赖声明：[mods.toml](src/main/resources/META-INF/mods.toml)。
 

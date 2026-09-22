@@ -111,7 +111,7 @@ public class TooltipClientHandlers {
                     json,
                     new TypeToken<Map<String, List<TooltipManager.TooltipRule>>>(){}.getType()
             );
-            if (!TooltipManager.isValidData(loaded)) {
+            if (!TooltipManager.hasValidStructure(loaded)) {
                 KineticOverlays.toast(Component.translatable("msg.contentstudio.tooltip.tooltipeditor.load_failed.colored"));
                 return;
             }

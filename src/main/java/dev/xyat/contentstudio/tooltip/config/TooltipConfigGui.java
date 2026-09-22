@@ -20,7 +20,7 @@ public final class TooltipConfigGui {
                 )
                 .scope(KTConfigScope.SERVER_AUTHORITATIVE)
                 .serverManaged()
-                .applyTiming(KTConfigPage.ApplyTiming.RELOAD_REQUIRED)
+                .applyTiming(KTConfigPage.ApplyTiming.IMMEDIATE)
                 .applyNotice(Component.translatable("cfg.contentstudio.tooltip.tooltip.apply_notice"))
                 .pageDescription(Component.translatable("cfg.contentstudio.tooltip.tooltip.description"))
                 .action(
