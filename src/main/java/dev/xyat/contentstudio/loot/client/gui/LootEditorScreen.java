@@ -299,11 +299,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
             GuiTheme.stateOutline(graphics, x, y, size, size, false, true, false);
         } else if (changed) {
             GuiTheme.indicatorOutline(graphics, x, y, size, size, GuiTheme.Indicator.SUCCESS);
-        } else if (selected) {
-            GuiTheme.stateOutline(graphics, x, y, size, size, true, false, false);
-        } else {
-            GuiTheme.stateOutline(graphics, x, y, size, size, false, false, false);
-        }
+        } else GuiTheme.stateOutline(graphics, x, y, size, size, selected, false, false);
     }
 
     private static String entityPreviewKey(String id) {
