@@ -1,6 +1,5 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
@@ -67,18 +66,16 @@ final class LootPoolEditScreen extends KineticScreen {
             LootNumericField.Type type,
             String tooltipKey
     ) {
-        NumericEditBox box =
-                LootNumericField.add(
-                        this,
-                        x,
-                        84,
-                        76,
-                        value,
-                        type,
-                        tooltipKey
-                );
 
-        return box;
+        return LootNumericField.add(
+                this,
+                x,
+                84,
+                76,
+                value,
+                type,
+                tooltipKey
+        );
     }
 
     private void applyChanges() {

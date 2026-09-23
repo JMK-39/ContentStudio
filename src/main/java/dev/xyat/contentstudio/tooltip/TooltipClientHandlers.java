@@ -11,7 +11,6 @@ import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.config.client.KTConfigApi;
 import dev.xyat.contentstudio.tooltip.config.TooltipConfigGui;
 import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll;
-import dev.xyat.kineticcore.api.client.search.KineticItemSearch;
 import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.widget.KineticWidgets;
 import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.CycleButton;
@@ -1118,11 +1117,6 @@ public class TooltipClientHandlers {
         private void handleSuccessfulSave() {
             commitDraft();
             parent.commitServerBaseline();
-            returnToParentAfterSave();
-        }
-
-        private void returnToParentAfterSave() {
-            navigateBack();
         }
 
         private Style getStyleAtPos(String text, int index) {

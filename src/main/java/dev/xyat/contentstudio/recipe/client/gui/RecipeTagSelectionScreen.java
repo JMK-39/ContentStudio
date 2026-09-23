@@ -2,7 +2,6 @@ package dev.xyat.contentstudio.recipe.client.gui;
 
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
@@ -308,5 +307,9 @@ public class RecipeTagSelectionScreen extends KineticScreen {
                         mouseY,
                         delta
                 );
+    }
+
+    public Screen getParent() {
+        return parent;
     }
 }

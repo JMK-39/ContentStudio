@@ -800,5 +800,7 @@
   "gui.contentstudio.module.tooltip": "Recipes, loot, villager trades, and tooltip editors.",
   "gui.contentstudio.villager.villager.trade.late_override.on": "§aLate Override: ON",
   "gui.contentstudio.villager.villager.trade.late_override.off": "§eLate Override: OFF",
-  "gui.contentstudio.villager.villager.trade.late_override.tooltip": "§eDoes not poll every tick. §aAfter a villager or wandering trader finishes refreshing trades, ContentStudio applies the current trade rules one final time to override trades dynamically appended by other mods during that refresh."
+  "gui.contentstudio.villager.villager.trade.late_override.tooltip": "§eDoes not poll every tick. §aAfter a villager or wandering trader finishes refreshing trades, ContentStudio applies the current trade rules one final time to override trades dynamically appended by other mods during that refresh.",
+  "gui.contentstudio.common.expand_symbol": "▶",
+  "gui.contentstudio.common.collapse_symbol": "▼"
 }

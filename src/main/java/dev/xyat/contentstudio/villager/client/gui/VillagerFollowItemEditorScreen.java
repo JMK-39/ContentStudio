@@ -3,10 +3,8 @@ package dev.xyat.contentstudio.villager.client.gui;
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.search.KineticItemSearch;
 import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
@@ -42,8 +40,6 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     private static final int GRID_WIDTH = COLUMNS * CELL_SIZE - SLOT_GAP;
     private static final int GRID_HEIGHT = ROWS_VISIBLE * CELL_SIZE - SLOT_GAP;
     private static final int SCROLL_X = GRID_X + GRID_WIDTH + 6;
-    private static final int PANEL_BACKGROUND = 0xFF1D1D1D;
-    private static final int PANEL_OUTLINE = 0xFF3A3A3A;
 
     private final Screen parent;
     private final List<String> items = new ArrayList<>();
@@ -89,7 +85,7 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
                 440, 316, 130,
                 Component.translatable("gui.kineticcore.hud_editor.save"),
                 null,
-                this::saveAndClose
+                this::save
         );
     }
 
@@ -116,9 +112,8 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
         }
     }
 
-    private void saveAndClose() {
+    private void save() {
         VillagerNetwork.saveFollowItems(List.copyOf(items));
-        navigateBack();
     }
 
     private void updateScrollRange() {
@@ -325,5 +320,9 @@ public final class VillagerFollowItemEditorScreen extends KineticScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    public Screen getParent() {
+        return parent;
     }
 }

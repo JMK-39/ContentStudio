@@ -800,5 +800,7 @@
   "gui.contentstudio.module.tooltip": "配方、战利品、村民交易与物品提示编辑。",
   "gui.contentstudio.villager.villager.trade.late_override.on": "§a后覆盖:开",
   "gui.contentstudio.villager.villager.trade.late_override.off": "§e后覆盖:关",
-  "gui.contentstudio.villager.villager.trade.late_override.tooltip": "§e开启后不使用 Tick 轮询。§a村民或流浪商人完成交易刷新后，ContentStudio 会最后一次应用当前交易规则，覆盖其它模组在刷新过程中动态追加的交易。"
+  "gui.contentstudio.villager.villager.trade.late_override.tooltip": "§e开启后不使用 Tick 轮询。§a村民或流浪商人完成交易刷新后，ContentStudio 会最后一次应用当前交易规则，覆盖其它模组在刷新过程中动态追加的交易。",
+  "gui.contentstudio.common.expand_symbol": "▶",
+  "gui.contentstudio.common.collapse_symbol": "▼"
 }

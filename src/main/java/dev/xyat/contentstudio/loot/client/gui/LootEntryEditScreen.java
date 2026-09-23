@@ -3,7 +3,6 @@ package dev.xyat.contentstudio.loot.client.gui;
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 
 import com.google.gson.JsonObject;
@@ -25,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 final class LootEntryEditScreen extends KineticScreen {
     private static final int WIDTH = 520;
@@ -103,6 +101,7 @@ final class LootEntryEditScreen extends KineticScreen {
         this.itemEntry = type.isBlank() || type.endsWith("item");
         this.entityMode = parent.editorMode() == LootEntryInfo.MODE_ENTITY;
         this.screenHeight = entityMode ? ENTITY_HEIGHT : COMPACT_HEIGHT;
+        useCanvas(WIDTH, screenHeight, 6);
         this.selectedItemId = LootJsonEditUtil.string(workingEntry.get("name"));
         this.selectedItemStack = visual.stack == null ? ItemStack.EMPTY : visual.stack.copy();
         this.randomEnchant = LootJsonEditUtil.hasFunction(workingEntry, "enchant_randomly");
@@ -223,18 +222,16 @@ final class LootEntryEditScreen extends KineticScreen {
             LootNumericField.Type type,
             String tooltipKey
     ) {
-        NumericEditBox box =
-                LootNumericField.add(
-                        this,
-                        x,
-                        y,
-                        width,
-                        value,
-                        type,
-                        tooltipKey
-                );
 
-        return box;
+        return LootNumericField.add(
+                this,
+                x,
+                y,
+                width,
+                value,
+                type,
+                tooltipKey
+        );
     }
 
     private Component toggleText(String key, boolean enabled) {
