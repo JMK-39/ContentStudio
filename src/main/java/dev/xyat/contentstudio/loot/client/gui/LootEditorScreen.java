@@ -120,22 +120,36 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                     && selectedEntry.targetId().equals(entry.targetId())
                     && selectedEntry.lootTableId().equals(entry.lootTableId());
             boolean changed = entry.overridden() || hasPendingDraft(entry) || (selected && dirty);
-            ItemStack targetStack = mode == LootEntryInfo.MODE_BLOCK
-                    ? blockStack(entry.targetId())
-                    : ItemStack.EMPTY;
-            int inset = mode == LootEntryInfo.MODE_BLOCK ? 1 : 2;
-            int checkerSize = mode == LootEntryInfo.MODE_BLOCK ? 4 : 8;
-            drawCheckerboard(g, targetStack, x + inset, y + inset, cell - inset * 2, cell - inset * 2, checkerSize, hover);
-            if (selected) {
-                GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
-            } else if (changed) {
-                GuiTheme.indicatorOutline(g, x, y, cell, cell, GuiTheme.Indicator.WARNING);
-            } else {
-                GuiTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
-            }
             if (mode == LootEntryInfo.MODE_ENTITY) {
-                renderEntity(g, entry.targetId(), x + 4, y + 4, cell, hover);
+                EntityPreviewRenderer.drawCheckerboard(g, x + 2, y + 2, cell - 4, cell - 4);
+                if (selected) {
+                    GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
+                } else if (changed) {
+                    GuiTheme.indicatorOutline(g, x, y, cell, cell, GuiTheme.Indicator.WARNING);
+                }
+                renderEntity(g, entry.targetId(), x, y, cell, hover);
+                int previewTop = Math.max(y, targetAreaY());
+                int previewBottom = Math.min(y + cell, targetAreaY() + targetAreaHeight());
+                if (previewBottom > previewTop) {
+                    registerPreviewWheelTarget(
+                            entityPreviewRenderer,
+                            entityPreviewKey(entry.targetId()),
+                            x,
+                            previewTop,
+                            cell,
+                            previewBottom - previewTop
+                    );
+                }
             } else {
+                ItemStack targetStack = blockStack(entry.targetId());
+                drawCheckerboard(g, targetStack, x + 1, y + 1, cell - 2, cell - 2, 4, hover);
+                if (selected) {
+                    GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
+                } else if (changed) {
+                    GuiTheme.indicatorOutline(g, x, y, cell, cell, GuiTheme.Indicator.WARNING);
+                } else {
+                    GuiTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
+                }
                 renderLargeItem(g, targetStack, x + 1, y + 1, 16);
             }
             if (hover) {
@@ -208,37 +222,37 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     private void renderEntity(
             GuiGraphics g,
             String id,
-            int boxX,
-            int boxY,
+            int cellX,
+            int cellY,
             int cell,
             boolean hovered
     ) {
-        int boxW = cell - 8;
-        int boxH = cell - 8;
-
-        boolean rendered = entityPreviewRenderer.render(
+        int previewX = cellX + 3;
+        int previewY = cellY + 3;
+        int previewSize = cell - 6;
+        boolean rendered = entityPreviewRenderer.renderCanvas(
                 g,
                 id,
-                "loots:" + id,
-                boxX,
-                boxY,
-                boxW,
-                boxH,
-                this.canvasScale(),
-                this.canvasX(),
-                this.canvasY(),
+                entityPreviewKey(id),
+                previewX,
+                previewY,
+                previewSize,
+                previewSize,
                 hovered
         );
-
         if (!rendered) {
             g.drawCenteredString(
                     font,
                     Component.translatable("gui.contentstudio.loot.loots.preview_failed"),
-                    boxX + boxW / 2,
-                    boxY + boxH / 2 - 4,
+                    cellX + cell / 2,
+                    cellY + cell / 2 - 4,
                     0xFFFF5555
             );
         }
+    }
+
+    private static String entityPreviewKey(String id) {
+        return "loots:" + id;
     }
 
     @Override
