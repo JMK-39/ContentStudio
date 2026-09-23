@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.Comparator;
 import java.util.List;
 
 public class LootEditorScreen extends AbstractLootEditorScreen {
@@ -92,6 +93,9 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
 
     @Override
     protected void renderTargets(GuiGraphics g, int mx, int my) {
+        if (mode == LootEntryInfo.MODE_ENTITY) {
+            displayEntries.sort(Comparator.comparing((LootEntryInfo entry) -> !isChangedEntry(entry)));
+        }
         int cols = gridCols();
         int cell = cellSize();
         int pitch = cellPitch();
@@ -119,15 +123,12 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
             boolean selected = selectedEntry != null
                     && selectedEntry.targetId().equals(entry.targetId())
                     && selectedEntry.lootTableId().equals(entry.lootTableId());
-            boolean changed = entry.overridden() || hasPendingDraft(entry) || (selected && dirty);
+            boolean changed = isChangedEntry(entry);
             if (mode == LootEntryInfo.MODE_ENTITY) {
-                EntityPreviewRenderer.drawCheckerboard(g, x + 2, y + 2, cell - 4, cell - 4);
-                if (selected) {
-                    GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
-                } else if (changed) {
-                    GuiTheme.indicatorOutline(g, x, y, cell, cell, GuiTheme.Indicator.WARNING);
-                }
-                renderEntity(g, entry.targetId(), x, y, cell, hover);
+                EntityPreviewRenderer.drawCheckerboard(g, x + 1, y + 1, cell - 2, cell - 2);
+                boolean rendered = renderEntity(g, entry.targetId(), x, y, cell, hover);
+                boolean error = hasEntityDataError(entry) || !rendered;
+                renderEntityOutline(g, x, y, cell, selected, hover, changed, error);
                 int previewTop = Math.max(y, targetAreaY());
                 int previewBottom = Math.min(y + cell, targetAreaY() + targetAreaHeight());
                 if (previewBottom > previewTop) {
@@ -153,11 +154,23 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 renderLargeItem(g, targetStack, x + 1, y + 1, 16);
             }
             if (hover) {
-                deferredTooltip = List.of(
-                        nameComponent(getDisplayName(entry)),
-                        idComponent(entry.targetId()),
-                        idComponent(entry.lootTableId())
-                );
+                if (mode == LootEntryInfo.MODE_ENTITY) {
+                    deferredTooltip = List.of(
+                            nameComponent(getDisplayName(entry)),
+                            idComponent(entry.targetId()),
+                            idComponent(entry.lootTableId()),
+                            Component.translatable(
+                                    "gui.kineticcore.entity_selector.preview_zoom",
+                                    entityPreviewRenderer.getZoomPercent(entityPreviewKey(entry.targetId()))
+                            )
+                    );
+                } else {
+                    deferredTooltip = List.of(
+                            nameComponent(getDisplayName(entry)),
+                            idComponent(entry.targetId()),
+                            idComponent(entry.lootTableId())
+                    );
+                }
             }
         }
         disableUiScissor(g);
@@ -219,7 +232,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
         return ItemStack.EMPTY;
     }
 
-    private void renderEntity(
+    private boolean renderEntity(
             GuiGraphics g,
             String id,
             int cellX,
@@ -248,6 +261,48 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                     cellY + cell / 2 - 4,
                     0xFFFF5555
             );
+        }
+        return rendered;
+    }
+
+    private boolean isChangedEntry(LootEntryInfo entry) {
+        if (entry == null) return false;
+        boolean selectedDirty = selectedEntry != null
+                && dirty
+                && selectedEntry.targetId().equals(entry.targetId())
+                && selectedEntry.lootTableId().equals(entry.lootTableId());
+        return entry.overridden() || hasPendingDraft(entry) || selectedDirty;
+    }
+
+    private static boolean hasEntityDataError(LootEntryInfo entry) {
+        if (entry == null) return true;
+        ResourceLocation entityId = KineticResourceIds.tryParse(entry.targetId());
+        ResourceLocation lootTableId = KineticResourceIds.tryParse(entry.lootTableId());
+        return entityId == null
+                || lootTableId == null
+                || KineticRegistries.entityTypes().get(entityId) == null;
+    }
+
+    private static void renderEntityOutline(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int size,
+            boolean selected,
+            boolean hovered,
+            boolean changed,
+            boolean error
+    ) {
+        if (error) {
+            GuiTheme.stateOutline(graphics, x, y, size, size, false, false, true);
+        } else if (hovered) {
+            GuiTheme.stateOutline(graphics, x, y, size, size, false, true, false);
+        } else if (changed) {
+            GuiTheme.indicatorOutline(graphics, x, y, size, size, GuiTheme.Indicator.SUCCESS);
+        } else if (selected) {
+            GuiTheme.stateOutline(graphics, x, y, size, size, true, false, false);
+        } else {
+            GuiTheme.stateOutline(graphics, x, y, size, size, false, false, false);
         }
     }
 
