@@ -35,6 +35,9 @@ public class RecipeScreen extends KineticContainerScreen<UniversalRecipeMenu> {
     private static final ResourceLocation FURNACE_BG = KineticResourceIds.parse("textures/gui/container/furnace.png");
     private static final ResourceLocation SMITHING_BG = KineticResourceIds.parse("textures/gui/container/smithing.png");
     private static final ResourceLocation STONECUTTER_BG = KineticResourceIds.parse("textures/gui/container/stonecutter.png");
+    private static final int OUTPUT_SLOT_SIZE = 16;
+    private static final int COUNT_INPUT_WIDTH = 26;
+    private static final int COUNT_INPUT_FRAME_PADDING = 2;
 
     private boolean isShapeless = false;
     private final int[] inputNbtModes = new int[9];
@@ -195,10 +198,10 @@ loadInitialDraft();
         }
 
         countInput = addIntegerField(
-                boxX + 1, boxY, 14, Component.empty(),
+                boxX + (OUTPUT_SLOT_SIZE - COUNT_INPUT_WIDTH) / 2, boxY, COUNT_INPUT_WIDTH, Component.empty(),
                 false, 1, 64, null, null
         );
-        countInput.setMaxLength(2);
+        countInput.setMaxLength(3);
         countInput.setValue(draftCountText);
         countInput.setResponder(value -> draftCountText = value);
     }
@@ -462,7 +465,9 @@ loadInitialDraft();
                 GuiTheme.itemSlot(g, this.leftPos + slot.x - 1, this.topPos + slot.y - 1);
             }
         }
-        GuiTheme.panelAlt(g, boxX, boxY, 18, 12);
+        int countInputFrameWidth = COUNT_INPUT_WIDTH + COUNT_INPUT_FRAME_PADDING * 2;
+        int countInputFrameX = boxX + (OUTPUT_SLOT_SIZE - countInputFrameWidth) / 2;
+        GuiTheme.panelAlt(g, countInputFrameX, boxY, countInputFrameWidth, 12);
     }
 
     @Override

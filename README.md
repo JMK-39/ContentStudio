@@ -12,7 +12,7 @@ Content Studio gives pack authors and server administrators in-game editors for 
 
 | Component | Requirement |
 | --- | --- |
-| Minecraft | This source targets 1.20.1 |
+| Minecraft | 1.20.1 |
 | Forge | 47.4.2 or newer |
 | KineticCore | 26.9.20 or newer; required |
 | Recipe viewers | JEI 15.20+, EMI, and REI are optional |
@@ -92,10 +92,6 @@ These paths belong to the instance, rather than separate editor files in each wo
 4. Verify by crafting, generating fresh loot, or checking refreshed trades.
 5. For tooltips, save a rule and inspect that item's tooltip on a connected client.
 
-Implementation references: [recipe store](src/main/java/dev/xyat/contentstudio/recipe/RecipeConfigStore.java), [loot override store](src/main/java/dev/xyat/contentstudio/loot/server/LootTableOverrideStore.java), [villager configuration](src/main/java/dev/xyat/contentstudio/villager/config/VillagerConfig.java), and [tooltip rules](src/main/java/dev/xyat/contentstudio/tooltip/TooltipManager.java).
-
-License: LGPLv3. Dependencies: [mods.toml](src/main/resources/META-INF/mods.toml).
-
 [Back to language selection](#content-studio)
 
 <a id="chinese"></a>
@@ -108,7 +104,7 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 
 | 组件 | 要求 |
 | --- | --- |
-| Minecraft | 当前源码目标为 1.20.1 |
+| Minecraft | 1.20.1 |
 | Forge | 47.4.2 或更新版本 |
 | KineticCore | 必需，26.9.20 或更新版本 |
 | 配方查看器 | JEI 15.20+、EMI、REI 为可选依赖 |
@@ -187,9 +183,5 @@ Content Studio 客户端直接渲染规则。玩家加入时、编辑器保存�
 3. 按当前编辑器流程保存；新增配方还需退出完整配方界面，应用待处理修改。
 4. 通过实际合成、新生成的掉落或刷新后的交易检查结果。
 5. 保存 Tooltip 规则后，直接在已连接的客户端检查对应物品的提示。
-
-实现参考：[配方存储](src/main/java/dev/xyat/contentstudio/recipe/RecipeConfigStore.java)、[战利品覆盖](src/main/java/dev/xyat/contentstudio/loot/server/LootTableOverrideStore.java)、[村民配置](src/main/java/dev/xyat/contentstudio/villager/config/VillagerConfig.java)、[提示规则](src/main/java/dev/xyat/contentstudio/tooltip/TooltipManager.java)。
-
-许可证：LGPLv3。依赖声明：[mods.toml](src/main/resources/META-INF/mods.toml)。
 
 [返回语言选择](#content-studio)
