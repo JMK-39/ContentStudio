@@ -92,7 +92,6 @@ These paths belong to the instance, rather than separate editor files in each wo
 4. Verify by crafting, generating fresh loot, or checking refreshed trades.
 5. For tooltips, save a rule and inspect that item's tooltip on a connected client.
 
-[Back to language selection](#content-studio)
 
 <a id="chinese"></a>
 
@@ -183,5 +182,3 @@ Content Studio 客户端直接渲染规则。玩家加入时、编辑器保存�
 3. 按当前编辑器流程保存；新增配方还需退出完整配方界面，应用待处理修改。
 4. 通过实际合成、新生成的掉落或刷新后的交易检查结果。
 5. 保存 Tooltip 规则后，直接在已连接的客户端检查对应物品的提示。
-
-[返回语言选择](#content-studio)
