@@ -1,6 +1,7 @@
 # Gradle
 .gradle/
 build/
+.worktrees/
 
 # IntelliJ IDEA
 .idea/
