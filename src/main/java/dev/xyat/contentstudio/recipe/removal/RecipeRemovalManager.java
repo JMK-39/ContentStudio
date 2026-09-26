@@ -34,14 +34,14 @@ public final class RecipeRemovalManager {
 
     public static synchronized void addEntry(RemovalEntry entry) {
         loadData();
-        if (!REMOVAL_LIST.contains(entry)) {
+        if (REMOVAL_LIST.stream().noneMatch(existing -> existing.key().equals(entry.key()))) {
             REMOVAL_LIST.add(entry);
         }
     }
 
     public static synchronized void removeEntry(RemovalEntry entry) {
         loadData();
-        REMOVAL_LIST.remove(entry);
+        REMOVAL_LIST.removeIf(existing -> existing.key().equals(entry.key()));
     }
 
     public static synchronized List<RemovalEntry> snapshot() {

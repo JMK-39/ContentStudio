@@ -280,11 +280,11 @@ public class RecipeRemovalScreen extends KineticScreen {
 
     public void addEntryFromSelection(RemovalMode mode, String value) {
         var entry = new RemovalEntry(mode, value, "");
-        if (!allRemovals.contains(entry)) { allRemovals.add(0, entry); markEdited(entry); }
+        if (allRemovals.stream().noneMatch(rule -> rule.key().equals(entry.key()))) { allRemovals.add(0, entry); markEdited(entry); }
     }
     public void removeEntryDirectly(RemovalMode mode, String value) {
         var entry = new RemovalEntry(mode, value, "");
-        if (allRemovals.remove(entry)) markEdited(entry);
+        if (allRemovals.removeIf(rule -> rule.key().equals(entry.key()))) markEdited(entry);
     }
 
     private void markEdited(RemovalEntry entry) {
@@ -361,7 +361,7 @@ public class RecipeRemovalScreen extends KineticScreen {
         }
         allRemovals.stream().filter(rule -> rule.mode() == mode).forEach(rule -> values.add(rule.value()));
         List<SelectionEntry> options = values.stream().map(value -> new SelectionEntry(value,
-                allRemovals.contains(new RemovalEntry(mode, value, "")))).toList();
+                allRemovals.stream().anyMatch(rule -> rule.key().equals(new RemovalEntry.Key(mode, value))))).toList();
         String initial = mode == RemovalMode.MOD && itemQuery.startsWith("@") || mode == RemovalMode.TAG && itemQuery.startsWith("#")
                 ? itemQuery.substring(1) : "";
         KineticClientRuntime.openScreen(new RecipeRemovalSelectionScreen(this, mode, options, initial));

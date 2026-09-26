@@ -10,7 +10,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
-import dev.xyat.contentstudio.recipe.removal.RemovalMode;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
@@ -102,7 +101,7 @@ public final class RecipeConfigStore {
         List<JsonObject> unresolvedRecipes = new ArrayList<>();
         List<RecipeRecord> invalidRecipes = new ArrayList<>();
         List<RecipeRecord> recipes = readRecipes(root, unresolvedRecipes, invalidRecipes);
-        return new Snapshot(recipes, readRemovals(root), unresolvedRecipes, invalidRecipes);
+        return new Snapshot(recipes, RemovalConfigCodec.readRemovals(root), unresolvedRecipes, invalidRecipes);
     }
 
     public static synchronized void updateRecipes(List<RecipeRecord> recipes) throws IOException {
@@ -176,17 +175,7 @@ public final class RecipeConfigStore {
         }
         root.add("recipes", recipesJson);
 
-        JsonArray removalsJson = new JsonArray();
-        for (RemovalEntry entry : removals) {
-            JsonObject object = new JsonObject();
-            object.addProperty("mode", entry.mode().name());
-            object.addProperty("value", entry.value());
-            if (!entry.comment().isEmpty()) {
-                object.addProperty("comment", entry.comment());
-            }
-            removalsJson.add(object);
-        }
-        root.add("removals", removalsJson);
+        root.add("removals", RemovalConfigCodec.writeRemovals(removals));
 
         writeRootAtomic(root);
     }
@@ -473,31 +462,6 @@ public final class RecipeConfigStore {
         } catch (Exception ignored) {
             return fallback;
         }
-    }
-
-    private static List<RemovalEntry> readRemovals(JsonObject root) {
-        List<RemovalEntry> removals = new ArrayList<>();
-        JsonArray array = root.has("removals") && root.get("removals").isJsonArray()
-                ? root.getAsJsonArray("removals")
-                : new JsonArray();
-
-        for (JsonElement element : array) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
-            try {
-                JsonObject object = element.getAsJsonObject();
-                RemovalMode mode = RemovalMode.valueOf(getString(object, "mode", "OUTPUT"));
-                String value = getString(object, "value", "");
-                String comment = getString(object, "comment", "");
-                if (!value.isBlank()) {
-                    removals.add(new RemovalEntry(mode, value, comment));
-                }
-            } catch (Exception e) {
-                LOGGER.error("Skipping invalid recipe removal datapack entry", e);
-            }
-        }
-        return removals;
     }
 
     private static JsonObject writeRecipe(RecipeRecord record) {
