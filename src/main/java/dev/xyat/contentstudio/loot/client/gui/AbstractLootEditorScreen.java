@@ -36,7 +36,6 @@ import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -61,7 +60,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     protected static final int RIGHT_Y = 14;
     protected static final int RIGHT_W = 410;
     protected static final int RIGHT_H = 334;
-    protected static final int HEADER_H = 40;
+    protected static final int HEADER_H = 32;
     protected static final int EDIT_Y = RIGHT_Y + HEADER_H + 8;
     protected static final int EDIT_H = 74;
     protected static final int DROP_Y = EDIT_Y + EDIT_H + 8;
@@ -85,7 +84,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     protected final List<LootEntryInfo> allEntries;
     protected List<LootEntryInfo> displayEntries;
     protected final List<DropVisual> dropVisuals = new ArrayList<>();
-    private List<Component> infoLines = new ArrayList<>();
     protected List<Component> deferredTooltip = null;
 
     private KineticEditBox searchBox;
@@ -114,6 +112,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     private String selectedJson = "";
     private boolean selectedOverridden = false;
     protected boolean dirty = false;
+    private boolean detailLoading;
     private boolean requirePlayerKill = false;
     private boolean enableLooting = false;
     private boolean enableFireSmelt = false;
@@ -829,7 +828,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             pendingTableDrafts.put(key, selectedJson);
         }
         selectedDropEditorSnapshot = currentEditorSnapshot();
-        infoLines = buildInfoLines();
         updateButtons();
         return false;
     }
@@ -862,7 +860,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         expandedPools.add(0);
         groupScroll = 0D;
         onTargetSelected();
-        infoLines = Collections.singletonList(Component.translatable("gui.contentstudio.loot.loots.loading"));
+        detailLoading = !isSpecialPanelActive();
         dropVisuals.clear();
         dropScroll = 0D;
         maxDropScroll = 0;
@@ -891,6 +889,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         overrideMode = false;
         appendModeBackupRoot = null;
         selectedEntry = new LootEntryInfo(mode, targetId, lootTableId, overridden);
+        detailLoading = false;
         replaceEntry(selectedEntry);
         parseCurrentRoot();
         rebuildVisualData();
@@ -924,7 +923,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 selectedEntry = new LootEntryInfo(mode, targetId, lootTableId, overridden);
                 replaceEntry(selectedEntry);
                 updateSearch(searchBox == null ? "" : searchBox.getValue(), false);
-                infoLines = buildInfoLines();
                 updateButtons();
             } else {
                 applyDetail(packetMode, targetId, lootTableId, json, overridden);
@@ -961,7 +959,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                     selectedJson = currentRoot == null ? selectedJson : GSON.toJson(currentRoot);
                 }
                 updateSearch(searchBox == null ? "" : searchBox.getValue(), false);
-                infoLines = buildInfoLines();
             }
         } else {
             saveBatchHadFailure = true;
@@ -1020,7 +1017,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         buildDropVisuals();
         dropVisuals.sort(Comparator.comparingInt(visual -> visual.loadError ? 0 : 1));
         onVisualDataRebuilt();
-        infoLines = buildInfoLines();
         dropScroll = 0D;
         maxDropScroll = Math.max(0, dropVisuals.size() - visibleDropRows());
         selectedDrop = null;
@@ -1028,36 +1024,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (usesGroupedLayout()) {
             refreshGroupedLayout();
         }
-    }
-
-    private List<Component> buildInfoLines() {
-        List<Component> lines = new ArrayList<>();
-        if (selectedEntry != null) {
-            String displayName = getDisplayName(selectedEntry);
-            Component tableName = displayName.equals(selectedEntry.lootTableId())
-                    ? idComponent(selectedEntry.lootTableId())
-                    : nameComponent(displayName);
-            lines.add(Component.translatable("gui.contentstudio.loot.loots.summary.table", tableName)
-                    .withStyle(ChatFormatting.GRAY));
-            boolean changed = selectedOverridden || dirty;
-            lines.add(Component.translatable("gui.contentstudio.loot.loots.summary.override",
-                            Component.translatable(changed ? "gui.contentstudio.loot.loots.yes" : "gui.contentstudio.loot.loots.no")
-                                    .withStyle(changed ? ChatFormatting.GOLD : ChatFormatting.GREEN))
-                    .withStyle(ChatFormatting.GRAY));
-            if (overrideMode) {
-                lines.add(Component.translatable("gui.contentstudio.loot.loots.summary.override_mode").withStyle(ChatFormatting.GOLD));
-            }
-        }
-        try {
-            JsonArray pools = getPools();
-            lines.add(Component.translatable("gui.contentstudio.loot.loots.summary.pool_count", numberComponent(pools.size()))
-                    .withStyle(ChatFormatting.GRAY));
-            lines.add(Component.translatable("gui.contentstudio.loot.loots.summary.drop_count", numberComponent(dropVisuals.size()))
-                    .withStyle(ChatFormatting.GRAY));
-        } catch (Exception e) {
-            lines.add(Component.translatable("gui.contentstudio.loot.loots.summary.invalid_json").withStyle(ChatFormatting.RED));
-        }
-        return lines;
     }
 
     private void buildDropVisuals() {
@@ -1817,7 +1783,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 }
             }
         }
-        infoLines = buildInfoLines();
         updateButtons();
     }
 
@@ -1897,7 +1862,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         selectedDropEditorSnapshot = "";
         parseCurrentRoot();
         rebuildVisualData();
-        infoLines = buildInfoLines();
         updateButtons();
     }
 
@@ -2624,35 +2588,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void renderTopInfo(GuiGraphics g, int mx, int my) {
         g.drawString(font, getTitle(), RIGHT_X + 6, RIGHT_Y + 6, 0xFFFFAA00, false);
-        if (isSpecialPanelActive() && selectedEntry != null) {
-            String display = getDisplayName(selectedEntry);
-            g.drawString(font, trim(font, display, RIGHT_W - 62), RIGHT_X + 6, RIGHT_Y + 28, 0xFFFFD75F, false);
-            if (mx >= RIGHT_X + 6 && mx <= RIGHT_X + RIGHT_W - 56 && my >= RIGHT_Y + 26 && my <= RIGHT_Y + 38) {
-                deferredTooltip = List.of(nameComponent(display), idComponent(selectedEntry.lootTableId()));
-            }
-            return;
-        }
-        int textX = RIGHT_X + 6;
-        int textY = usesGroupedLayout() ? RIGHT_Y + 28 : RIGHT_Y + 20;
-        int textWidth = usesGroupedLayout() ? RIGHT_W - 12 : RIGHT_W - 160;
-        if (!infoLines.isEmpty()) {
-            boolean translatedName = selectedEntry != null
-                    && !getDisplayName(selectedEntry).equals(selectedEntry.lootTableId());
-            int tableColor = translatedName ? 0xFFFFD75F : 0xFF55FFFF;
-            g.drawString(font, trim(font, infoLines.get(0).getString(), textWidth), textX, textY, tableColor, false);
-        }
-        if (selectedEntry != null && !usesGroupedLayout()) {
-            g.drawString(font, trim(font, Component.translatable("gui.contentstudio.loot.loots.tip.compact_header").getString(), textWidth), textX, textY + 12, 0xFFE6E6E6, false);
-        }
-        int hoverHeight = usesGroupedLayout() ? 10 : 22;
-        if (mx >= textX && mx <= textX + textWidth && my >= textY && my <= textY + hoverHeight && !infoLines.isEmpty()) {
-            deferredTooltip = new ArrayList<>();
-            if (selectedEntry != null) {
-                deferredTooltip.add(idComponent(selectedEntry.lootTableId()));
-            }
-            if (infoLines.size() > 1) {
-                deferredTooltip.addAll(infoLines.subList(1, infoLines.size()));
-            }
+        if (detailLoading) {
+            g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.loading"),
+                    RIGHT_X + 6, RIGHT_Y + 25, 0xFFFFD75F, false);
         }
     }
 

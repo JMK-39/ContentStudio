@@ -33,7 +33,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     private static final int LIST_Y = SEARCH_Y + 20;
 
     private static final int SPECIAL_X = RIGHT_X + 10;
-    private static final int SPECIAL_Y = RIGHT_Y + 50;
+    private static final int SPECIAL_Y = RIGHT_Y + 42;
     private static final int SPECIAL_W = RIGHT_W - 20;
     private static final int SPECIAL_H = RIGHT_Y + RIGHT_H - SPECIAL_Y - 10;
 

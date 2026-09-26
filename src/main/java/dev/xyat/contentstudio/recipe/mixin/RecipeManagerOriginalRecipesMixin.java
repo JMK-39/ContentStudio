@@ -16,8 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Map;
 
-// KubeJS uses priority 1100 and cancels apply at HEAD. Lower mixin priority places
-// this HEAD callback before its callback in the transformed method.
 @Mixin(value = RecipeManager.class, priority = 1000)
 public abstract class RecipeManagerOriginalRecipesMixin {
     @Shadow @Final private ICondition.IContext context;

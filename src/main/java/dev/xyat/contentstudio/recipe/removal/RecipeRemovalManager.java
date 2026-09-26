@@ -71,7 +71,8 @@ public final class RecipeRemovalManager {
                         case PERSISTED_RELOAD_FAILED -> RecipeNetwork.SaveStatus.PERSISTED_RELOAD_FAILED;
                     };
                     RecipeNetwork.sendRuleState(player, requestId, status,
-                            status == RecipeNetwork.SaveStatus.REJECTED ? snapshot() : draft);
+                            status == RecipeNetwork.SaveStatus.APPLIED || status == RecipeNetwork.SaveStatus.REJECTED
+                                    ? snapshot() : draft);
                 }));
     }
 }

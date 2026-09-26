@@ -26,6 +26,7 @@ import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import dev.xyat.contentstudio.recipe.removal.RemovalMode;
 import dev.xyat.contentstudio.recipe.removal.RemovalRuleEvaluator;
 import dev.xyat.contentstudio.recipe.removal.RecipeViewerCategoryFilter;
+import dev.xyat.contentstudio.recipe.removal.SimpleRemovalActions;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -33,6 +34,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.*;
 
@@ -59,13 +61,12 @@ public class RecipeRemovalScreen extends KineticScreen {
     private AutoCompleteBox itemSearch, recipeSearch;
     private final List<KineticAutoComplete.Suggestion> itemDictionary = new ArrayList<>();
     private String itemQuery = "", recipeQuery = "";
-    private StateButton viewerAllButton, previewButton, toggleButton, copyButton, saveButton, rulesButton, ruleScopeButton;
+    private StateButton viewerAllButton, previewButton, toggleButton, copyButton, saveButton, rulesButton, ruleScopeButton, outputButton;
     private boolean rulesView, allRulesView, loading;
+    private ResourceLocation selectedTypeFilter;
     private long pendingSaveId;
     private List<RemovalEntry> submittedRemovals = List.of();
     private List<KineticItemSearch.CachedItem> indexedItems;
-    private Item pendingTypeMenuItem;
-    private double pendingTypeMenuX, pendingTypeMenuY;
 
     public RecipeRemovalScreen(Screen parent, List<RemovalEntry> serverData, List<ItemStack> modifiedItems) {
         super(tr("title"));
@@ -75,16 +76,6 @@ public class RecipeRemovalScreen extends KineticScreen {
         for (var stack : modifiedItems) { edited.update(stack.getItem(), true); savedEditedItems.add(stack.getItem()); }
         // JEI is a separate screen. Keep drafts local so opening JEI cannot trigger
         // GuiSession's automatic rollback when navigating to a non-core screen.
-    }
-
-    public static class SelectionEntry {
-        public final String value;
-        public final boolean alreadyExists;
-        public boolean isSelected;
-        public SelectionEntry(String value, boolean exists) {
-            this.value = value;
-            alreadyExists = exists; isSelected = exists;
-        }
     }
 
     static Component tr(String key, Object... args) { return Component.translatable("gui.contentstudio.recipe.removal." + key, args); }
@@ -104,11 +95,12 @@ public class RecipeRemovalScreen extends KineticScreen {
         );
         recipeSearch.setMaxLength(256); recipeSearch.setValue(recipeQuery);
         recipeSearch.setResponder(query -> { recipeQuery = query; filterRecipes(); recipeScroll.setOffset(0); });
-        button("scope_menu", "scope_menu_hint", 244, 8, 60, () -> openBulkMenu(244, 30));
+        outputButton = button("remove_output_all", "remove_output_all_hint", 244, 8, 60, this::toggleOutputForSelected);
         rulesButton = button("rules", "rules_button_hint", 310, 8, 60, () -> {
             rulesView = !rulesView; selectedRule = null; recipeScroll.setOffset(0); filterRecipes();
         });
         ruleScopeButton = button("all_rules", "rule_filter_hint", 508, 8, 50, () -> {
+            if (!rulesView) { openTypeFilterMenu(); return; }
             allRulesView = !allRulesView;
             recipeScroll.setOffset(0);
             filterRecipes();
@@ -177,7 +169,7 @@ public class RecipeRemovalScreen extends KineticScreen {
 
     private void selectItem(ItemStack stack) {
         selectedItem = stack.copy(); selectedRecipe = null; rulesView = false;
-        pendingTypeMenuItem = null;
+        selectedTypeFilter = null;
         recipeQuery = ""; recipeSearch.setValue(""); recipeScroll.setOffset(0); loading = true;
         catalog.remove(selectedItem.getItem());
         rebuildRecipes();
@@ -188,12 +180,6 @@ public class RecipeRemovalScreen extends KineticScreen {
         catalog.put(item.getItem(), List.copyOf(data));
         if (dataError) serverErrors.add(item.getItem()); else serverErrors.remove(item.getItem());
         if (!selectedItem.isEmpty() && selectedItem.is(item.getItem())) { loading = false; rebuildRecipes(); }
-        if (pendingTypeMenuItem == item.getItem() && selectedItem.is(item.getItem())) {
-            pendingTypeMenuItem = null;
-            if (KineticClientRuntime.currentScreen() == this) {
-                itemTypeMenu(pendingTypeMenuX, pendingTypeMenuY, item);
-            }
-        }
     }
 
     public void acceptAffectedOutputs(List<ResourceLocation> ids, boolean firstPage) {
@@ -299,7 +285,7 @@ public class RecipeRemovalScreen extends KineticScreen {
         return entry.recipe().id() == null ? "jei:" + entry.recipe().type() + ":" + System.identityHashCode(entry.show()) : entry.recipe().id().toString();
     }
 
-    private static Component typeName(ResourceLocation id) {
+    static Component typeName(ResourceLocation id) {
         if (id.getNamespace().equals("minecraft")) {
             String block = switch (id.getPath()) {
                 case "crafting" -> "crafting_table"; case "smelting" -> "furnace"; case "blasting" -> "blast_furnace";
@@ -313,7 +299,8 @@ public class RecipeRemovalScreen extends KineticScreen {
 
     private void filterRecipes() {
         visibleRecipes.clear(); visibleRules.clear();
-        for (var recipe : recipes) if (KineticSearch.match(recipeKey(recipe) + " " + recipe.category().getString() + " " + recipe.recipe().type(), recipeQuery)) visibleRecipes.add(recipe);
+        for (var recipe : recipes) if ((selectedTypeFilter == null || selectedTypeFilter.equals(recipe.recipe().type()))
+                && KineticSearch.match(recipeKey(recipe) + " " + recipe.category().getString() + " " + recipe.recipe().type(), recipeQuery)) visibleRecipes.add(recipe);
         for (var rule : allRemovals) {
             if (!allRulesView && !selectedItem.isEmpty() && !relevantToSelectedItem(rule)) continue;
             if (KineticSearch.match(rule.value() + " " + rule.mode().getDisplayName().getString(), recipeQuery)) visibleRules.add(rule);
@@ -383,8 +370,18 @@ public class RecipeRemovalScreen extends KineticScreen {
                 .filter(rule.excludedRecipeIds()::contains).count();
     }
 
+    private static Component ruleModeLabel(RemovalEntry rule) {
+        return rule.mode() == RemovalMode.OUTPUT || rule.mode() == RemovalMode.RECIPE_ID
+                ? rule.mode().getDisplayName() : tr("legacy_rule", rule.mode().getDisplayName());
+    }
+
     private void updateButtons() {
         if (toggleButton == null) return;
+        ResourceLocation selectedOutputId = selectedOutputId();
+        boolean outputRule = hasOutputRule(selectedOutputId);
+        outputButton.setEnabled(!rulesView && !selectedItem.isEmpty());
+        outputButton.setText(tr(outputRule ? "restore_output_all" : "remove_output_all"));
+        registerWidgetTooltip(outputButton, tr(outputRule ? "restore_output_all_hint" : "remove_output_all_hint"));
         viewerAllButton.setEnabled(!selectedItem.isEmpty() && RecipeJeiBridge.available());
         registerWidgetTooltip(viewerAllButton, tr(RecipeJeiBridge.available() ? "viewer_all_hint" : "viewer_missing"));
         previewButton.setEnabled(!rulesView && selectedRecipe != null);
@@ -392,18 +389,21 @@ public class RecipeRemovalScreen extends KineticScreen {
         copyButton.setEnabled(selectedValue() != null);
         saveButton.setEnabled(pendingSaveId == 0L && !new HashSet<>(allRemovals).equals(new HashSet<>(savedRemovals)));
         rulesButton.setText(tr(rulesView ? "recipes" : "rules"));
-        ruleScopeButton.setEnabled(rulesView && !selectedItem.isEmpty());
-        ruleScopeButton.setText(tr(allRulesView ? "related_rules" : "all_rules"));
-        registerWidgetTooltip(ruleScopeButton, tr("rule_filter_hint"));
+        ruleScopeButton.setEnabled(rulesView || !selectedItem.isEmpty() && !loading);
+        ruleScopeButton.setText(rulesView ? tr(allRulesView ? "related_rules" : "all_rules")
+                : selectedTypeFilter == null ? tr("filter_type") : typeName(selectedTypeFilter));
+        registerWidgetTooltip(ruleScopeButton, rulesView ? tr("rule_filter_hint")
+                : selectedTypeFilter == null ? tr("filter_type_hint") : typeName(selectedTypeFilter));
         if (rulesView) {
             toggleButton.setText(tr("restore_rule")); toggleButton.setEnabled(selectedRule != null);
             registerWidgetTooltip(toggleButton, tr("restore_rule_hint"));
         } else {
             RemovalDisplayState state = displayState(selectedRecipe);
-            toggleButton.setText(tr(state == null ? "view_only"
+            toggleButton.setText(tr(state == null ? "view_only" : outputRule ? "output_rule_controls"
                     : state.status() == RemovalDisplayState.Status.REMOVED ? "restore_one" : "remove_one"));
-            toggleButton.setEnabled(state != null);
-            registerWidgetTooltip(toggleButton, tr(state == null ? "view_only_hint" : "exact_hint"));
+            toggleButton.setEnabled(state != null && !outputRule);
+            registerWidgetTooltip(toggleButton, tr(state == null ? "view_only_hint"
+                    : outputRule ? "output_rule_controls_hint" : "exact_hint"));
         }
     }
 
@@ -417,13 +417,52 @@ public class RecipeRemovalScreen extends KineticScreen {
         else if (selectedRecipe != null) toggleRecipe(selectedRecipe);
     }
 
-    public void addEntryFromSelection(RemovalMode mode, String value) {
-        var entry = new RemovalEntry(mode, value, "");
-        if (allRemovals.stream().noneMatch(rule -> rule.key().equals(entry.key()))) { allRemovals.add(0, entry); markEdited(entry); }
-    }
     public void removeEntryDirectly(RemovalMode mode, String value) {
         var entry = new RemovalEntry(mode, value, "");
         if (allRemovals.removeIf(rule -> rule.key().equals(entry.key()))) markEdited(entry);
+    }
+
+    private ResourceLocation selectedOutputId() {
+        return selectedItem.isEmpty() ? null : KineticRegistries.items().id(selectedItem.getItem());
+    }
+
+    private boolean hasOutputRule(ResourceLocation outputId) {
+        return outputId != null && !SimpleRemovalActions.canToggleRecipe(outputId, allRemovals);
+    }
+
+    private void toggleOutputForSelected() {
+        ResourceLocation outputId = selectedOutputId();
+        if (outputId == null) return;
+        replaceDraftRules(SimpleRemovalActions.toggleOutput(outputId, allRemovals));
+    }
+
+    private void openTypeFilterMenu() {
+        if (selectedItem.isEmpty() || loading) return;
+        Map<ResourceLocation, Long> counts = new TreeMap<>(Comparator.comparing(ResourceLocation::toString));
+        for (RecipeJeiBridge.Entry entry : recipes) {
+            if (entry.recipe().type() != null) counts.merge(entry.recipe().type(), 1L, Long::sum);
+        }
+        KineticClientRuntime.openScreen(new RecipeTypeFilterScreen(this, counts, selectedTypeFilter));
+    }
+
+    void setTypeFilter(ResourceLocation type) {
+        selectedTypeFilter = type;
+        recipeScroll.setOffset(0);
+        filterRecipes();
+    }
+
+    static ItemStack typeIcon(ResourceLocation type) {
+        if (!type.getNamespace().equals("minecraft")) return new ItemStack(Items.BOOK);
+        return switch (type.getPath()) {
+            case "crafting" -> new ItemStack(Items.CRAFTING_TABLE);
+            case "smelting" -> new ItemStack(Items.FURNACE);
+            case "blasting" -> new ItemStack(Items.BLAST_FURNACE);
+            case "smoking" -> new ItemStack(Items.SMOKER);
+            case "stonecutting" -> new ItemStack(Items.STONECUTTER);
+            case "smithing" -> new ItemStack(Items.SMITHING_TABLE);
+            case "campfire_cooking" -> new ItemStack(Items.CAMPFIRE);
+            default -> new ItemStack(Items.BOOK);
+        };
     }
 
     private void markEdited(RemovalEntry entry) {
@@ -516,38 +555,6 @@ public class RecipeRemovalScreen extends KineticScreen {
         }
     }
 
-    private void openBulkMenu(double x, double y) {
-        itemSearch.clearSuggestions();
-        recipeSearch.clearSuggestions();
-        clearControlFocus();
-        openContextMenu(x, y, List.of(
-                KineticOverlays.MenuItem.action(tr("by_mod"), tr("context.by_mod_hint"), () -> bulkOptions(RemovalMode.MOD)),
-                KineticOverlays.MenuItem.action(tr("by_output"), tr("context.by_output_hint"), () -> bulkOptions(RemovalMode.OUTPUT)),
-                KineticOverlays.MenuItem.action(tr("by_tag"), tr("context.by_tag_hint"), () -> bulkOptions(RemovalMode.TAG)),
-                KineticOverlays.MenuItem.action(tr("by_type"), tr("context.by_type_hint"), () -> bulkOptions(RemovalMode.TYPE))));
-    }
-
-    private void bulkOptions(RemovalMode mode) {
-        Set<String> values = new TreeSet<>();
-        if (mode == RemovalMode.TYPE) {
-            KineticRegistries.recipeTypes().ids().forEach(id -> values.add(id.toString()));
-        } else if (mode == RemovalMode.MOD) {
-            KineticRegistries.items().ids().forEach(id -> values.add(id.getNamespace()));
-            var level = KineticClientRuntime.currentLevel();
-            if (level != null) level.getRecipeManager().getRecipes().forEach(recipe -> values.add(recipe.getId().getNamespace()));
-        } else if (mode == RemovalMode.OUTPUT) {
-            KineticRegistries.items().ids().forEach(id -> values.add(id.toString()));
-        } else if (mode == RemovalMode.TAG) {
-            for (var item : KineticItemSearch.items()) values.addAll(item.tagIds());
-        }
-        allRemovals.stream().filter(rule -> rule.mode() == mode).forEach(rule -> values.add(rule.value()));
-        List<SelectionEntry> options = values.stream().map(value -> new SelectionEntry(value,
-                allRemovals.stream().anyMatch(rule -> rule.key().equals(new RemovalEntry.Key(mode, value))))).toList();
-        String initial = mode == RemovalMode.MOD && itemQuery.startsWith("@") || mode == RemovalMode.TAG && itemQuery.startsWith("#")
-                ? itemQuery.substring(1) : "";
-        KineticClientRuntime.openScreen(new RecipeRemovalSelectionScreen(this, mode, options, initial));
-    }
-
     private List<KineticAutoComplete.Suggestion> recipeDictionary() {
         Map<String, Component> values = new TreeMap<>();
         boolean showTranslations = !KineticClientRuntime.isEnglishLanguage();
@@ -576,22 +583,23 @@ public class RecipeRemovalScreen extends KineticScreen {
     void markRecipeError() { if (!selectedItem.isEmpty()) errors.add(selectedItem.getItem()); }
 
     boolean canToggle(RecipeJeiBridge.Entry entry) {
-        return displayState(entry) != null;
+        return displayState(entry) != null && SimpleRemovalActions.canToggleRecipe(selectedOutputId(), allRemovals);
     }
 
     Component recipeAction(RecipeJeiBridge.Entry entry) {
         RemovalDisplayState state = displayState(entry);
-        return tr(state == null ? "view_only"
+        return tr(state == null ? "view_only" : !canToggle(entry) ? "output_rule_controls"
                 : state.status() == RemovalDisplayState.Status.REMOVED ? "restore_one" : "remove_one");
     }
 
     void toggleRecipe(RecipeJeiBridge.Entry entry) {
         RemovalCandidate candidate = originalRows.candidateFor(entry);
-        if (candidate == null) return;
+        if (candidate == null || !canToggle(entry)) return;
         RemovalDisplayState state = RemovalDisplayState.of(candidate, allRemovals);
-        replaceDraftRules(state.status() == RemovalDisplayState.Status.REMOVED
-                ? RemovalDisplayState.restore(candidate, allRemovals)
-                : RemovalDisplayState.remove(candidate, allRemovals));
+        boolean legacyRuleBlocks = state.blockingRules().stream().anyMatch(rule ->
+                rule.mode() != RemovalMode.RECIPE_ID && rule.mode() != RemovalMode.OUTPUT);
+        replaceDraftRules(legacyRuleBlocks ? RemovalDisplayState.restore(candidate, allRemovals)
+                : SimpleRemovalActions.toggleRecipe(candidate.id(), candidate.outputItemId(), allRemovals));
     }
 
     public List<RemovalEntry> draftRules() {
@@ -639,34 +647,9 @@ public class RecipeRemovalScreen extends KineticScreen {
                         () -> openViewerMenu(x, y, null), RecipeJeiBridge.available(), KineticOverlays.MenuItemStyle.NORMAL),
                 KineticOverlays.MenuItem.action(
                         tr("remove_output"), tr("context.remove_output_hint"),
-                        () -> openImpactEditor(RemovalMode.OUTPUT,
-                                String.valueOf(KineticRegistries.items().id(item.getItem())),
-                                KineticRegistries.items().id(item.getItem()))),
-                KineticOverlays.MenuItem.action(tr("by_mod"), tr("context.by_mod_hint"), () -> bulkOptions(RemovalMode.MOD)),
-                KineticOverlays.MenuItem.action(tr("by_tag"), tr("context.by_tag_hint"), () -> bulkOptions(RemovalMode.TAG)),
-                KineticOverlays.MenuItem.action(tr("by_type"), tr("context.by_type_hint"),
-                        () -> itemTypeMenu(x, y, item))));
-    }
-
-    private void itemTypeMenu(double x, double y, ItemStack item) {
-        if (!catalog.containsKey(item.getItem())) {
-            pendingTypeMenuItem = item.getItem();
-            pendingTypeMenuX = x;
-            pendingTypeMenuY = y;
-            return;
-        }
-        ResourceLocation output = KineticRegistries.items().id(item.getItem());
-        Set<ResourceLocation> types = new TreeSet<>(Comparator.comparing(ResourceLocation::toString));
-        catalog.getOrDefault(item.getItem(), List.of()).stream().map(RecipeSummary::type).forEach(types::add);
-        if (types.isEmpty()) {
-            showToast(tr("no_item_types"));
-            return;
-        }
-        openContextMenu(x, y, types.stream()
-                .map(type -> KineticOverlays.MenuItem.action(typeName(type),
-                        tr("context.by_type_hint"),
-                        () -> openImpactEditor(RemovalMode.TYPE, type.toString(), output)))
-                .toList());
+                        this::toggleOutputForSelected),
+                KineticOverlays.MenuItem.action(tr("filter_type"), tr("filter_type_hint"),
+                        this::openTypeFilterMenu)));
     }
 
     private void recipeMenu(double x, double y, RecipeJeiBridge.Entry entry) {
@@ -674,8 +657,7 @@ public class RecipeRemovalScreen extends KineticScreen {
         recipeSearch.clearSuggestions();
         clearControlFocus();
         boolean canToggle = canToggle(entry);
-        boolean hasType = originalRows.candidateFor(entry) != null
-                && KineticRegistries.recipeTypes().contains(entry.recipe().type());
+        boolean hasType = originalRows.candidateFor(entry) != null;
         boolean hasId = entry.recipe().id() != null;
         openContextMenu(x, y, List.of(
                 KineticOverlays.MenuItem.create(
@@ -685,9 +667,8 @@ public class RecipeRemovalScreen extends KineticScreen {
                         recipeAction(entry), Component.empty(), tr("context.toggle_recipe_hint"), null,
                         () -> toggleRecipe(entry), canToggle, KineticOverlays.MenuItemStyle.NORMAL),
                 KineticOverlays.MenuItem.create(
-                        tr("remove_type"), Component.empty(), tr("context.remove_type_hint"), null,
-                        () -> openImpactEditor(RemovalMode.TYPE, entry.recipe().type().toString(),
-                                KineticRegistries.items().id(entry.recipe().output().getItem())),
+                        tr("filter_this_type"), Component.empty(), tr("filter_type_hint"), null,
+                        () -> { selectedTypeFilter = entry.recipe().type(); recipeScroll.setOffset(0); filterRecipes(); },
                         hasType, KineticOverlays.MenuItemStyle.NORMAL),
                 KineticOverlays.MenuItem.create(
                         tr("copy"), Component.empty(), tr("context.copy_hint"), null,
@@ -718,7 +699,7 @@ public class RecipeRemovalScreen extends KineticScreen {
             if (selected || hover || error) {
                 GuiTheme.stateOutline(g, x, y, CELL, CELL, selected, hover, error);
             } else if (edited.isEdited(stack.getItem())) {
-                GuiTheme.indicatorOutline(g, x, y, CELL, CELL, GuiTheme.Indicator.SUCCESS);
+                GuiTheme.indicatorOutline(g, x, y, CELL, CELL, GuiTheme.Indicator.DANGER);
             }
         }
         disableUiScissor(g); scrollbar(g, itemScroll, mx, my, 232, GY, ROWS * CELL);
@@ -754,7 +735,7 @@ public class RecipeRemovalScreen extends KineticScreen {
             }
             if (rulesView) {
                 var rule = visibleRules.get(i);
-                text(g, tr("rule_row_title", rule.mode().getDisplayName(), rule.value()),
+                text(g, tr("rule_row_title", ruleModeLabel(rule), rule.value()),
                         LX + 6, y + 5, LW - 12, GuiTheme.current().text());
                 text(g, tr("rule_row_counts", localAffected(rule), localExcluded(rule),
                         rule.excludedRecipeIds().size()),
@@ -775,12 +756,13 @@ public class RecipeRemovalScreen extends KineticScreen {
         if (rulesView) {
             text(g, tr("rules_hint"), 252, 252, 364, GuiTheme.current().mutedText());
             if (selectedRule != null) {
-                text(g, tr("rule_row_title", selectedRule.mode().getDisplayName(), selectedRule.value()),
+                text(g, tr("rule_row_title", ruleModeLabel(selectedRule), selectedRule.value()),
                         252, 270, 364, GuiTheme.current().text());
                 text(g, tr("rule_row_counts", localAffected(selectedRule), localExcluded(selectedRule),
                         selectedRule.excludedRecipeIds().size()),
                         252, 288, 364, GuiTheme.current().mutedText());
-                text(g, tr("rule_edit_hint"), 252, 306, 364, GuiTheme.current().mutedText());
+                text(g, tr("rule_remove_hint"),
+                        252, 306, 364, GuiTheme.current().mutedText());
             }
             return;
         }
@@ -870,9 +852,9 @@ public class RecipeRemovalScreen extends KineticScreen {
             if (rulesView && i < visibleRules.size()) {
                 RemovalEntry rule = visibleRules.get(i);
                 KineticOverlays.requestTooltip(List.of(
-                        tr("rule_row_title", rule.mode().getDisplayName(), rule.value()),
+                        tr("rule_row_title", ruleModeLabel(rule), rule.value()),
                         tr("rule_row_counts", localAffected(rule), localExcluded(rule), rule.excludedRecipeIds().size()),
-                        tr("rule_edit_hint")), 320, rawX, rawY);
+                        tr("rule_remove_hint")), 320, rawX, rawY);
             } else if (!rulesView && i < visibleRecipes.size()) {
                 var recipeEntry = visibleRecipes.get(i);
                 List<Component> lines = new ArrayList<>();
@@ -909,9 +891,6 @@ public class RecipeRemovalScreen extends KineticScreen {
             int i = hoveredRecipe(my);
             if (rulesView && i < visibleRules.size()) {
                 selectedRule = visibleRules.get(i);
-                if (KineticMouseButtons.isSecondary(button))
-                    openImpactEditor(selectedRule.mode(), selectedRule.value(),
-                            selectedItem.isEmpty() ? null : KineticRegistries.items().id(selectedItem.getItem()));
             }
             else if (!rulesView && i < visibleRecipes.size()) {
                 selectedRecipe = visibleRecipes.get(i);

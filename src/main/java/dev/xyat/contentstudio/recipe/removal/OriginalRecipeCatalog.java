@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** The recipes supplied by datapacks before any script listener writes to the manager. */
+/** A snapshot of datapack recipes before script listeners add or replace recipes. */
 public final class OriginalRecipeCatalog {
     @FunctionalInterface
     public interface Inspector {
@@ -48,7 +48,7 @@ public final class OriginalRecipeCatalog {
         return entries;
     }
 
-    /** Inspect the complete source before changing it, so an inspection error never partially filters a reload. */
+    /** Inspect first and mutate only after a complete snapshot has been evaluated. */
     public static OriginalRecipeCatalog filter(Map<ResourceLocation, JsonElement> source,
                                                List<RemovalEntry> rules, Inspector inspector) {
         Map<ResourceLocation, Entry> catalog = new LinkedHashMap<>();

@@ -4,9 +4,12 @@ import javax.annotation.Nonnull;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import com.mojang.logging.LogUtils;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import dev.xyat.contentstudio.recipe.removal.OriginalRecipeCatalog;
 import dev.xyat.contentstudio.recipe.removal.RemovalCandidate;
 import dev.xyat.contentstudio.recipe.removal.RemovalRuleEvaluator;
+import dev.xyat.contentstudio.recipe.removal.RemovalRulePruner;
 import dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import net.minecraft.core.NonNullList;
@@ -33,13 +36,11 @@ import net.minecraft.world.item.crafting.SmokingRecipe;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 import net.minecraftforge.common.crafting.PartialNBTIngredient;
 import net.minecraftforge.common.crafting.StrictNBTIngredient;
+import net.minecraftforge.common.crafting.CraftingHelper;
+import net.minecraftforge.common.crafting.conditions.ICondition;
 import dev.xyat.kineticcore.api.event.KineticEventPriority;
 import dev.xyat.kineticcore.api.resource.event.KineticResourceEvents;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -54,9 +55,9 @@ import java.util.concurrent.CompletableFuture;
 public final class RecipeMemoryManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Map<RecipeManager, OriginalRecipeCatalog> CATALOGS = new java.util.WeakHashMap<>();
+    private static final Map<RecipeManager, RegistryAccess> RELOAD_REGISTRIES = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, Long> CATALOG_VERSIONS = new java.util.WeakHashMap<>();
     private static long nextCatalogVersion;
-    private static final Map<RecipeManager, RegistryAccess> RELOAD_REGISTRIES = new java.util.WeakHashMap<>();
     private static boolean registered;
 
     public static synchronized OriginalRecipeCatalog originalCatalog(RecipeManager manager) {
@@ -86,8 +87,7 @@ public final class RecipeMemoryManager {
                     RELOAD_REGISTRIES.put(context.serverResources().getRecipeManager(), context.registryAccess());
                 }
                 context.addListener(new DatapackRecipeReloadListener(
-                        context.serverResources().getRecipeManager(),
-                        context.registryAccess()
+                        context.serverResources().getRecipeManager()
                 ));
         });
         registered = true;
@@ -103,33 +103,16 @@ public final class RecipeMemoryManager {
 
     private static void applySnapshot(
             RecipeManager recipeManager,
-            RegistryAccess registryAccess,
             RecipeConfigStore.Snapshot snapshot
     ) {
-        Map<ResourceLocation, Recipe<?>> recipes = new LinkedHashMap<>();
-        int skippedBaseline = 0;
-
-        List<Recipe<?>> baseline = new ArrayList<>(recipeManager.getRecipes());
-        for (Recipe<?> recipe : baseline) {
-            try {
-                if (recipe == null || recipe.getId() == null) {
-                    skippedBaseline++;
-                    continue;
-                }
-                recipes.put(recipe.getId(), recipe);
-            } catch (Exception e) {
-                skippedBaseline++;
-                LOGGER.warn("Skipping unreadable datapack recipe: {}", safeMessage(e));
-            }
-        }
-
+        Map<ResourceLocation, Recipe<?>> configuredRecipes = new LinkedHashMap<>();
         int added = 0;
         int skippedConfigured = 0;
         for (RecipeRecord record : snapshot.recipes()) {
             try {
                 Recipe<?> recipe = buildRecipe(record);
                 if (recipe != null) {
-                    recipes.put(recipe.getId(), recipe);
+                    configuredRecipes.put(recipe.getId(), recipe);
                     added++;
                 } else {
                     skippedConfigured++;
@@ -140,15 +123,31 @@ public final class RecipeMemoryManager {
             }
         }
 
+        Map<ResourceLocation, Recipe<?>> recipes = new LinkedHashMap<>();
+        int skippedBaseline = 0;
+
+        List<Recipe<?>> baseline = new ArrayList<>(recipeManager.getRecipes());
+        for (Recipe<?> recipe : baseline) {
+            if (recipe == null || recipe.getId() == null) {
+                skippedBaseline++;
+            }
+        }
+        for (Recipe<?> recipe : baseline) {
+            if (recipe != null && recipe.getId() != null) recipes.put(recipe.getId(), recipe);
+        }
+        recipes.putAll(configuredRecipes);
+
         List<Recipe<?>> finalRecipes = new ArrayList<>(recipes.values());
         recipeManager.replaceRecipes(finalRecipes);
+        OriginalRecipeCatalog catalog = originalCatalog(recipeManager);
         RecipeDatabase.reloadDatabase();
         RecipeRemovalManager.reloadData();
         RecipeSaveManager.markApplied();
 
         LOGGER.info(
-                "Applied RecipeModule datapack: baseline={}, configured={}, active={}, skippedBaseline={}, skippedConfigured={}",
+                "Applied RecipeModule datapack: baseline={}, originalRemoved={}, configured={}, active={}, skippedBaseline={}, skippedConfigured={}",
                 baseline.size(),
+                catalog.entries().values().stream().filter(OriginalRecipeCatalog.Entry::removed).count(),
                 added,
                 finalRecipes.size(),
                 skippedBaseline,
@@ -156,7 +155,7 @@ public final class RecipeMemoryManager {
         );
     }
 
-    /** Called at the typed RecipeManager.apply HEAD, before script recipe listeners run. */
+    /** Runs at RecipeManager.apply HEAD, before script reload listeners can add recipes. */
     public static void beforeScriptRecipes(RecipeManager manager,
                                            Map<ResourceLocation, JsonElement> source,
                                            ResourceManager resources,
@@ -166,34 +165,43 @@ public final class RecipeMemoryManager {
             snapshot = RecipeConfigStore.load(resources);
         } catch (Exception e) {
             LOGGER.error("Cannot read recipe removal rules; leaving original datapack recipes unchanged", e);
-            synchronized (RecipeMemoryManager.class) {
-                CATALOGS.remove(manager);
-                CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
-            }
+            publishCatalog(manager, OriginalRecipeCatalog.empty());
             return;
         }
+
+        List<RemovalEntry> rules = snapshot.removals();
+        List<RemovalEntry> cleaned = RemovalRulePruner.removeMissingOutputItems(rules,
+                KineticRegistries.items()::contains);
+        if (cleaned.size() != rules.size()) {
+            try {
+                RecipeConfigStore.replaceRemovalsAtomic(cleaned);
+                LOGGER.info("Removed {} recipe rules for unregistered output items", rules.size() - cleaned.size());
+                rules = cleaned;
+            } catch (Exception e) {
+                LOGGER.error("Could not persist cleanup of missing output-item rules", e);
+            }
+        }
+
         RegistryAccess registries;
         synchronized (RecipeMemoryManager.class) {
             registries = RELOAD_REGISTRIES.get(manager);
         }
-        final RegistryAccess reloadRegistries = registries;
         try {
-            OriginalRecipeCatalog catalog = OriginalRecipeCatalog.filter(source, snapshot.removals(),
-                    (id, json) -> inspectOriginal(id, json, conditions, reloadRegistries));
-            synchronized (RecipeMemoryManager.class) {
-                CATALOGS.put(manager, catalog);
-                CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
-            }
-            LOGGER.info("Filtered {} original datapack recipes from {} candidates",
+            OriginalRecipeCatalog catalog = OriginalRecipeCatalog.filter(source, rules,
+                    (id, json) -> inspectOriginal(id, json, conditions, registries));
+            publishCatalog(manager, catalog);
+            LOGGER.info("Removed {} original datapack recipes from {} candidates",
                     catalog.entries().values().stream().filter(OriginalRecipeCatalog.Entry::removed).count(),
                     catalog.entries().size());
         } catch (Exception e) {
             LOGGER.error("Cannot inspect original datapack recipes; leaving them unchanged", e);
-            synchronized (RecipeMemoryManager.class) {
-                CATALOGS.remove(manager);
-                CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
-            }
+            publishCatalog(manager, OriginalRecipeCatalog.empty());
         }
+    }
+
+    private static synchronized void publishCatalog(RecipeManager manager, OriginalRecipeCatalog catalog) {
+        CATALOGS.put(manager, catalog);
+        CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
     }
 
     private static Optional<OriginalRecipeCatalog.InspectedRecipe> inspectOriginal(
@@ -206,11 +214,12 @@ public final class RecipeMemoryManager {
             LOGGER.warn("Could not evaluate conditions of recipe {}; preserving it", id, e);
             return Optional.empty();
         }
+
         Recipe<?> recipe = null;
         try {
             recipe = RecipeManager.fromJson(id, json, conditions);
         } catch (Exception e) {
-            LOGGER.warn("Could not parse recipe {}; only ID and namespace removal rules can match it", id, e);
+            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it", id, e);
         }
         return Optional.of(new OriginalRecipeCatalog.InspectedRecipe(
                 recipe == null ? new RemovalCandidate(id, null, null, Set.of()) : candidateOf(recipe, registries),
@@ -242,18 +251,16 @@ public final class RecipeMemoryManager {
 
     private static final class DatapackRecipeReloadListener implements ResourceManagerReloadListener {
         private final RecipeManager recipeManager;
-        private final RegistryAccess registryAccess;
 
-        private DatapackRecipeReloadListener(RecipeManager recipeManager, RegistryAccess registryAccess) {
+        private DatapackRecipeReloadListener(RecipeManager recipeManager) {
             this.recipeManager = recipeManager;
-            this.registryAccess = registryAccess;
         }
 
         @Override
         public void onResourceManagerReload(@Nonnull ResourceManager resourceManager) {
             try {
                 RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager);
-                applySnapshot(recipeManager, registryAccess, snapshot);
+                applySnapshot(recipeManager, snapshot);
             } catch (Exception e) {
                 LOGGER.error(
                         "Failed to load RecipeModule datapack resource {}; keeping recipes loaded by Minecraft unchanged",
