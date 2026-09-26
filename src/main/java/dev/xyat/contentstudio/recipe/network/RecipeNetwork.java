@@ -12,6 +12,7 @@ import dev.xyat.contentstudio.recipe.UniversalRecipeMenu;
 import dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
+import dev.xyat.contentstudio.recipe.removal.RemovalRuleValidator;
 import dev.xyat.kineticcore.api.menu.KineticMenus;
 import dev.xyat.kineticcore.api.network.NetworkBuffer;
 import dev.xyat.kineticcore.api.network.NetworkCodec;
@@ -337,7 +338,8 @@ public final class RecipeNetwork {
         public static void handle(ActionPacket packet, ServerPacketContext context) {
             ServerPlayer player = context.sender();
             if (!player.hasPermissions(2)) return;
-            if (packet.action == 0 && isValidRemovalEntry(packet.entry)) {
+            if (packet.action == 0 && isValidRemovalEntry(packet.entry)
+                    && RemovalRuleValidator.canAdd(packet.entry, RecipeRemovalManager.snapshot())) {
                 RecipeRemovalManager.addEntry(packet.entry);
             } else if (packet.action == 1 && isValidRemovalEntry(packet.entry)) {
                 RecipeRemovalManager.removeEntry(packet.entry);
