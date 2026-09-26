@@ -26,4 +26,12 @@ class RemovalConfigCompatibilityTest {
         assertEquals("minecraft:old", root.getAsJsonArray("removals").get(0).getAsJsonObject()
                 .getAsJsonArray("excluded_recipe_ids").get(0).getAsString());
     }
+
+    @Test
+    void duplicateLegacyKeysDoNotBreakAuthoritativeSync() {
+        var root = JsonParser.parseString("{\"removals\":[{\"mode\":\"MOD\",\"value\":\"minecraft\"},"
+                + "{\"mode\":\"MOD\",\"value\":\"minecraft\",\"excluded_recipe_ids\":[\"minecraft:old\"]}]}"
+        ).getAsJsonObject();
+        assertEquals(1, RemovalConfigCodec.readRemovals(root).size());
+    }
 }

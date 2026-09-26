@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 
 final class RemovalConfigCodec {
     private RemovalConfigCodec() { }
@@ -32,7 +33,7 @@ final class RemovalConfigCodec {
     }
 
     static List<RemovalEntry> readRemovals(JsonObject root) {
-        List<RemovalEntry> removals = new ArrayList<>();
+        LinkedHashMap<RemovalEntry.Key, RemovalEntry> removals = new LinkedHashMap<>();
         JsonArray array = root.has("removals") && root.get("removals").isJsonArray()
                 ? root.getAsJsonArray("removals") : new JsonArray();
         for (JsonElement element : array) {
@@ -54,11 +55,12 @@ final class RemovalConfigCodec {
                         }
                     }
                 }
-                removals.add(new RemovalEntry(mode, value, comment, excluded));
+                RemovalEntry entry = new RemovalEntry(mode, value, comment, excluded);
+                removals.putIfAbsent(entry.key(), entry);
             } catch (RuntimeException ignored) {
                 // Preserve the legacy behavior of skipping malformed removal entries.
             }
         }
-        return removals;
+        return List.copyOf(removals.values());
     }
 }

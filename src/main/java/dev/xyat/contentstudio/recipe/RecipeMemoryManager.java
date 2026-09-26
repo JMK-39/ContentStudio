@@ -54,11 +54,17 @@ import java.util.concurrent.CompletableFuture;
 public final class RecipeMemoryManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Map<RecipeManager, OriginalRecipeCatalog> CATALOGS = new java.util.WeakHashMap<>();
+    private static final Map<RecipeManager, Long> CATALOG_VERSIONS = new java.util.WeakHashMap<>();
+    private static long nextCatalogVersion;
     private static final Map<RecipeManager, RegistryAccess> RELOAD_REGISTRIES = new java.util.WeakHashMap<>();
     private static boolean registered;
 
     public static synchronized OriginalRecipeCatalog originalCatalog(RecipeManager manager) {
         return CATALOGS.getOrDefault(manager, OriginalRecipeCatalog.empty());
+    }
+
+    public static synchronized long catalogVersion(RecipeManager manager) {
+        return CATALOG_VERSIONS.getOrDefault(manager, 0L);
     }
 
     public static List<Recipe<?>> recipeCatalog(RecipeManager manager) {
@@ -162,6 +168,7 @@ public final class RecipeMemoryManager {
             LOGGER.error("Cannot read recipe removal rules; leaving original datapack recipes unchanged", e);
             synchronized (RecipeMemoryManager.class) {
                 CATALOGS.remove(manager);
+                CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
             }
             return;
         }
@@ -175,6 +182,7 @@ public final class RecipeMemoryManager {
                     (id, json) -> inspectOriginal(id, json, conditions, reloadRegistries));
             synchronized (RecipeMemoryManager.class) {
                 CATALOGS.put(manager, catalog);
+                CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
             }
             LOGGER.info("Filtered {} original datapack recipes from {} candidates",
                     catalog.entries().values().stream().filter(OriginalRecipeCatalog.Entry::removed).count(),
@@ -183,6 +191,7 @@ public final class RecipeMemoryManager {
             LOGGER.error("Cannot inspect original datapack recipes; leaving them unchanged", e);
             synchronized (RecipeMemoryManager.class) {
                 CATALOGS.remove(manager);
+                CATALOG_VERSIONS.put(manager, ++nextCatalogVersion);
             }
         }
     }

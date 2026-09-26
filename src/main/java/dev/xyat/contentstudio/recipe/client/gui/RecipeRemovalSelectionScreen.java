@@ -7,6 +7,8 @@ import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.widget.input.KineticAutoComplete;
 import dev.xyat.kineticcore.api.client.widget.input.KineticAutoComplete.AutoCompleteBox;
 import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
+import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.contentstudio.recipe.removal.RemovalMode;
 import net.minecraft.client.gui.GuiGraphics;
 
@@ -20,13 +22,14 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
     private final List<RecipeRemovalScreen.SelectionEntry> visible = new ArrayList<>();
     private final GridScrollController scroll = new GridScrollController();
     private AutoCompleteBox search;
+    private StateButton previewButton;
     private String query;
 
     RecipeRemovalSelectionScreen(RecipeRemovalScreen parent, RemovalMode mode,
                                  List<RecipeRemovalScreen.SelectionEntry> options, String query) {
         super(RecipeRemovalScreen.tr("rule_editor", mode.getDisplayName()));
         setParentScreen(parent);
-        this.parent = parent; this.mode = mode; this.options = options; this.query = query;
+        this.parent = parent; this.mode = mode; this.options = options; this.query = query == null ? "" : query;
     }
 
     private String prefix() { return mode == RemovalMode.MOD ? "@" : mode == RemovalMode.TAG ? "#" : ""; }
@@ -40,24 +43,29 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
                 null
         );
         search.setValue(query);
-        search.setResponder(value -> { query = value; filter(); scroll.setOffset(0); });
-        addButton(564, 42, 60, RecipeRemovalScreen.tr("toggle_visible"), null, () -> {
-            boolean select = visible.stream().anyMatch(entry -> !entry.isSelected);
-            visible.forEach(entry -> entry.isSelected = select);
-        });
+        search.setResponder(value -> { query = value; filter(); scroll.setOffset(0); updatePreviewButton(); });
         addButton(498, 328, 60, RecipeRemovalScreen.tr("back"), null, this::onClose);
-        addButton(564, 328, 60, RecipeRemovalScreen.tr("confirm_rules"), null, () -> {
-            for (var entry : options) {
-                if (entry.isSelected && !entry.alreadyExists) parent.addEntryFromSelection(mode, entry.value);
-                else if (!entry.isSelected && entry.alreadyExists) parent.removeEntryDirectly(mode, entry.value);
-            }
-            onClose();
-        });
+        previewButton = addButton(564, 328, 60, RecipeRemovalScreen.tr("scope_picker_open"), null,
+                () -> parent.openImpactEditor(mode, normalizedQuery(), null));
         filter();
+        updatePreviewButton();
+    }
+
+    private String normalizedQuery() {
+        String value = query.trim();
+        return value.startsWith("@") || value.startsWith("#") ? value.substring(1) : value;
+    }
+
+    private void updatePreviewButton() {
+        if (previewButton == null) return;
+        String value = normalizedQuery();
+        previewButton.setEnabled(!value.isBlank() && (mode == RemovalMode.MOD
+                ? KineticResourceIds.tryParse(value + ":scope") != null
+                : KineticResourceIds.tryParse(value) != null));
     }
 
     private void filter() {
-        String value = query.startsWith("@") || query.startsWith("#") ? query.substring(1) : query;
+        String value = normalizedQuery();
         visible.clear();
         for (var entry : options) if (KineticSearch.match(entry.value, value)) visible.add(entry);
         scroll.update(visible.size(), 12);
@@ -66,7 +74,7 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
     @Override protected void renderCanvasBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         GuiTheme.panel(graphics, 0, 0, 640, 360);
         graphics.drawString(font, title, 16, 12, GuiTheme.current().text(), false);
-        graphics.drawString(font, RecipeRemovalScreen.tr("rule_scope"), 16, 28, GuiTheme.current().mutedText(), false);
+        graphics.drawString(font, RecipeRemovalScreen.tr("scope_picker_hint"), 16, 28, GuiTheme.current().mutedText(), false);
         scroll.update(visible.size(), 12);
         enableUiScissor(graphics, 16, 72, 624, 312);
         int start = scroll.smoothIndexOffset(), shift = scroll.visualShift(20);
@@ -76,9 +84,10 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
             boolean hover = mouseX >= 16 && mouseX < 624 && mouseY >= y && mouseY < y + 20;
             GuiTheme.stateSurface(
                     graphics, 16, y + 1, 608, 18, GuiTheme.Surface.PANEL_ALT,
-                    entry.isSelected, hover, false
+                    entry.alreadyExists, hover, false
             );
-            String label = (entry.isSelected ? "☑ " : "☐ ") + prefix() + entry.value;
+            String label = (entry.alreadyExists ? RecipeRemovalScreen.tr("scope_picker_existing").getString()
+                    : RecipeRemovalScreen.tr("scope_picker_new").getString()) + "  " + prefix() + entry.value;
             graphics.drawString(font, font.plainSubstrByWidth(label, 584), 24, y + 6, GuiTheme.current().text(), false);
         }
         if (visible.isEmpty()) graphics.drawString(font, RecipeRemovalScreen.tr("empty"), 24, 82, GuiTheme.current().mutedText(), false);
@@ -93,7 +102,7 @@ final class RecipeRemovalSelectionScreen extends KineticScreen {
         if (scroll.beginDrag(x, y, 628, 72, 4, 240, 16, 1)) return true;
         if (x >= 16 && x < 624 && y >= 72 && y < 312) {
             int index = scroll.smoothIndexOffset() + (int) ((y - 72 + scroll.visualShift(20)) / 20);
-            if (index < visible.size()) visible.get(index).isSelected = !visible.get(index).isSelected;
+            if (index >= 0 && index < visible.size()) parent.openImpactEditor(mode, visible.get(index).value, null);
             return true;
         }
         return false;

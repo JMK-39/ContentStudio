@@ -15,6 +15,7 @@ public final class RecipeRemovalManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final List<RemovalEntry> REMOVAL_LIST = new ArrayList<>();
     private static boolean loaded;
+    private static boolean applyingDraft;
 
     private RecipeRemovalManager() {
     }
@@ -32,18 +33,6 @@ public final class RecipeRemovalManager {
         loaded = true;
     }
 
-    public static synchronized void addEntry(RemovalEntry entry) {
-        loadData();
-        if (REMOVAL_LIST.stream().noneMatch(existing -> existing.key().equals(entry.key()))) {
-            REMOVAL_LIST.add(entry);
-        }
-    }
-
-    public static synchronized void removeEntry(RemovalEntry entry) {
-        loadData();
-        REMOVAL_LIST.removeIf(existing -> existing.key().equals(entry.key()));
-    }
-
     public static synchronized List<RemovalEntry> snapshot() {
         loadData();
         return new ArrayList<>(REMOVAL_LIST);
@@ -54,38 +43,35 @@ public final class RecipeRemovalManager {
             return;
         }
         List<RemovalEntry> entries = snapshot();
-        java.util.Map<net.minecraft.world.item.Item, net.minecraft.world.item.ItemStack> modifiedItems = new java.util.LinkedHashMap<>();
-        for (var recipe : RecipeMemoryManager.recipeCatalog(player.server.getRecipeManager())) {
-            try {
-                if (RecipeMemoryManager.matchesRemoval(recipe, entries, player.level().registryAccess())) {
-                    var output = recipe.getResultItem(player.level().registryAccess());
-                    if (!output.isEmpty()) modifiedItems.putIfAbsent(output.getItem(), output.copy());
-                }
-            } catch (RuntimeException ignored) {
-                // Recipes with dynamic results are identified by JEI when browsing the item.
-            }
-        }
-        RecipeNetwork.sendSyncToPlayer(player, entries, List.copyOf(modifiedItems.values()));
+        RecipeNetwork.sendRuleState(player, 0L, RecipeNetwork.SaveStatus.SYNC, entries);
     }
 
-    public static void saveAndApply(ServerPlayer player) {
+    public static synchronized void saveDraftAndApply(ServerPlayer player, long requestId, List<RemovalEntry> draft) {
         if (player == null || player.getServer() == null) {
             return;
         }
-        try {
-            RecipeConfigStore.updateRemovals(snapshot());
-            var server = player.getServer();
-            RecipeMemoryManager.reloadDatapacks(server).whenComplete((unused, error) -> server.execute(() -> {
-                if (error == null) {
-                    RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.msg.removals_saved_applied"));
-                } else {
-                    LOGGER.error("Failed to reload RecipeModule datapack after saving removals", error);
-                    RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
-                }
-            }));
-        } catch (Exception e) {
-            LOGGER.error("Failed to save recipe removals", e);
-            RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
+        if (applyingDraft) {
+            RecipeNetwork.sendRuleState(player, requestId, RecipeNetwork.SaveStatus.REJECTED, snapshot());
+            return;
         }
+        applyingDraft = true;
+        var server = player.getServer();
+        RemovalDraftCommitter.commit(draft, RecipeConfigStore::replaceRemovalsAtomic,
+                () -> RecipeMemoryManager.reloadDatapacks(server))
+                .thenAccept(outcome -> server.execute(() -> {
+                    synchronized (RecipeRemovalManager.class) {
+                        applyingDraft = false;
+                    }
+                    if (outcome.cause() != null) {
+                        LOGGER.error("Could not apply recipe-removal draft ({})", outcome.status(), outcome.cause());
+                    }
+                    RecipeNetwork.SaveStatus status = switch (outcome.status()) {
+                        case APPLIED -> RecipeNetwork.SaveStatus.APPLIED;
+                        case REJECTED -> RecipeNetwork.SaveStatus.REJECTED;
+                        case PERSISTED_RELOAD_FAILED -> RecipeNetwork.SaveStatus.PERSISTED_RELOAD_FAILED;
+                    };
+                    RecipeNetwork.sendRuleState(player, requestId, status,
+                            status == RecipeNetwork.SaveStatus.REJECTED ? snapshot() : draft);
+                }));
     }
 }

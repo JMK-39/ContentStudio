@@ -35,11 +35,20 @@ Install Content Studio and its required dependencies on the client and server fo
 - Browse saved additions in the preview, reopen a recipe for editing, or mark it for deletion.
 - Unresolved items appear as barrier placeholders. Replace invalid slots before saving.
 
-The removal manager targets individual recipe IDs or broader rules based on output item, mod ID, item tag, or recipe type. Selecting an output lists its recipes, making it possible to remove one acquisition path while retaining another.
+The removal manager shows each original datapack recipe's ID, status, and matching rules. Select an output to inspect its individual acquisition paths. Choose a mod, output, item tag, or recipe type to preview a broader rule: the impact list groups all matching original recipes by output and starts fully selected. An output checkbox controls only the recipe IDs currently listed under that output; expand the group to change one recipe. Searching the list does not change hidden selections. Right-clicking an item and choosing a recipe type opens the same impact list for that type across **all** outputs.
 
-A recipe affected by a broad rule must first be released from that rule before being managed individually. External viewer entries without a confirmed server recipe ID are preview-only. JEI actions can open all recipes for an item or the selected recipe when JEI is available.
+| Confirmation | Saved rule | Effect on future original recipes |
+| --- | --- | --- |
+| **Remove selected recipes only** | One exact ID rule for each selected recipe | New IDs are unaffected |
+| **Keep removing within this range** | One persistent range rule; unchecked current recipe IDs become exclusions on that rule | New matching IDs are removed, even for an unchecked output |
 
-**Save timing:** recipe additions and edits are written to the bundle first. Closing the complete recipe-editing session requests a server datapack reload to apply pending changes. The removal screen also offers a save/apply action. Wait for the server result before checking crafting behavior.
+When editing an existing range rule, **Remove selected recipes only** replaces that range rule with exact ID rules for the checked recipes. Other range rules remain in place and may still remove an unchecked recipe.
+
+An exclusion belongs to one rule and one original recipe ID. If several rules remove the same recipe, restoring that recipe excludes its ID from every matching range rule and clears its exact ID rule. Other recipes under those range rules remain removed. A missing excluded ID is retained so the exclusion works again if its datapack returns. External recipe-viewer entries without a server-confirmed original ID are preview-only; JEI can still open their details when available.
+
+Removal rules run against the original datapack recipe pool **before** KubeJS and CraftTweaker recipe scripts write recipes. Recipes added later by either optional script mod, including recipes that reuse a removed original ID, and recipes made in Content Studio's own editor are protected from these rules. Rule status describes the original recipe; a later recipe with the same ID may still be craftable. This behavior needs no KubeJS or CraftTweaker installation or ID naming convention.
+
+**Save timing:** recipe additions and edits are written to the bundle first. Closing the complete recipe-editing session requests a server datapack reload to apply pending changes. The removal screen submits the complete draft with **Save and apply**; wait for the server's applied result before treating the draft as saved or testing crafting. If validation or writing fails, the draft remains available to correct and retry. If writing succeeds but reload fails, the rules are on disk but have not yet been applied.
 
 ### Entity, block, and container loot
 
@@ -126,11 +135,18 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 - 在新增配方预览中查看、重新编辑配方，或标记删除。
 - 无法解析的物品以屏障占位显示；保存前需要修复错误槽位。
 
-移除管理器既能按具体配方 ID 操作，也能按输出物品、模组 ID、物品标签、配方类型批量移除。选中产物后可查看多条配方，从而只关闭其中一种获取方式。
+移除管理器会直接显示每条原始数据包配方的 ID、状态及命中规则。选中产物可逐条检查获取途径；选择模组、产物、物品标签或配方类型后，可预览该范围内**所有**受影响的原始配方，按产物分组，初始全部勾选。取消一个物品分组的勾选，只影响该组当前列出的配方 ID；展开后也可逐条勾选。搜索不会改变被隐藏条目的勾选状态。右键物品选择配方类型，会打开同一份类型影响列表，范围覆盖所有产物。
 
-如果配方受批量规则影响，需要先撤销对应规则，再按 ID 单独管理。没有可确认服务端配方 ID 的外部展示配方仅供预览。安装并就绪的 JEI 可用于打开物品全部配方或选中的单条配方。
+| 确认方式 | 保存的规则 | 以后新增的原始配方 |
+| --- | --- | --- |
+| **只移除当前勾选的配方** | 为每个勾选的配方建立精确 ID 规则 | 新 ID 不受影响 |
+| **按此范围持续移除** | 保存一条范围规则；未勾选的当前配方 ID 成为该规则的排除项 | 匹配的新 ID 仍会被移除，即使产物曾取消勾选 |
 
-**保存时机：**新增和修改首先写入配方数据文件；退出整个配方编辑流程后，才请求服务端数据包重载，统一应用待处理修改。移除页面另有保存应用操作。检查合成结果前，应等待服务端处理完成。
+排除项只属于一条规则和一条原始配方 ID。如果多条规则同时移除同一配方，“恢复这一条”会将它从每条命中的批量规则中排除，并清除针对该 ID 的单条规则；其他配方仍受批量规则影响。暂时不存在的排除 ID 会保留，以便数据包恢复时继续生效。没有服务端确认的原始配方 ID 的外部展示条目只能预览；安装 JEI 时仍可查看其详情。
+
+移除规则只处理 **KubeJS 和 CraftTweaker 配方脚本写入前**的原始数据包配方。两个可选脚本模组后续新增的配方，包括复用已移除原始 ID 的配方，以及 Content Studio 自身编辑器新增的配方，都不受这些规则影响。规则状态描述的是原始配方；同 ID 的后续配方仍可能可以制作。此边界不依赖安装 KubeJS 或 CraftTweaker，也不依赖配方 ID 命名习惯。
+
+**保存时机：**新增和修改首先写入配方数据文件；退出整个配方编辑流程后，才请求服务端数据包重载。移除页面通过**保存应用**提交完整草稿；收到服务端“已应用”结果后，才能视为保存成功并检查合成。校验或写入失败时草稿保留，可修改后重试；文件写入成功但重载失败时，规则已在磁盘上，却尚未应用到游戏。
 
 ### 实体、方块与容器战利品
 

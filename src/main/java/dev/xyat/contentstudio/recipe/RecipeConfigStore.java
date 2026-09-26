@@ -110,8 +110,14 @@ public final class RecipeConfigStore {
     }
 
     public static synchronized void updateRemovals(List<RemovalEntry> removals) throws IOException {
-        Snapshot current = loadRequired();
-        save(current.recipes(), removals, current.unresolvedRecipes());
+        replaceRemovalsAtomic(removals);
+    }
+
+    /** Replace only the removal field, preserving every unrelated or unrecognized config field. */
+    public static synchronized void replaceRemovalsAtomic(List<RemovalEntry> removals) throws IOException {
+        JsonObject root = readRootRequired();
+        root.add("removals", RemovalConfigCodec.writeRemovals(removals));
+        writeRootAtomic(root);
     }
 
     public static synchronized void save(List<RecipeRecord> recipes, List<RemovalEntry> removals) throws IOException {

@@ -86,7 +86,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     private void refreshAction() {
         toggle.setText(parent.recipeAction(entry));
         toggle.setEnabled(parent.canToggle(entry) && !dataError);
-        registerWidgetTooltip(toggle, RecipeRemovalScreen.tr(entry.removable() ? "exact_hint" : "view_only_hint"));
+        registerWidgetTooltip(toggle, RecipeRemovalScreen.tr(parent.canToggle(entry) ? "exact_hint" : "view_only_hint"));
         if (viewerButton != null) {
             viewerButton.setEnabled(RecipeJeiBridge.available());
             registerWidgetTooltip(viewerButton, RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
@@ -111,6 +111,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         graphics.drawCenteredString(font, title, 320, 16, GuiTheme.current().text());
         Component id = entry.recipe().id() == null ? RecipeRemovalScreen.tr("no_id") : Component.literal(entry.recipe().id().toString());
         graphics.drawCenteredString(font, font.plainSubstrByWidth(id.getString(), 608), 320, 36, GuiTheme.current().mutedText());
+        graphics.drawCenteredString(font, parent.statusLabel(entry), 320, 50, GuiTheme.current().mutedText());
         GuiTheme.panelAlt(graphics, 16, 62, 608, 250);
         if (dataError) graphics.drawCenteredString(font, RecipeRemovalScreen.tr("data_error"), 320, 170, GuiTheme.current().danger());
         else if (preview != null) drawPreview(graphics, mouseX, mouseY, false);
@@ -156,6 +157,10 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     }
 
     @Override protected void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY, int screenMouseX, int screenMouseY) {
+        if (mouseY >= 32 && mouseY < 62) {
+            KineticOverlays.requestTooltip(parent.recipeReasonLines(entry), 360, screenMouseX, screenMouseY);
+            return;
+        }
         if (preview != null || dataError) return;
         ItemStack hovered = hoveredFallbackStack(mouseX, mouseY);
         if (!hovered.isEmpty()) KineticOverlays.requestItemTooltip(hovered, screenMouseX, screenMouseY);

@@ -35,6 +35,7 @@ public record RecipeSummary(ResourceLocation id, ResourceLocation type, ItemStac
         ResourceLocation type = buffer.readResourceLocation();
         ItemStack output = buffer.readItemStack();
         int size = buffer.readVarInt();
+        if (size < 0 || size > 256) throw new IllegalArgumentException("Invalid ingredient count");
         List<Ingredient> inputs = new ArrayList<>();
         for (int i = 0; i < size; i++) inputs.add(buffer.readIngredient());
         return new RecipeSummary(id, type, output, List.copyOf(inputs), buffer.readVarInt());
