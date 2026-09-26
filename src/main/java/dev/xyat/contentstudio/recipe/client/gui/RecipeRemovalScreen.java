@@ -25,6 +25,7 @@ import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import dev.xyat.contentstudio.recipe.removal.RemovalMode;
 import dev.xyat.contentstudio.recipe.removal.RemovalRuleEvaluator;
+import dev.xyat.contentstudio.recipe.removal.RecipeViewerCategoryFilter;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -38,7 +39,7 @@ import java.util.*;
 /** Item-first removal: browsing never changes recipes; edits are sent only on save. */
 public class RecipeRemovalScreen extends KineticScreen {
     private static final int GX = 8, GY = 32, COLS = 11, ROWS = 16, CELL = 20;
-    private static final int LX = 244, LY = 104, LW = 380, LH = 120, RH = 30;
+    private static final int LX = 244, LY = 58, LW = 380, LH = 180, RH = 30;
     private final List<RemovalEntry> allRemovals = new ArrayList<>();
     private List<RemovalEntry> savedRemovals;
     private final EditedEntryTracker<Item> edited = new EditedEntryTracker<>();
@@ -98,27 +99,27 @@ public class RecipeRemovalScreen extends KineticScreen {
         itemSearch.setMaxLength(160); itemSearch.setValue(itemQuery);
         itemSearch.setResponder(query -> { itemQuery = query; refreshItems(); itemScroll.setOffset(0); });
         recipeSearch = addAutoCompleteField(
-                244, 80, 380, tr("recipe_search"), tr("recipe_search"),
+                244, 34, 380, tr("recipe_search"), tr("recipe_search"),
                 this::recipeDictionary, null
         );
         recipeSearch.setMaxLength(256); recipeSearch.setValue(recipeQuery);
         recipeSearch.setResponder(query -> { recipeQuery = query; filterRecipes(); recipeScroll.setOffset(0); });
-        button("scope_menu", "scope_menu_hint", 244, 54, 60, () -> openBulkMenu(244, 76));
-        rulesButton = button("rules", "rules_button_hint", 310, 54, 60, () -> {
+        button("scope_menu", "scope_menu_hint", 244, 8, 60, () -> openBulkMenu(244, 30));
+        rulesButton = button("rules", "rules_button_hint", 310, 8, 60, () -> {
             rulesView = !rulesView; selectedRule = null; recipeScroll.setOffset(0); filterRecipes();
         });
-        ruleScopeButton = button("all_rules", "rule_filter_hint", 508, 54, 50, () -> {
+        ruleScopeButton = button("all_rules", "rule_filter_hint", 508, 8, 50, () -> {
             allRulesView = !allRulesView;
             recipeScroll.setOffset(0);
             filterRecipes();
         });
-        button("reset", "reset_hint", 376, 54, 60, () -> {
+        button("reset", "reset_hint", 376, 8, 60, () -> {
             allRemovals.clear(); allRemovals.addAll(savedRemovals);
             draftEditedItems.clear();
             rebuildEditedMarkers();
             refreshItems(); filterRecipes();
         });
-        saveButton = button("save", "save_hint", 442, 54, 60, this::save);
+        saveButton = button("save", "save_hint", 442, 8, 60, this::save);
         viewerAllButton = button("viewer_all", 564, 8, 60, () -> openViewerMenu(564, 30, null));
         button("back", 366, 334, 60, this::onClose);
         copyButton = button("copy", "context.copy_hint", 432, 334, 60, () -> {
@@ -247,6 +248,7 @@ public class RecipeRemovalScreen extends KineticScreen {
         }
         try {
             for (var entry : RecipeJeiBridge.recipes(selectedItem)) {
+                if (!RecipeViewerCategoryFilter.isRecipeCategory(entry.recipe().type())) continue;
                 var original = entry.recipe().id() == null ? null : originals.get(entry.recipe().id());
                 if (original != null && RemovalDisplayState.of(originalRows.candidateFor(original), savedRemovals)
                         .status() != RemovalDisplayState.Status.REMOVED) {
@@ -720,12 +722,6 @@ public class RecipeRemovalScreen extends KineticScreen {
             }
         }
         disableUiScissor(g); scrollbar(g, itemScroll, mx, my, 232, GY, ROWS * CELL);
-        if (!selectedItem.isEmpty()) {
-            GuiTheme.itemSlot(g, 246, 8, 20, false);
-            drawItem(g, selectedItem, 248, 10);
-            text(g, selectedItem.getHoverName(), 272, 8, 252, GuiTheme.current().text());
-            text(g, Component.literal(String.valueOf(KineticRegistries.items().id(selectedItem.getItem()))), 272, 22, 252, GuiTheme.current().mutedText());
-        } else text(g, tr("choose_item"), 244, 14, 280, GuiTheme.current().mutedText());
         renderRecipeList(g, mx, my); renderPreview(g);
     }
 

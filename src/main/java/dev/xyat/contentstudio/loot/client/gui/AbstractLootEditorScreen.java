@@ -69,6 +69,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     protected static final int DROP_ROW_H = 36;
     protected static final int ICON_CELL = 22;
     protected static final int EDIT_ICON = 20;
+    private static final int TARGET_SCROLLBAR_X = LEFT_X + TARGET_WIDTH + 2;
+    private static final int TARGET_SCROLLBAR_WIDTH = 6;
     private static final int DROP_SCROLLBAR_X = RIGHT_X + RIGHT_W - 13;
     private static final int GROUP_Y = RIGHT_Y + HEADER_H + 4;
     private static final int GROUP_H = RIGHT_Y + RIGHT_H - GROUP_Y - 4;
@@ -698,9 +700,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (maxTargetScroll <= 0) {
             return;
         }
-        int x = LEFT_X + TARGET_WIDTH + 4;
+        int x = TARGET_SCROLLBAR_X;
         int y = targetAreaY() + 1;
-        int width = 4;
+        int width = TARGET_SCROLLBAR_WIDTH;
         int height = targetAreaHeight() - 2;
         int thumbHeight = Math.min(height, targetScrollbarThumbHeight());
         double smoothTarget = smoothTargetScroll();
@@ -2596,6 +2598,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     @Override
     protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
+        updateTargetScrollLimit();
         renderTargets(g, mx, my);
         renderTopInfo(g, mx, my);
         if (isSpecialPanelActive()) {
@@ -3131,6 +3134,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (isSavingBatch()) {
             return true;
         }
+        updateTargetScrollLimit();
         boolean handled = super.canvasMouseClicked(mx, my, btn);
         if (handled) {
             return true;
@@ -3147,7 +3151,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 selectEntry(targetEntry);
                 return true;
             }
-            if (maxTargetScroll > 0 && mx >= LEFT_X + TARGET_WIDTH + 4 && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() + 1 && my <= targetAreaY() + targetAreaHeight() - 1) {
+            if (maxTargetScroll > 0 && mx >= TARGET_SCROLLBAR_X && mx <= TARGET_SCROLLBAR_X + TARGET_SCROLLBAR_WIDTH && my >= targetAreaY() + 1 && my <= targetAreaY() + targetAreaHeight() - 1) {
                 draggingTargetScroll = true;
                 targetScroll = KineticScroll.stateOffsetFromPointerPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
                 targetScrollState.snap(targetScroll, maxTargetScroll);
@@ -3254,6 +3258,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     @Override
     protected boolean canvasMouseScrolled(double mx, double my, double delta) {
+        updateTargetScrollLimit();
         if (mx >= LEFT_X && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && maxTargetScroll > 0) {
             targetScroll = targetScrollState.wheel(
                     targetScroll, delta, 1.0D, maxTargetScroll

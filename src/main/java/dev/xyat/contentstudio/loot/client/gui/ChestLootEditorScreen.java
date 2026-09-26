@@ -30,7 +30,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     private static final int ROW_HEIGHT = 24;
     private static final int LIST_HEIGHT = ROW_HEIGHT * 13;
     private static final int VISIBLE_ROWS = 13;
-    private static final int LIST_Y = SEARCH_Y + 22;
+    private static final int LIST_Y = SEARCH_Y + 20;
 
     private static final int SPECIAL_X = RIGHT_X + 10;
     private static final int SPECIAL_Y = RIGHT_Y + 50;
