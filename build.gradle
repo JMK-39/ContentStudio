@@ -40,7 +40,7 @@ def pVersion = getDynamicVersion()
 def pGroup = project.findProperty('mod_group_id')?.toString() ?: 'dev.xyat.contentstudio'
 def pModId = project.findProperty('mod_id')?.toString() ?: 'contentstudio'
 def primaryInternalModId = 'contentstudio'
-def mixinConfigList = ['contentstudio.loots.mixins.json', 'contentstudio.villager.mixins.json']
+def mixinConfigList = ['contentstudio.loots.mixins.json', 'contentstudio.villager.mixins.json', 'contentstudio.recipe.mixins.json']
 
 version = pVersion
 group = pGroup
