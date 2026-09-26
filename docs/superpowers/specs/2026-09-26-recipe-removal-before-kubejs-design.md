@@ -2,23 +2,25 @@
 
 ## 目标与边界
 
-管理员能够看出某条原配方为何被移除，撤销误删，并在批量规则中排除单条原配方。ContentStudio 的移除规则只处理 `RecipeManager.apply` 收到的原始数据包配方。KubeJS `ServerEvents.recipes` 后续写入的配方，以及 ContentStudio 配方编辑器创建的配方，绝不作为移除目标。判断范围依赖处理阶段，不依赖配方 ID 的命名空间、前缀或格式。
+管理员能够看出某条原配方为何被移除，撤销误删，并在批量规则中排除单条原配方。ContentStudio 的移除规则只处理 `RecipeManager.apply` 收到的原始数据包配方。KubeJS、CraftTweaker（CRT）脚本后续写入的配方，以及 ContentStudio 配方编辑器创建的配方，绝不作为移除目标。判断范围依赖处理阶段，不依赖配方 ID 的命名空间、前缀或格式；ContentStudio 不依赖 KubeJS 或 CraftTweaker 的类、API、安装状态或配方 ID 命名习惯。
 
 “排除”按一条有注册 ID 的原配方生效，并归属到具体移除规则。批量预览中的物品行只是把当前命中的原配方按产物分组；取消勾选该物品，相当于把它当前列出的全部命中配方 ID 加入此规则的排除项。以后数据包新增的**不同 ID**原配方仍受规则影响，即使产物相同；原 ID 的配方内容更换后仍继承该 ID 的排除设置。若多条规则同时命中，恢复该配方必须排除所有命中的批量规则，并删除针对该 ID 的单条移除规则。没有可确认 ID 的外部展示配方只能预览。
 
 ## 现状与根因
 
-`RecipeMemoryManager` 当前在晚于配方管理器加载的资源重载监听器中读取 `recipeManager.getRecipes()`，加入编辑器配方后，对合并后的整张表执行 `removeIf(matchesRemoval)`。这会影响 KubeJS 已写入的配方，也会影响 ContentStudio 自己的配方。`RecipeRemovalScreen` 将全局规则和物品配方分成互斥视图；具体命中的规则主要藏在提示中，批量规则命中时恢复按钮被禁用。
+`RecipeMemoryManager` 当前在晚于配方管理器加载的资源重载监听器中读取 `recipeManager.getRecipes()`，加入编辑器配方后，对合并后的整张表执行 `removeIf(matchesRemoval)`。这会影响脚本已写入的配方，也会影响 ContentStudio 自己的配方。`RecipeRemovalScreen` 将全局规则和物品配方分成互斥视图；具体命中的规则主要藏在提示中，批量规则命中时恢复按钮被禁用。
 
 已安装的 KubeJS 在 `RecipeManager.apply` 的 HEAD 注入配方处理，Mixin 优先级为 1100，并可取消原方法。因此晚期监听器无法满足本设计的范围要求。
 
+CraftTweaker 1.20.1 Forge [通过 `AddReloadListenerEvent` 注册脚本监听器](https://github.com/CraftTweaker/CraftTweaker/blob/1.20.1/Forge/src/main/java/com/blamejared/crafttweaker/impl/event/CTCommonEventHandler.java#L687-L693)，而 [Forge 将模组监听器接在原版监听器后](https://github.com/MinecraftForge/MinecraftForge/blob/1.20.1/patches/minecraft/net/minecraft/server/ReloadableServerResources.java.patch#L369-L380)。CraftTweaker 的[监听器先取得已经加载的 `RecipeManager`，再执行脚本](https://github.com/CraftTweaker/CraftTweaker/blob/1.20.1/Common/src/main/java/com/blamejared/crafttweaker/impl/script/ScriptReloadListener.java#L674-L716)。因此同一个 `RecipeManager.apply` 前置过滤点也先于 CraftTweaker 常规配方脚本。此结论还需在带 CraftTweaker 的独立运行实例中验收。
+
 ## 服务端生命周期
 
-1. 在 `RecipeManager.apply` 的 HEAD 增加优先级高于 1100 的 ContentStudio 注入，且不直接调用 KubeJS 类。注入接收原始配方 JSON 映射和本次重载的 `ResourceManager`，从资源包读取 ContentStudio 规则快照。
+1. 在 `RecipeManager.apply` 的 HEAD 增加优先级高于 1100 的 ContentStudio 注入，且不调用 KubeJS 或 CraftTweaker 类。注入接收原始配方 JSON 映射和本次重载的 `ResourceManager`，从资源包读取 ContentStudio 规则快照。
 2. 在修改映射前记录“原配方目录”，供管理界面查询被移除的配方。只对该映射中的条目评估移除规则。规则预览和物品勾选只能使用这份服务端目录，不能使用后续的活动配方表或 JEI 结果计算候选。原始配方无法解析或无法确定产物时，仍可应用 ID、配方命名空间等能够可靠判定的规则；无法可靠判定的条件视为不匹配并记诊断日志，不得误删。`TYPE` 继续按解析后的 `Recipe#getType()` 判定，不能把原始 JSON 的 `type`（序列化器 ID）当成配方类型。
-3. 从原始映射移除命中的条目。KubeJS 随后读取已经过滤的映射并执行脚本。即便脚本以被移除原配方的相同 ID 重建配方，新配方也应存在。
+3. 从原始映射移除命中的条目。KubeJS 随后读取已经过滤的映射并执行脚本；CraftTweaker 在后续脚本处理阶段写入配方。两者后续新建的配方都应存在，哪怕它们复用被移除原配方的 ID；若脚本 API 允许自定命名空间，其选择也不影响保护。ContentStudio 不拦截或调用这两个模组。
 4. 晚期重载监听器只加入 ContentStudio 编辑器配方并刷新相关缓存，不再对最终配方表执行通用移除过滤。编辑器配方不受任何移除规则影响，即使 ID、产物、类型或模组规则与它匹配。
-5. 不安装 KubeJS 时同一个前置过滤器仍正常工作。每次启动和 `/reload` 都重新从资源包加载规则，目录与实际过滤使用同一快照。若读取规则失败，保留原始配方并记录错误；不能因为配置损坏而清空配方。
+5. 不安装 KubeJS 与 CraftTweaker、只安装其中之一或同时安装两者时，同一个前置过滤器都应正常工作。`build.gradle` 和 `mods.toml` 不增加对两者的任何依赖项。每次启动和 `/reload` 都重新从资源包加载规则，目录与实际过滤使用同一快照。若读取规则失败，保留原始配方并记录错误；不能因为配置损坏而清空配方。
 
 原配方目录与最终活动配方表是两个概念。界面中“已移除”只描述原配方的移除状态；若脚本后来以同一 ID 写入配方，应显示“原配方已移除，当前仍有后续写入的同 ID 配方”，不能把它解释为移除失败，也不能把后续配方纳入移除操作。
 
@@ -46,14 +48,14 @@
 
 ## 保存与同步
 
-客户端维护草稿；服务端发送原配方目录、当前规则和活动配方状态，供界面解释实际效果。保存时提交完整规则快照，服务端验证后原子写入现有 `recipe_bundle.json`，触发一次资源重载，再返回成功或失败以及权威规则状态。成功前不要把草稿标记为已保存。失败时保留草稿并显示原因。管理员权限检查保持不变。
+客户端维护草稿；服务端发送原配方目录、当前规则和活动配方状态，供界面解释实际效果。保存时提交完整规则快照，服务端验证后原子写入现有 `recipe_bundle.json`，触发一次资源重载，再返回成功或失败以及权威规则状态。成功前不要把草稿标记为已保存。失败时保留草稿并显示原因；若文件已经写入而重载失败，应明确提示“规则已写入但尚未应用”，不能误报为完全未保存。管理员权限检查保持不变。
 
 这是规则网络格式的变更；连接双方必须使用相同版本。旧配置文件自动按空排除项迁移，无需管理员手工改 JSON。
 
 ## 验收
 
 - 原配方被 OUTPUT、TAG、MOD、TYPE 或 RECIPE_ID 规则移除；同一规则排除某个原配方 ID 后只有这一条恢复；多个规则同时命中时恢复操作处理全部阻挡规则。
-- KubeJS 新增配方使用任意命名空间或复用已移除原配方的 ID，仍可制作；ContentStudio 编辑器新增配方即便与移除规则同产物、同类型或同 ID，仍保留。
+- KubeJS 新增配方使用自定命名空间或复用已移除原配方的 ID，仍可制作；CraftTweaker 通过常规配方 API 新增的配方及对同 ID 原配方的重建，仍可制作；ContentStudio 编辑器新增配方即便与移除规则同产物、同类型或同 ID，仍保留。
 - 界面直接显示原配方状态和命中规则；排除项可查看、撤销、保存和重载；无可确认原配方 ID 的展示项不会出现可执行的移除按钮。
 - 批量规则预览列出所有可识别的受影响原配方，按物品分组且新建时默认全选；取消某物品只排除当时列出的配方 ID。搜索、展开、全选、编辑旧规则、两种确认动作和未来新增原配方的行为均有验证。
-- 不安装 KubeJS、服务器启动、`/reload`、保存后重载、配置读取失败，以及客户端保存失败的路径均有验证。
+- 不安装两个脚本模组、单独安装 KubeJS、单独安装 CraftTweaker、同时安装两者，以及服务器启动、`/reload`、保存后重载、配置读取失败、客户端保存失败的路径均有验证；运行时和构建依赖中没有两者的依赖声明。
