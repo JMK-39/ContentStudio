@@ -474,14 +474,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             RecipeRecord record =
                     displayRecords.get(i);
 
-            GuiTheme.itemSlot(
-                    graphics,
-                    x,
-                    y,
-                    SLOT_SIZE,
-                    4,
-                    false
-            );
+            GuiTheme.itemGrid(graphics, x, y, SLOT_SIZE, SLOT_SIZE);
 
             GuiTheme.stateOutline(
                     graphics,

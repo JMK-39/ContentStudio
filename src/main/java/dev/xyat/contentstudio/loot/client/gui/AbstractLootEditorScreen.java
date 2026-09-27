@@ -546,7 +546,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             groupArrowButtons[i].setEnabled(active);
             groupAddButtons[i].setEnabled(active);
             groupPoolEditButtons[i].setEnabled(active);
-            groupPoolDeleteButtons[i].setEnabled(active && poolCountForGroupedLayout() > 1);
+            groupPoolDeleteButtons[i].setEnabled(active && poolCountForGroupedLayout() > 0);
             groupEntryDeleteButtons[i].setEnabled(active);
             groupEntryEditButtons[i].setEnabled(active);
         }
@@ -1057,17 +1057,14 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             currentRoot.add("pools", new JsonArray());
         }
         JsonArray pools = currentRoot.getAsJsonArray("pools");
-        if (pools.isEmpty()) {
-            JsonObject pool = new JsonObject();
-            pool.addProperty("rolls", 1);
-            pool.add("entries", new JsonArray());
-            pools.add(pool);
-        }
         return pools;
     }
 
     protected JsonObject poolForNewDrop() {
         JsonArray pools = getPools();
+        if (pools.isEmpty()) {
+            pools.add(createDefaultPool());
+        }
         JsonElement element = pools.get(0);
         if (!element.isJsonObject()) {
             JsonObject replacement = new JsonObject();
@@ -2292,7 +2289,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 groupPoolEditButtons[slot].setVisible(true);
                 groupPoolEditButtons[slot].setY(row.y + 2);
                 groupPoolDeleteButtons[slot].setVisible(true);
-                groupPoolDeleteButtons[slot].setEnabled(poolCountForGroupedLayout() > 1);
+                groupPoolDeleteButtons[slot].setEnabled(poolCountForGroupedLayout() > 0);
                 groupPoolDeleteButtons[slot].setY(row.y + 2);
             } else {
                 groupEntryDeleteButtons[slot].setVisible(true);
@@ -2441,10 +2438,6 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     boolean deletePoolFromEditor(int poolIndex) {
         JsonArray pools = getPools();
-        if (pools.size() <= 1) {
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.keep_one"));
-            return false;
-        }
         if (poolIndex < 0 || poolIndex >= pools.size()) {
             return false;
         }
@@ -2456,7 +2449,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
         expandedPools.clear();
         expandedPools.addAll(adjusted);
-        expandedPools.add(Math.max(0, Math.min(poolIndex, pools.size() - 1)));
+        if (!pools.isEmpty()) {
+            expandedPools.add(Math.max(0, Math.min(poolIndex, pools.size() - 1)));
+        }
         markDirtyAndRebuild(null);
         return true;
     }
@@ -2640,7 +2635,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         int y = EDIT_Y + 25;
         ItemStack stack = editorPreviewStack();
         boolean hovered = mx >= x && mx <= x + EDIT_ICON && my >= y && my <= y + EDIT_ICON;
-        drawCheckerboard(g, stack, x, y, EDIT_ICON, EDIT_ICON, 5, hovered);
+        drawCheckerboard(g, x, y, EDIT_ICON, EDIT_ICON);
         GuiTheme.stateOutline(g, x, y, EDIT_ICON, EDIT_ICON, true, hovered, false);
         if (!stack.isEmpty()) {
             int itemOffset = (EDIT_ICON - 16) / 2;
@@ -2731,7 +2726,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
                 int x = RIGHT_X + 8;
-                int width = RIGHT_W - 24;
+                int width = RIGHT_W - 22;
                 boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
                 int drawHeight = GROUP_POOL_H - GROUP_ROW_GAP;
                 GuiTheme.stateSurface(
@@ -2740,7 +2735,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 );
             } else {
                 int x = RIGHT_X + 10;
-                int width = RIGHT_W - 26;
+                int width = RIGHT_W - 24;
                 int drawHeight = GROUP_ENTRY_H - GROUP_ROW_GAP;
                 boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + drawHeight;
                 GuiTheme.stateSurface(
@@ -2756,7 +2751,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void renderGroupedPoolRow(GuiGraphics g, GroupRow row, int mx, int my) {
         int x = RIGHT_X + 8;
-        int width = RIGHT_W - 24;
+        int width = RIGHT_W - 22;
         boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
         JsonObject pool = groupedPool(row.poolIndex);
         int entryCount = 0;
@@ -2785,7 +2780,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     private void renderGroupedEntryRow(GuiGraphics g, GroupRow row, int mx, int my) {
         DropVisual visual = row.visual;
         int x = RIGHT_X + 10;
-        int width = RIGHT_W - 26;
+        int width = RIGHT_W - 24;
         int drawHeight = GROUP_ENTRY_H - GROUP_ROW_GAP;
         boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + drawHeight;
         renderDropIcon(g, visual, row.y, hover);
@@ -2943,15 +2938,15 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         int x = RIGHT_X + 13;
         int y = rowY + (GROUP_ENTRY_H - GROUP_ROW_GAP - ICON_CELL) / 2;
         ItemStack stack = visual.stack == null ? ItemStack.EMPTY : visual.stack;
-        LootCheckerboard.draw(g, stack, x, y, ICON_CELL, ICON_CELL, hovered);
+        LootCheckerboard.draw(g, x, y, ICON_CELL, ICON_CELL);
         GuiTheme.stateOutline(g, x, y, ICON_CELL, ICON_CELL, false, hovered, visual.loadError);
         if (!stack.isEmpty()) {
             renderLargeItem(g, stack, x + 3, y + 3, ICON_CELL - 6);
         }
     }
 
-    protected void drawCheckerboard(GuiGraphics g, ItemStack stack, int x, int y, int w, int h, int cell, boolean hovered) {
-        GuiTheme.itemSlot(g, x, y, w, h, cell, false, hovered, false);
+    protected void drawCheckerboard(GuiGraphics g, int x, int y, int w, int h) {
+        GuiTheme.itemGrid(g, x, y, w, h);
     }
 
     protected void renderLargeItem(GuiGraphics g, ItemStack stack, int x, int y, int size) {

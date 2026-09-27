@@ -476,7 +476,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
         boolean hovered = mx >= x && mx < x + REMOVE_CELL && my >= y && my < y + REMOVE_CELL;
         boolean selected = index == globalRemoveSelectedIndex;
 
-        LootCheckerboard.draw(g, stack, x, y, REMOVE_CELL, REMOVE_CELL, hovered);
+        LootCheckerboard.draw(g, x, y, REMOVE_CELL, REMOVE_CELL);
         GuiTheme.stateOutline(g, x, y, REMOVE_CELL, REMOVE_CELL, selected, hovered, false);
         if (!stack.isEmpty()) {
             g.renderItem(stack, x + 1, y + 1);
@@ -1081,7 +1081,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             boolean excluded = !entry.isGlobalChestEntry() && globalExcludedLootTableIds.contains(entry.lootTableId());
             GuiTheme.surface(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, GuiTheme.Surface.PANEL_ALT);
             if (selected) {
-                GuiTheme.stateOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, true, false, false, 2);
+                GuiTheme.stateOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, true, false, false);
             } else if (excluded) {
                 GuiTheme.indicatorOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, GuiTheme.Indicator.DANGER);
             } else if (changed) {

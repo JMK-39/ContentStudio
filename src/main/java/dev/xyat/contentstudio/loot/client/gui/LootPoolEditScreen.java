@@ -15,6 +15,8 @@ import org.jetbrains.annotations.NotNull;
 final class LootPoolEditScreen extends KineticScreen {
     private static final int WIDTH = 440;
     private static final int HEIGHT = 240;
+    private static final int PANEL_X = (STANDARD_CANVAS_WIDTH - WIDTH) / 2;
+    private static final int PANEL_Y = (STANDARD_CANVAS_HEIGHT - HEIGHT) / 2;
 
     private final AbstractLootEditorScreen parent;
     private final int poolIndex;
@@ -36,24 +38,24 @@ final class LootPoolEditScreen extends KineticScreen {
     protected void buildUi() {
         LootJsonEditUtil.Range rolls = LootJsonEditUtil.range(workingPool.get("rolls"), 1);
         LootJsonEditUtil.Range bonus = LootJsonEditUtil.range(workingPool.get("bonus_rolls"), 0);
-        rollsMinBox = numericBox(36, format(rolls.min()), LootNumericField.Type.POSITIVE_DECIMAL,
+        rollsMinBox = numericBox(PANEL_X + 36, format(rolls.min()), LootNumericField.Type.POSITIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.rolls_min");
-        rollsMaxBox = numericBox(132, format(rolls.max()), LootNumericField.Type.POSITIVE_DECIMAL,
+        rollsMaxBox = numericBox(PANEL_X + 132, format(rolls.max()), LootNumericField.Type.POSITIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.rolls_max");
-        bonusMinBox = numericBox(228, format(bonus.min()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
+        bonusMinBox = numericBox(PANEL_X + 228, format(bonus.min()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_min");
-        bonusMaxBox = numericBox(324, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
+        bonusMaxBox = numericBox(PANEL_X + 324, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_max");
 
-        addButton(196, 194, 70,
+        addButton(PANEL_X + 196, PANEL_Y + 194, 70,
                 Component.translatable("gui.contentstudio.loot.loots.pool_editor.apply"),
                 Component.translatable("gui.contentstudio.loot.loots.tip.pool.apply"),
                 this::applyChanges);
-        addButton(272, 194, 70,
+        addButton(PANEL_X + 272, PANEL_Y + 194, 70,
                 Component.translatable("gui.contentstudio.loot.loots.pool_editor.delete"),
                 Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"),
                 this::openDeleteConfirm);
-        addButton(348, 194, 70,
+        addButton(PANEL_X + 348, PANEL_Y + 194, 70,
                 Component.translatable("gui.contentstudio.loot.loots.pool_editor.cancel"),
                 null,
                 this::closeToParent);
@@ -70,7 +72,7 @@ final class LootPoolEditScreen extends KineticScreen {
         return LootNumericField.add(
                 this,
                 x,
-                84,
+                PANEL_Y + 84,
                 76,
                 value,
                 type,
@@ -119,11 +121,11 @@ final class LootPoolEditScreen extends KineticScreen {
 
     @Override
     protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        GuiTheme.panel(g, 0, 0, WIDTH, HEIGHT);
+        GuiTheme.panel(g, PANEL_X, PANEL_Y, WIDTH, HEIGHT);
         GuiTheme.stateSurface(
                 g,
-                12,
-                12,
+                PANEL_X + 12,
+                PANEL_Y + 12,
                 WIDTH - 24,
                 HEIGHT - 24,
                 GuiTheme.Surface.PANEL_ALT,
@@ -135,9 +137,9 @@ final class LootPoolEditScreen extends KineticScreen {
 
     @Override
     protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        g.drawString(font, getTitle(), 24, 24, 0xFFFFAA00, false);
+        g.drawString(font, getTitle(), PANEL_X + 24, PANEL_Y + 24, 0xFFFFAA00, false);
         g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
-                Component.literal(String.valueOf(poolIndex + 1)).withStyle(ChatFormatting.YELLOW)), 24, 42, 0xFFE6E6E6, false);
+                Component.literal(String.valueOf(poolIndex + 1)).withStyle(ChatFormatting.YELLOW)), PANEL_X + 24, PANEL_Y + 42, 0xFFE6E6E6, false);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 36, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_max", 132, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_min", 228, 0xFFDD77FF);
@@ -150,12 +152,12 @@ final class LootPoolEditScreen extends KineticScreen {
                 Component.literal(String.valueOf(entries)).withStyle(ChatFormatting.YELLOW),
                 Component.literal(String.valueOf(conditions)).withStyle(ChatFormatting.AQUA),
                 Component.literal(String.valueOf(functions)).withStyle(ChatFormatting.LIGHT_PURPLE));
-        g.drawString(font, summary, 36, 128, 0xFFE6E6E6, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), 36, 149, 0xFFAAAAAA, false);
+        g.drawString(font, summary, PANEL_X + 36, PANEL_Y + 128, 0xFFE6E6E6, false);
+        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, 0xFFAAAAAA, false);
     }
 
     private void fieldLabel(GuiGraphics g, String key, int x, int color) {
-        g.drawString(font, Component.translatable(key), x, 70, color, false);
+        g.drawString(font, Component.translatable(key), PANEL_X + x, PANEL_Y + 70, color, false);
     }
 
     private int arraySize(JsonElement element) {

@@ -693,7 +693,7 @@ public class RecipeRemovalScreen extends KineticScreen {
             int x = GX + (i - start) % COLS * CELL, y = GY + (i - start) / COLS * CELL - shift;
             boolean hover = mx >= x && mx < x + CELL && my >= y && my < y + CELL && my >= GY && my < GY + ROWS * CELL;
             boolean selected = !selectedItem.isEmpty() && ItemStack.isSameItemSameTags(stack, selectedItem);
-            GuiTheme.itemSlot(g, x, y, CELL, hover);
+            GuiTheme.itemGrid(g, x, y, CELL, CELL);
             drawItem(g, stack, x + 2, y + 2);
             boolean error = errors.contains(stack.getItem());
             if (selected || hover || error) {

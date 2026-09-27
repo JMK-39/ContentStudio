@@ -143,7 +143,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 }
             } else {
                 ItemStack targetStack = blockStack(entry.targetId());
-                drawCheckerboard(g, targetStack, x + 1, y + 1, cell - 2, cell - 2, 4, hover);
+                drawCheckerboard(g, x + 1, y + 1, cell - 2, cell - 2);
                 if (selected) {
                     GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
                 } else if (changed) {

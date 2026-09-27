@@ -449,7 +449,7 @@ final class LootEntryEditScreen extends KineticScreen {
         ItemStack stack = itemStack();
         boolean hovered = mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE
                 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE;
-        LootCheckerboard.draw(g, stack, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, hovered);
+        LootCheckerboard.draw(g, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE);
         GuiTheme.stateOutline(g, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, itemEntry, hovered, false);
         if (!stack.isEmpty()) {
             g.pose().pushPose();
