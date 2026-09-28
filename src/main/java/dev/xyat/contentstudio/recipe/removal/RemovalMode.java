@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.recipe.removal;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import net.minecraft.network.chat.Component;
 
 public enum RemovalMode {
@@ -18,6 +19,6 @@ public enum RemovalMode {
     }
 
     public Component getDisplayName() {
-        return Component.translatable(translationKey);
+        return KineticI18n.translatable(translationKey);
     }
 }

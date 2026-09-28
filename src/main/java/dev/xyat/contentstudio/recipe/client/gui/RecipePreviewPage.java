@@ -1,24 +1,29 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.KineticGui;
+import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
+import dev.xyat.kineticcore.api.client.gui.text.KineticText;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
 import dev.xyat.contentstudio.recipe.RecipeDatabase;
 import dev.xyat.contentstudio.recipe.RecipeRecord;
 import dev.xyat.contentstudio.recipe.RecipeRegistry;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
-import net.minecraft.client.gui.GuiGraphics;
-import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
-import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -26,7 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-public class RecipePreviewScreen extends KineticScreen {
+public class RecipePreviewPage extends KineticPage {
     private static final int SLOT_SIZE = 22;
     private static final int SLOT_GAP = 1;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
@@ -34,8 +39,9 @@ public class RecipePreviewScreen extends KineticScreen {
     private static final int COUNT_COLOR = 0xFF55FF55;
     private static final int SCISSOR_MARGIN = 2;
 
-    private final Screen parent;
-    private KineticEditBox searchBox;
+    // 原 parent != null：打开时是否存在父界面 / Former parent != null: whether a parent screen existed when opened.
+    private final boolean hasParentScreen;
+    private KineticTextField searchBox;
     private int gridX;
     private int gridY;
     private int gridW;
@@ -43,19 +49,35 @@ public class RecipePreviewScreen extends KineticScreen {
     private int visibleRows = 1;
     private int gridH;
 
-    private final GridScrollController gridScroll =
-            new GridScrollController();
+    private final KineticScrollController gridScroll =
+            new KineticScrollController();
 
     private boolean compactToolbar;
-    private StateButton saveButton;
+    private KineticButton saveButton;
     private final List<RecipeRecord> displayRecords = new ArrayList<>();
     private final Set<RecipeKey> pendingDeletes = new LinkedHashSet<>();
+    // 网格无选中概念：中键跳转目标为最近点击的配方记录（按键跟踪，记录会随服务端刷新重建）
+    // The grid has no selection: the middle-click target is the last clicked recipe record (tracked by key because
+    // records are rebuilt when the server refreshes them).
+    private RecipeKey lastClickedKey;
 
-    public RecipePreviewScreen(Screen parent) {
-        super(Component.translatable("gui.contentstudio.recipe.recipehud.manage.title"));
-        this.parent = parent;
-        setParentScreen(parent);
-configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnapshot);
+    public RecipePreviewPage() {
+        super(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.manage.title"));
+        // 原 isPauseScreen() 返回 false / Former isPauseScreen() returned false.
+        setPausesGame(false);
+        // 构造紧接在 KineticGui.openChild 之前，当前界面即父界面 / Constructed right before KineticGui.openChild, so the current screen becomes the parent.
+        this.hasParentScreen = KineticGui.isScreenOpen();
+        configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnapshot);
+        gridScroll.bindSelection(this::lastClickedRecordIndex, index -> index / safeColumns() - safeVisibleRows() / 2);
+    }
+
+    private int lastClickedRecordIndex() {
+        if (lastClickedKey == null) return -1;
+        for (int i = 0; i < displayRecords.size(); i++) {
+            RecipeRecord record = displayRecords.get(i);
+            if (lastClickedKey.equals(new RecipeKey(record.uuid, record.configIndex, record.editorType))) return i;
+        }
+        return -1;
     }
 
     private record RecipeKey(String uuid, int configIndex, String editorType) {
@@ -98,7 +120,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     private void refreshPendingDeleteState() {
-        if (searchBox != null) onSearchUpdate(searchBox.getValue());
+        if (searchBox != null) onSearchUpdate(searchBox.textValue());
         if (saveButton != null) saveButton.setEnabled(!pendingDeletes.isEmpty());
     }
 
@@ -136,7 +158,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     @Override
-    protected void buildUi() {
+    protected void build(KineticUi ui) {
         RecipePreviewState.returnToPreview = true;
 
         int sidePadding = 12;
@@ -149,43 +171,28 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
         int refreshWidth = 60;
         int toolbarGap = 6;
 
-        addButton(
-                sidePadding, buttonY, backWidth,
-                Component.translatable("gui.contentstudio.recipe.recipehud.back"),
-                null,
-                () -> {
-                    if (minecraft == null) {
+        ui().button(sidePadding, buttonY, backWidth).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(() -> {
+                    if (!isAttached()) {
                         return;
                     }
 
-                    if (parent != null) {
+                    if (hasParentScreen) {
                         navigateBack();
                     } else if (KineticClientRuntime.localPlayer() != null) {
                         RecipeNavigationState.requestHub();
                     }
-                }
-        );
+                }).build();
 
         int refreshX =
-                canvasWidth()
+                width()
                         - sidePadding
                         - refreshWidth;
         int saveX = refreshX - toolbarGap - saveWidth;
 
-        saveButton = addButton(
-                saveX, buttonY, saveWidth,
-                Component.translatable("gui.contentstudio.recipe.recipehud.save_deferred"),
-                null,
-                this::savePendingDeletes
-        );
+        saveButton = ui().button(saveX, buttonY, saveWidth).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.save_deferred")).onClick(this::savePendingDeletes).build();
         saveButton.setEnabled(!pendingDeletes.isEmpty());
 
-        addButton(
-                refreshX, buttonY, refreshWidth,
-                Component.translatable("gui.contentstudio.recipe.recipehud.preview.refresh"),
-                null,
-                RecipeNetwork::requestRecipeRecords
-        );
+        ui().button(refreshX, buttonY, refreshWidth).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.preview.refresh")).onClick(RecipeNetwork::requestRecipeRecords).build();
 
         int searchY;
         int searchX;
@@ -197,7 +204,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             searchWidth =
                     Math.max(
                             80,
-                            canvasWidth()
+                            width()
                                     - sidePadding * 2
                     );
             gridY = 59;
@@ -238,21 +245,13 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             gridY = 35;
         }
 
-        searchBox = addTextField(
-                searchX,
-                searchY,
-                searchWidth,
-                Component.empty(),
-                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint"),
-                null,
-                null
-        );
+        searchBox = ui().textField(searchX, searchY, searchWidth).placeholder(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.search_hint")).build();
 
-        searchBox.setResponder(
+        searchBox.onTextChange(
                 this::onSearchUpdate
         );
 
-        searchBox.setValue(
+        searchBox.setTextValue(
                 RecipePreviewState.searchQuery
         );
 
@@ -262,7 +261,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
         int availableGridWidth =
                 Math.max(
                         SLOT_SIZE,
-                        canvasWidth()
+                        width()
                                 - sidePadding * 2
                                 - scrollbarReserve
                 );
@@ -281,7 +280,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
                 Math.max(
                         sidePadding,
                         (
-                                canvasWidth()
+                                width()
                                         - gridW
                                         - scrollbarReserve
                         ) / 2
@@ -292,7 +291,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
         int availableGridHeight =
                 Math.max(
                         SLOT_SIZE,
-                        canvasHeight()
+                        height()
                                 - gridY
                                 - bottomPadding
                 );
@@ -308,10 +307,10 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
                         + Math.max(0, visibleRows - 1) * SLOT_GAP;
 
         onSearchUpdate(
-                searchBox.getValue()
+                searchBox.textValue()
         );
 
-        gridScroll.restoreOffset(
+        gridScroll.setOffset(
                 RecipePreviewState.scrollOffset
         );
 
@@ -322,14 +321,14 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     @Override
-    protected void screenRemoved() {
+    protected void onRemoved() {
         RecipePreviewState.scrollOffset =
                 gridScroll.offset();
 
         RecipePreviewState.searchQuery =
                 searchBox == null
                         ? ""
-                        : searchBox.getValue();
+                        : searchBox.textValue();
     }
 
     private void onSearchUpdate(String query) {
@@ -393,19 +392,18 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     @Override
-    protected void renderCanvasBackground(
-            @NotNull GuiGraphics graphics,
+    protected void renderBackground(KineticGraphics graphics,
             int mouseX,
             int mouseY,
             float partialTick
     ) {
-        GuiTheme.surface(
+        KineticTheme.surface(
                 graphics,
                 0,
                 0,
-                canvasWidth(),
-                canvasHeight(),
-                GuiTheme.Surface.PANEL_ALT,
+                width(),
+                height(),
+                KineticTheme.Surface.PANEL_ALT,
                 0.73F
         );
 
@@ -413,7 +411,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             return;
         }
 
-        GuiTheme.panel(
+        KineticTheme.panel(
                 graphics,
                 gridX - 2,
                 gridY - 2,
@@ -437,9 +435,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
                         displayRecords.size()
                 );
 
-        enableUiScissor(
-                graphics,
-                gridX - SCISSOR_MARGIN,
+        graphics.scissor(gridX - SCISSOR_MARGIN,
                 gridY - SCISSOR_MARGIN,
                 gridX + gridW + SCISSOR_MARGIN,
                 gridY + gridH + SCISSOR_MARGIN
@@ -474,9 +470,9 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             RecipeRecord record =
                     displayRecords.get(i);
 
-            GuiTheme.itemGrid(graphics, x, y, SLOT_SIZE, SLOT_SIZE);
+            KineticTheme.itemGrid(graphics, x, y, SLOT_SIZE, SLOT_SIZE);
 
-            GuiTheme.stateOutline(
+            KineticTheme.stateOutline(
                     graphics,
                     x,
                     y,
@@ -487,9 +483,8 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
                     record.invalidConfig
             );
 
-            GuiTheme.item(
+            KineticTheme.item(
                     graphics,
-                    font,
                     record.output,
                     x,
                     y,
@@ -504,10 +499,11 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
                     x,
                     y
             );
+            gridScroll.renderSelectionFlash(graphics, i, x, y, SLOT_SIZE, SLOT_SIZE);
 
         }
 
-        disableUiScissor(graphics);
+        graphics.endScissor();
 
         gridScroll.render(
                 graphics,
@@ -522,8 +518,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     @Override
-    protected void renderCanvasForeground(
-            @NotNull GuiGraphics graphics,
+    protected void renderForeground(KineticGraphics graphics,
             int mouseX,
             int mouseY,
             float partialTick
@@ -532,11 +527,8 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
 
     @Override
     protected void renderTooltips(
-            GuiGraphics graphics,
             int scaledMouseX,
-            int scaledMouseY,
-            int mouseX,
-            int mouseY
+            int scaledMouseY
     ) {
         if (gridW <= 0 || gridH <= 0) {
             return;
@@ -588,25 +580,25 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
 
         if (record.invalidConfig) {
             tooltip.add(
-                    Component.translatable(
+                    KineticI18n.translatable(
                             "gui.contentstudio.recipe.recipehud.tooltip.invalid_recipe.colored"
                     )
             );
         }
 
         tooltip.add(
-                Component.translatable(
+                KineticI18n.translatable(
                         "gui.contentstudio.recipe.recipehud.tooltip.left_edit.colored"
                 )
         );
 
         tooltip.add(
-                Component.translatable(
+                KineticI18n.translatable(
                         "gui.contentstudio.recipe.recipehud.tooltip.right_delete.colored"
                 )
         );
 
-        KineticOverlays.requestTooltip(tooltip, 260, mouseX, mouseY);
+        showTooltip(tooltip, 260);
     }
 
     private boolean sameRecord(RecipeRecord left, RecipeRecord right) {
@@ -620,7 +612,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     private void renderGreenCount(
-            GuiGraphics graphics,
+            KineticGraphics graphics,
             net.minecraft.world.item.ItemStack stack,
             int x,
             int y
@@ -630,24 +622,14 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
         }
 
         String countText = String.valueOf(stack.getCount());
-        int textX = x + SLOT_SIZE - font.width(countText) - 1;
-        int textY = y + SLOT_SIZE - font.lineHeight;
+        int textX = x + SLOT_SIZE - KineticText.width(countText) - 1;
+        int textY = y + SLOT_SIZE - KineticText.lineHeight();
 
-        graphics.pose().pushPose();
-        graphics.pose().translate(
-                0,
-                0,
-                250
-        );
-        graphics.drawString(
-                font,
-                countText,
-                textX,
-                textY,
-                COUNT_COLOR,
-                true
-        );
-        graphics.pose().popPose();
+        graphics.push();
+        graphics.translate(
+                0, 0);
+        graphics.text(countText, textX, textY, COUNT_COLOR, true);
+        graphics.pop();
     }
 
     private int recordIndexAt(double mouseX, double mouseY) {
@@ -695,48 +677,40 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
         return Math.max(1, visibleRows);
     }
 
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
 
     @Override
-    protected boolean handleCloseRequest() {
+    protected boolean onCloseRequested() {
         RecipeEditSessionState.applyPendingAndClear();
         return false;
     }
 
     @Override
-    protected boolean canvasMouseClicked(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
+    protected boolean onMouseClickCapture(MouseInput input) {
+        // 原 canvasMouseClicked 在控件之前失焦搜索框（不消费点击）
+        // The old canvasMouseClicked blurred the search box before controls (without consuming the click).
         if (searchBox != null
-                && !searchBox.isMouseOver(
-                        mouseX,
-                        mouseY
+                && !searchBox.contains(
+                        input.x(),
+                        input.y()
                 )) {
-            blurControl(searchBox);
+            blur(searchBox);
         }
+        return false;
+    }
 
-        if (super.canvasMouseClicked(
-                mouseX,
-                mouseY,
-                button
-        )) {
-            return true;
-        }
-
+    @Override
+    protected boolean onMouseClick(MouseInput input) {
+        double mouseX = input.x();
+        double mouseY = input.y();
         gridScroll.update(
                 totalRows(),
                 safeVisibleRows()
         );
 
-        if (KineticMouseButtons.isPrimary(button)
-                && gridScroll.beginDrag(
+        if (gridScroll.beginDrag(
                         mouseX,
                         mouseY,
+                        input.button(),
                         gridX + gridW + 4,
                         gridY,
                         4,
@@ -747,7 +721,7 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             return true;
         }
 
-        if ((!KineticMouseButtons.isPrimary(button) && !KineticMouseButtons.isSecondary(button))
+        if ((!input.isLeft() && !input.isRight())
                 || mouseX < gridX
                 || mouseX >= gridX + gridW
                 || mouseY < gridY
@@ -768,8 +742,9 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
 
         RecipeRecord record =
                 displayRecords.get(index);
+        lastClickedKey = new RecipeKey(record.uuid, record.configIndex, record.editorType);
 
-        if (KineticMouseButtons.isPrimary(button)) {
+        if (input.isLeft()) {
             RecipeNetwork.requestEdit(
                     record.uuid,
                     record.editorType,
@@ -791,13 +766,8 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
     }
 
     @Override
-    protected boolean canvasMouseDragged(
-            double mouseX,
-            double mouseY,
-            int button,
-            double dragX,
-            double dragY
-    ) {
+    protected boolean onMouseDrag(MouseDragInput input) {
+        double mouseY = input.y();
         if (gridScroll.drag(
                 mouseY,
                 gridY,
@@ -807,48 +777,26 @@ configureStandaloneDraft(this::capturePreviewSnapshot, this::restorePreviewSnaps
             return true;
         }
 
-        return super.canvasMouseDragged(
-                mouseX,
-                mouseY,
-                button,
-                dragX,
-                dragY
-        );
+        return false;
     }
 
     @Override
-    protected boolean canvasMouseReleased(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
-        if (gridScroll.release(button)) {
+    protected boolean onMouseRelease(MouseInput input) {
+        if (gridScroll.release(input.button())) {
             return true;
         }
 
-        return super.canvasMouseReleased(
-                mouseX,
-                mouseY,
-                button
-        );
+        return false;
     }
 
     @Override
-    protected boolean canvasMouseScrolled(
-            double mouseX,
-            double mouseY,
-            double delta
-    ) {
+    protected boolean onMouseScroll(ScrollInput input) {
+        double delta = input.deltaY();
         gridScroll.update(
                 totalRows(),
                 safeVisibleRows()
         );
 
-        return gridScroll.scroll(delta)
-                || super.canvasMouseScrolled(
-                        mouseX,
-                        mouseY,
-                        delta
-                );
+        return gridScroll.scroll(delta);
     }
 }

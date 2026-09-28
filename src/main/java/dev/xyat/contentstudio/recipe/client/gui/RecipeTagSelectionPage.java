@@ -1,47 +1,48 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll.GridScrollController;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
-import net.minecraft.client.gui.GuiGraphics;
-import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
-import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class RecipeTagSelectionScreen extends KineticScreen {
+public class RecipeTagSelectionPage extends KineticPage {
     private static final int ITEM_HEIGHT = 20;
 
-    private final Screen parent;
     private final Consumer<String> onSelected;
     private final List<String> allTags = new ArrayList<>();
     private final KineticSearch.Model<String> tagModel;
-    private final GridScrollController listScroll = new GridScrollController();
+    private final KineticScrollController listScroll = new KineticScrollController();
 
-    private KineticEditBox searchBox;
+    private KineticTextField searchBox;
     private int listX;
     private int listY;
     private int listW;
     private int listH;
     private int visibleRows;
 
-    public RecipeTagSelectionScreen(
-            Screen parent,
+    public RecipeTagSelectionPage(
             Consumer<String> onSelected
     ) {
-        super(Component.translatable(
+        super(KineticI18n.translatable(
                 "gui.contentstudio.recipe.recipehud.tag_selection.title"
         ));
+        // 原 isPauseScreen() 返回 false / Former isPauseScreen() returned false.
+        setPausesGame(false);
 
-        this.parent = parent;
-        setParentScreen(parent);
         this.onSelected = onSelected;
         KineticRegistries.items().tagIds().forEach(tagId ->
                 allTags.add("#" + tagId)
@@ -55,29 +56,17 @@ public class RecipeTagSelectionScreen extends KineticScreen {
         tagModel.refresh("");
     }
 
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
 
     @Override
-    protected void buildUi() {
-        listW = Math.max(100, Math.min(360, canvasWidth() - 24));
-        listX = (canvasWidth() - listW) / 2;
+    protected void build(KineticUi ui) {
+        listW = Math.max(100, Math.min(360, width() - 24));
+        listX = (width() - listW) / 2;
 
-        searchBox = addTextField(
-                listX,
-                20,
-                listW,
-                Component.empty(),
-                Component.translatable("gui.contentstudio.recipe.recipehud.search_hint"),
-                null,
-                null
-        );
-        searchBox.setResponder(this::onSearchUpdate);
+        searchBox = ui().textField(listX, 20, listW).placeholder(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.search_hint")).build();
+        searchBox.onTextChange(this::onSearchUpdate);
 
         listY = 50;
-        listH = Math.max(ITEM_HEIGHT, canvasHeight() - listY - 40);
+        listH = Math.max(ITEM_HEIGHT, height() - listY - 40);
         visibleRows = Math.max(1, listH / ITEM_HEIGHT);
 
         listScroll.update(
@@ -87,18 +76,11 @@ public class RecipeTagSelectionScreen extends KineticScreen {
 
         int btnW = 80;
 
-        addButton(
-                canvasWidth() / 2 - btnW / 2,
-                canvasHeight() - 30,
-                btnW,
-                Component.translatable("gui.contentstudio.recipe.recipehud.back"),
-                null,
-                () -> {
-                    if (minecraft != null) {
+        ui().button(width() / 2 - btnW / 2, height() - 30, btnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(() -> {
+                    if (isAttached()) {
                         navigateBack();
                     }
-                }
-        );
+                }).build();
     }
 
     private void onSearchUpdate(String query) {
@@ -111,21 +93,14 @@ public class RecipeTagSelectionScreen extends KineticScreen {
     }
 
     @Override
-    protected void renderCanvasBackground(
-            @NotNull GuiGraphics graphics,
+    protected void renderBackground(KineticGraphics graphics,
             int mouseX,
             int mouseY,
             float partialTick
     ) {
-        graphics.drawCenteredString(
-                font,
-                title,
-                canvasWidth() / 2,
-                5,
-                0xFFFFFF
-        );
+        graphics.centeredText(title(), width() / 2, 5, 0xFFFFFF, true);
 
-        GuiTheme.panelAlt(
+        KineticTheme.panelAlt(
                 graphics,
                 listX,
                 listY,
@@ -133,9 +108,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
                 listH
         );
 
-        enableUiScissor(
-                graphics,
-                listX,
+        graphics.scissor(listX,
                 listY,
                 listX + listW,
                 listY + listH
@@ -169,22 +142,16 @@ public class RecipeTagSelectionScreen extends KineticScreen {
                             && mouseY >= y
                             && mouseY < y + ITEM_HEIGHT;
 
-            GuiTheme.stateSurface(
+            KineticTheme.stateSurface(
                     graphics, listX, y, listW, ITEM_HEIGHT,
-                    row % 2 == 0 ? GuiTheme.Surface.PANEL_ALT : GuiTheme.Surface.PANEL,
+                    row % 2 == 0 ? KineticTheme.Surface.PANEL_ALT : KineticTheme.Surface.PANEL,
                     false, hovered, false
             );
 
-            graphics.drawString(
-                    font,
-                    tag,
-                    listX + 5,
-                    y + 6,
-                    0xFFFFFF
-            );
+            graphics.text(tag, listX + 5, y + 6, 0xFFFFFF, true);
         }
 
-        disableUiScissor(graphics);
+        graphics.endScissor();
 
         listScroll.render(
                 graphics,
@@ -199,24 +166,24 @@ public class RecipeTagSelectionScreen extends KineticScreen {
     }
 
     @Override
-    protected boolean canvasMouseClicked(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
+    protected boolean onMouseClickCapture(MouseInput input) {
+        // 原 canvasMouseClicked 在控件之前失焦搜索框（不消费点击）
+        // The old canvasMouseClicked blurred the search box before controls (without consuming the click).
         if (searchBox != null
-                && !searchBox.isMouseOver(mouseX, mouseY)) {
-            blurControl(searchBox);
+                && !searchBox.contains(input.x(), input.y())) {
+            blur(searchBox);
         }
+        return false;
+    }
 
-        if (super.canvasMouseClicked(mouseX, mouseY, button)) {
-            return true;
-        }
-
-        if (KineticMouseButtons.isPrimary(button)
-                && listScroll.beginDrag(
+    @Override
+    protected boolean onMouseClick(MouseInput input) {
+        double mouseX = input.x();
+        double mouseY = input.y();
+        if (listScroll.beginDrag(
                         mouseX,
                         mouseY,
+                        input.button(),
                         listX + listW + 2,
                         listY,
                         4,
@@ -227,7 +194,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
             return true;
         }
 
-        if (KineticMouseButtons.isPrimary(button)
+        if (input.isLeft()
                 && mouseX >= listX
                 && mouseX < listX + listW
                 && mouseY >= listY
@@ -241,7 +208,7 @@ public class RecipeTagSelectionScreen extends KineticScreen {
             if (index >= 0 && index < displayTags.size()) {
                 onSelected.accept(displayTags.get(index));
 
-                if (minecraft != null) {
+                if (isAttached()) {
                     navigateBack();
                 }
 
@@ -253,13 +220,8 @@ public class RecipeTagSelectionScreen extends KineticScreen {
     }
 
     @Override
-    protected boolean canvasMouseDragged(
-            double mouseX,
-            double mouseY,
-            int button,
-            double dragX,
-            double dragY
-    ) {
+    protected boolean onMouseDrag(MouseDragInput input) {
+        double mouseY = input.y();
         if (listScroll.drag(
                 mouseY,
                 listY,
@@ -269,47 +231,21 @@ public class RecipeTagSelectionScreen extends KineticScreen {
             return true;
         }
 
-        return super.canvasMouseDragged(
-                mouseX,
-                mouseY,
-                button,
-                dragX,
-                dragY
-        );
+        return false;
     }
 
     @Override
-    protected boolean canvasMouseReleased(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
-        if (listScroll.release(button)) {
+    protected boolean onMouseRelease(MouseInput input) {
+        if (listScroll.release(input.button())) {
             return true;
         }
 
-        return super.canvasMouseReleased(
-                mouseX,
-                mouseY,
-                button
-        );
+        return false;
     }
 
     @Override
-    protected boolean canvasMouseScrolled(
-            double mouseX,
-            double mouseY,
-            double delta
-    ) {
-        return listScroll.scroll(delta)
-                || super.canvasMouseScrolled(
-                        mouseX,
-                        mouseY,
-                        delta
-                );
-    }
-
-    public Screen getParent() {
-        return parent;
+    protected boolean onMouseScroll(ScrollInput input) {
+        double delta = input.deltaY();
+        return listScroll.scroll(delta);
     }
 }

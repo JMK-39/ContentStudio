@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.recipe;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticMenuTypes;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
@@ -49,7 +50,7 @@ public final class RecipeRegistry {
         }
 
         public Component getTitle() {
-            return Component.translatable("gui.contentstudio.recipe.recipehud." + id);
+            return KineticI18n.translatable("gui.contentstudio.recipe.recipehud." + id);
         }
     }
 }

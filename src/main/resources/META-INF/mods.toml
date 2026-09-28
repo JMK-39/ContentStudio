@@ -28,7 +28,7 @@ side="BOTH"
 [[dependencies.contentstudio]]
 modId="kineticcore"
 mandatory=true
-versionRange="[26.9.20,)"
+versionRange="[26.9.27,)"
 ordering="AFTER"
 side="BOTH"
 

@@ -1,8 +1,8 @@
 package dev.xyat.contentstudio.recipe;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import com.mojang.logging.LogUtils;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
@@ -44,10 +44,10 @@ public final class RecipeSaveManager {
             RecipeDatabase.reloadDatabase();
             pendingRecipeReload = true;
             RecipeNetwork.syncRecipeRecords(player);
-            RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.msg.saved_pending"));
+            RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.msg.saved_pending"));
         } catch (Exception e) {
             LOGGER.error("Failed to save RecipeModule datapack recipe", e);
-            RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
+            RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
         }
     }
 
@@ -65,10 +65,10 @@ public final class RecipeSaveManager {
             RecipeDatabase.reloadDatabase();
             pendingRecipeReload = true;
             RecipeNetwork.syncRecipeRecords(player);
-            RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.msg.deleted_pending"));
+            RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.msg.deleted_pending"));
         } catch (Exception e) {
             LOGGER.error("Failed to delete RecipeModule datapack recipe {} at bundle index {}", uuid, configIndex, e);
-            RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
+            RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
         }
     }
 
@@ -105,7 +105,7 @@ public final class RecipeSaveManager {
                     pendingRecipeReload = true;
                 }
                 LOGGER.error("Failed to reload RecipeModule datapack", error);
-                RecipeNetwork.sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
+                RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.save_failed_plain"));
             });
         });
     }

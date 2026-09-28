@@ -8,7 +8,7 @@ buildscript {
         maven { url = 'https://repo.spongepowered.org/maven/' }
         maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
     }
-    dependencies {
+ dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.24'
         classpath 'org.spongepowered:mixingradle:0.7.38'
     }
@@ -111,10 +111,18 @@ repositories {
 }
 
 
+apply from: 'gradle/kinetic-addon-reobf-verification.gradle'
+
 dependencies {
     minecraft "net.minecraftforge:forge:${project.findProperty('minecraft_version')?.toString()}-${project.findProperty('forge_version')?.toString()}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    def kineticCoreMinimumVersion = project.findProperty('kineticcore_min_version')?.toString() ?: '26.9.25'
+    project.configurations.configureEach { configuration ->
+        if (configuration.name == 'compileClasspath' || configuration.name == 'runtimeClasspath') {
+            configuration.resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+        }
+    }
+    def kineticCoreMinimumVersion = project.findProperty('kineticcore_min_version')?.toString() ?: '26.9.27'
+    // Default builds query GitHub's newest stable release; pass the version just verified online if the JVM cannot reach GitHub.
     def kineticCoreVersion = project.findProperty('kineticcore_version')?.toString()
     def parseKineticCoreVersion = { String value ->
         def parts = value.replaceFirst(/^v/, '').tokenize('.')
@@ -157,18 +165,20 @@ dependencies {
             }
         } catch (Exception exception) {
             throw new org.gradle.api.GradleException(
-                    'Could not resolve the latest stable KineticCore release from GitHub. Check network/API availability or set -Pkineticcore_version=<version>.',
+                    'Could not resolve the latest stable KineticCore release from GitHub. Check network/API availability.',
                     exception)
         } finally {
             connection.disconnect()
         }
     }
 
-    if (compareKineticCoreVersions(kineticCoreVersion, kineticCoreMinimumVersion) <= 0) {
+    if (compareKineticCoreVersions(kineticCoreVersion, kineticCoreMinimumVersion) < 0) {
         throw new org.gradle.api.GradleException(
-                "KineticCore build dependency ${kineticCoreVersion} must be newer than ${kineticCoreMinimumVersion}.")
+                "KineticCore build dependency ${kineticCoreVersion} must be at least ${kineticCoreMinimumVersion}.")
     }
-    implementation fg.deobf("dev.xyat.kineticcore:kineticcore:${kineticCoreVersion}")
+    def kineticCoreDependency = fg.deobf("dev.xyat.kineticcore:kineticcore:${kineticCoreVersion}") { changing = true }
+    implementation kineticCoreDependency
+    kineticCoreReobf "dev.xyat.kineticcore:kineticcore:${kineticCoreVersion}"
     implementation fg.deobf("maven.modrinth:jei:RTFeXsvE")
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

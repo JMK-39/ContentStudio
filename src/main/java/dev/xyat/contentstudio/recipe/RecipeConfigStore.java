@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.recipe;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.runtime.KineticPaths;
@@ -400,7 +401,7 @@ public final class RecipeConfigStore {
         CompoundTag tag = stack.getOrCreateTag();
         tag.putBoolean("contentstudio_invalid_placeholder", true);
         tag.putString("contentstudio_invalid_original", original == null ? "?" : original);
-        stack.setHoverName(Component.translatable(
+        stack.setHoverName(KineticI18n.translatable(
                 "gui.contentstudio.recipe.recipehud.invalid_item_placeholder",
                 original == null || original.isBlank() ? "?" : original
         ));

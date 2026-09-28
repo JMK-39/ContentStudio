@@ -1,18 +1,18 @@
 package dev.xyat.contentstudio.recipe.network;
 
 import dev.xyat.contentstudio.recipe.RecipeDatabase;
-import dev.xyat.contentstudio.recipe.client.gui.RecipeHubScreen;
-import dev.xyat.contentstudio.recipe.client.gui.RecipePreviewScreen;
-import dev.xyat.contentstudio.recipe.client.gui.RecipeRemovalScreen;
-import dev.xyat.contentstudio.recipe.client.gui.RecipeScreen;
+import dev.xyat.contentstudio.recipe.client.gui.RecipeHubPage;
+import dev.xyat.contentstudio.recipe.client.gui.RecipePreviewPage;
+import dev.xyat.contentstudio.recipe.client.gui.RecipeRemovalPage;
+import dev.xyat.contentstudio.recipe.client.gui.RecipePage;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import dev.xyat.contentstudio.recipe.removal.RemovalMode;
 import dev.xyat.contentstudio.recipe.removal.RemovalStateCodec;
 import dev.xyat.contentstudio.recipe.removal.RuleTransfer;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
-import net.minecraft.client.gui.screens.Screen;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.KineticGui;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
@@ -23,7 +23,7 @@ import java.util.List;
 
 @OnlyIn(Dist.CLIENT)
 public final class RecipeNetworkClient {
-    private static java.lang.ref.WeakReference<RecipeRemovalScreen> recipeBrowser = new java.lang.ref.WeakReference<>(null);
+    private static java.lang.ref.WeakReference<RecipeRemovalPage> recipeBrowser = new java.lang.ref.WeakReference<>(null);
     private static RuleTransfer.Assembler stateAssembler;
     private static RecipeNetwork.RuleStateBeginPacket stateHeader;
     private static long deliveredStateRequestId = Long.MIN_VALUE;
@@ -44,11 +44,11 @@ public final class RecipeNetworkClient {
     private RecipeNetworkClient() {
     }
 
-    public static void registerRemovalScreen(RecipeRemovalScreen screen) {
+    public static void registerRemovalScreen(RecipeRemovalPage screen) {
         recipeBrowser = new java.lang.ref.WeakReference<>(screen);
     }
 
-    public static void requestItemRecipes(RecipeRemovalScreen screen, ItemStack item) {
+    public static void requestItemRecipes(RecipeRemovalPage screen, ItemStack item) {
         recipeBrowser = new java.lang.ref.WeakReference<>(screen);
         requestedItem = item.copy();
         itemSummaries.clear();
@@ -61,7 +61,7 @@ public final class RecipeNetworkClient {
     public static void handleItemRecipes(RecipeNetwork.ItemRecipesPacket packet) {
         if (packet.requestId() != itemRequestId || !packet.item().is(requestedItem.getItem())) return;
         if (packet.stale()) {
-            RecipeRemovalScreen screen = recipeBrowser.get();
+            RecipeRemovalPage screen = recipeBrowser.get();
             if (screen != null) requestItemRecipes(screen, requestedItem);
             return;
         }
@@ -74,7 +74,7 @@ public final class RecipeNetworkClient {
         if (nextItemPage < packet.totalPages()) {
             RecipeNetwork.requestItemRecipes(requestedItem, itemRequestId, nextItemPage, itemCatalogVersion);
         } else {
-            RecipeRemovalScreen screen = recipeBrowser.get();
+            RecipeRemovalPage screen = recipeBrowser.get();
             if (screen != null) screen.acceptRecipes(packet.item(), List.copyOf(itemSummaries), itemDataError);
         }
     }
@@ -102,13 +102,12 @@ public final class RecipeNetworkClient {
             nextOutputPage = 0;
             affectedOutputs.clear();
             if (header.status() == RecipeNetwork.SaveStatus.SYNC) {
-                Screen current = KineticClientRuntime.currentScreen();
-                if (!(current instanceof RecipeRemovalScreen)) {
-                    KineticClientRuntime.openScreen(new RecipeRemovalScreen(current, rules, List.of()));
+                if (!(KineticGui.currentPage() instanceof RecipeRemovalPage)) {
+                    KineticGui.openChild(new RecipeRemovalPage(rules, List.of()));
                 }
             } else {
-                RecipeRemovalScreen screen = recipeBrowser.get();
-                if (screen == null && KineticClientRuntime.currentScreen() instanceof RecipeRemovalScreen value) screen = value;
+                RecipeRemovalPage screen = recipeBrowser.get();
+                if (screen == null && KineticGui.currentPage() instanceof RecipeRemovalPage value) screen = value;
                 if (screen != null) screen.acceptSaveResult(header.requestId(), header.status(), rules);
             }
         } catch (RuntimeException exception) {
@@ -123,8 +122,8 @@ public final class RecipeNetworkClient {
         affectedOutputs.addAll(packet.outputIds());
         nextOutputPage++;
         if (nextOutputPage != packet.totalPages()) return;
-        RecipeRemovalScreen screen = recipeBrowser.get();
-        if (screen == null && KineticClientRuntime.currentScreen() instanceof RecipeRemovalScreen value) screen = value;
+        RecipeRemovalPage screen = recipeBrowser.get();
+        if (screen == null && KineticGui.currentPage() instanceof RecipeRemovalPage value) screen = value;
         if (screen != null) screen.acceptAffectedOutputs(List.copyOf(affectedOutputs), true);
     }
 
@@ -141,25 +140,25 @@ public final class RecipeNetworkClient {
 
     public static void handleRecipeRecords(RecipeNetwork.RecipeRecordsSyncPacket packet) {
         RecipeDatabase.setClientRecords(packet.records());
-        Screen current = KineticClientRuntime.currentScreen();
-        if (current instanceof RecipePreviewScreen preview) {
+        KineticPage current = KineticGui.currentPage();
+        if (current instanceof RecipePreviewPage preview) {
             preview.refreshFromServer();
-        } else if (current instanceof RecipeScreen) {
+        } else if (current instanceof RecipePage) {
             return;
         } else {
-            KineticClientRuntime.openScreen(new RecipePreviewScreen(current));
+            KineticGui.openChild(new RecipePreviewPage());
         }
     }
 
     public static void handleToast(RecipeNetwork.ToastPacket packet) {
-        Screen screen = KineticClientRuntime.currentScreen();
-        if (screen instanceof RecipeHubScreen value) {
+        KineticPage screen = KineticGui.currentPage();
+        if (screen instanceof RecipeHubPage value) {
             value.showToast(packet.message());
-        } else if (screen instanceof RecipeScreen value) {
+        } else if (screen instanceof RecipePage value) {
             value.showToast(packet.message());
-        } else if (screen instanceof RecipeRemovalScreen value) {
+        } else if (screen instanceof RecipeRemovalPage value) {
             value.showToast(packet.message());
-        } else if (screen instanceof RecipePreviewScreen value) {
+        } else if (screen instanceof RecipePreviewPage value) {
             value.showToast(packet.message());
         } else {
             KineticOverlays.toast(packet.message());

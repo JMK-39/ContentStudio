@@ -1,16 +1,16 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.widget.KineticWidgets;
 
-import dev.xyat.kineticcore.api.client.widget.render.KineticEntityPreview.EntityPreviewRenderer;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import net.minecraft.Util;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
@@ -18,7 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Comparator;
 import java.util.List;
 
-public class LootEditorScreen extends AbstractLootEditorScreen {
+public class LootEditorPage extends AbstractLootEditorPage {
     private static final int ENTITY_GRID_COLS = 4;
     private static final int ENTITY_GRID_ROWS = 6;
     private static final int ENTITY_CELL_SIZE = 48;
@@ -27,16 +27,13 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     private static final int BLOCK_CELL_SIZE = 18;
     private static final int BLOCK_CELL_GAP = 1;
 
-    private final EntityPreviewRenderer entityPreviewRenderer = KineticWidgets.createEntityPreviewRenderer();
+    private final KineticEntityPreview entityPreviewRenderer = KineticEntityPreview.create();
 
-    public LootEditorScreen(int mode, List<LootEntryInfo> entries) {
-        this(mode, entries, null);
-    }
-
-    public LootEditorScreen(int mode, List<LootEntryInfo> entries, Screen parentScreen) {
-        super(mode, entries, titleKey(mode), parentScreen);
+    // 原带 parentScreen 的重载已移除（由 openChild 决定父界面）/ The former parentScreen overload was removed (openChild decides the parent).
+    public LootEditorPage(int mode, List<LootEntryInfo> entries) {
+        super(mode, entries, titleKey(mode));
         if (mode != LootEntryInfo.MODE_ENTITY && mode != LootEntryInfo.MODE_BLOCK) {
-            throw new IllegalArgumentException("LootEditorScreen only supports entity and block loot tables");
+            throw new IllegalArgumentException("LootEditorPage only supports entity and block loot tables");
         }
         enableLootDraft();
     }
@@ -82,6 +79,11 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     }
 
     @Override
+    protected int targetUnitOf(int index) {
+        return index / gridCols();
+    }
+
+    @Override
     protected int targetStartIndex() {
         return (int) Math.floor(smoothTargetScroll() + 1.0E-6D) * gridCols();
     }
@@ -92,7 +94,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     }
 
     @Override
-    protected void renderTargets(GuiGraphics g, int mx, int my) {
+    protected void renderTargets(KineticGraphics g, int mx, int my) {
         if (mode == LootEntryInfo.MODE_ENTITY) {
             displayEntries.sort(Comparator.comparing((LootEntryInfo entry) -> !isChangedEntry(entry)));
         }
@@ -107,9 +109,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 displayEntries.size(),
                 start + targetVisibleEntryCount() + cols
         );
-        enableUiScissor(
-                g,
-                LEFT_X,
+        g.scissor(LEFT_X,
                 targetAreaY(),
                 LEFT_X + TARGET_WIDTH,
                 targetAreaY() + targetAreaHeight()
@@ -125,14 +125,14 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                     && selectedEntry.lootTableId().equals(entry.lootTableId());
             boolean changed = isChangedEntry(entry);
             if (mode == LootEntryInfo.MODE_ENTITY) {
-                EntityPreviewRenderer.drawCheckerboard(g, x + 1, y + 1, cell - 2, cell - 2);
+                KineticEntityPreview.drawCheckerboard(g, x + 1, y + 1, cell - 2, cell - 2);
                 boolean rendered = renderEntity(g, entry.targetId(), x, y, cell, hover);
                 boolean error = hasEntityDataError(entry) || !rendered;
                 renderEntityOutline(g, x, y, cell, selected, hover, changed, error);
                 int previewTop = Math.max(y, targetAreaY());
                 int previewBottom = Math.min(y + cell, targetAreaY() + targetAreaHeight());
                 if (previewBottom > previewTop) {
-                    registerPreviewWheelTarget(
+                    registerPreviewZoomArea(
                             entityPreviewRenderer,
                             entityPreviewKey(entry.targetId()),
                             x,
@@ -145,23 +145,24 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 ItemStack targetStack = blockStack(entry.targetId());
                 drawCheckerboard(g, x + 1, y + 1, cell - 2, cell - 2);
                 if (selected) {
-                    GuiTheme.stateOutline(g, x, y, cell, cell, true, false, false);
+                    KineticTheme.stateOutline(g, x, y, cell, cell, true, false, false);
                 } else if (changed) {
-                    GuiTheme.indicatorOutline(g, x, y, cell, cell, GuiTheme.Indicator.WARNING);
+                    KineticTheme.indicatorOutline(g, x, y, cell, cell, KineticTheme.Indicator.WARNING);
                 } else {
-                    GuiTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
+                    KineticTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
                 }
                 renderLargeItem(g, targetStack, x + 1, y + 1, 16);
             }
+            flashTarget(g, i, x, y, cell, cell);
             if (hover) {
                 if (mode == LootEntryInfo.MODE_ENTITY) {
                     deferredTooltip = List.of(
                             nameComponent(getDisplayName(entry)),
                             idComponent(entry.targetId()),
                             idComponent(entry.lootTableId()),
-                            Component.translatable(
+                            KineticI18n.translatable(
                                     "gui.kineticcore.entity_selector.preview_zoom",
-                                    entityPreviewRenderer.getZoomPercent(entityPreviewKey(entry.targetId()))
+                                    entityPreviewRenderer.zoomPercent(entityPreviewKey(entry.targetId()))
                             )
                     );
                 } else {
@@ -173,7 +174,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 }
             }
         }
-        disableUiScissor(g);
+        g.endScissor();
         renderTargetScrollbar(g, mx, my);
     }
 
@@ -213,7 +214,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 }
             } else {
                 String key = Util.makeDescriptionId("block", id);
-                String translated = Component.translatable(key).getString();
+                String translated = KineticI18n.translatable(key).getString();
                 return translated.equals(key) ? entry.targetId() : translated;
             }
         } catch (Exception ignored) {
@@ -233,7 +234,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     }
 
     private boolean renderEntity(
-            GuiGraphics g,
+            KineticGraphics g,
             String id,
             int cellX,
             int cellY,
@@ -243,7 +244,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
         int previewX = cellX + 3;
         int previewY = cellY + 3;
         int previewSize = cell - 6;
-        boolean rendered = entityPreviewRenderer.renderCanvas(
+        boolean rendered = entityPreviewRenderer.render(
                 g,
                 id,
                 entityPreviewKey(id),
@@ -254,13 +255,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
                 hovered
         );
         if (!rendered) {
-            g.drawCenteredString(
-                    font,
-                    Component.translatable("gui.contentstudio.loot.loots.preview_failed"),
-                    cellX + cell / 2,
-                    cellY + cell / 2 - 4,
-                    0xFFFF5555
-            );
+            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.preview_failed"), cellX + cell / 2, cellY + cell / 2 - 4, 0xFFFF5555, true);
         }
         return rendered;
     }
@@ -284,7 +279,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     }
 
     private static void renderEntityOutline(
-            GuiGraphics graphics,
+            KineticGraphics graphics,
             int x,
             int y,
             int size,
@@ -294,12 +289,12 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
             boolean error
     ) {
         if (error) {
-            GuiTheme.stateOutline(graphics, x, y, size, size, false, false, true);
+            KineticTheme.stateOutline(graphics, x, y, size, size, false, false, true);
         } else if (hovered) {
-            GuiTheme.stateOutline(graphics, x, y, size, size, false, true, false);
+            KineticTheme.stateOutline(graphics, x, y, size, size, false, true, false);
         } else if (changed) {
-            GuiTheme.indicatorOutline(graphics, x, y, size, size, GuiTheme.Indicator.SUCCESS);
-        } else GuiTheme.stateOutline(graphics, x, y, size, size, selected, false, false);
+            KineticTheme.indicatorOutline(graphics, x, y, size, size, KineticTheme.Indicator.SUCCESS);
+        } else KineticTheme.stateOutline(graphics, x, y, size, size, selected, false, false);
     }
 
     private static String entityPreviewKey(String id) {
@@ -307,7 +302,7 @@ public class LootEditorScreen extends AbstractLootEditorScreen {
     }
 
     @Override
-    protected void screenRemoved() {
+    protected void onRemoved() {
         entityPreviewRenderer.clear();
     }
 }

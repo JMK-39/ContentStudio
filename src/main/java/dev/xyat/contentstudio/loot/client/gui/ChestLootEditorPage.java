@@ -1,20 +1,26 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.contentstudio.client.gui.FractionalScrollJump;
+
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.text.KineticText;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollAnimator;
+import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
-import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll;
-import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.contentstudio.loot.GlobalRemoveRule;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -26,7 +32,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public class ChestLootEditorScreen extends AbstractLootEditorScreen {
+public class ChestLootEditorPage extends AbstractLootEditorPage {
     private static final int ROW_HEIGHT = 24;
     private static final int LIST_HEIGHT = ROW_HEIGHT * 13;
     private static final int VISIBLE_ROWS = 13;
@@ -60,21 +66,28 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     private double globalRemoveScrollRow;
     private int globalRemoveMaxScrollRow;
     private boolean draggingGlobalRemoveScroll;
-    private final KineticScroll.State globalRemoveScrollState = new KineticScroll.State();
+    private final KineticScrollAnimator globalRemoveScrollState = new KineticScrollAnimator();
     private boolean globalRemoveDirty;
-    private StateButton globalRemoveAddButton;
-    private StateButton globalRemoveModeButton;
-    private StateButton globalRemoveNbtButton;
-    private StateButton globalRemoveSaveButton;
+    private KineticButton globalRemoveAddButton;
+    private KineticButton globalRemoveModeButton;
+    private KineticButton globalRemoveNbtButton;
+    private KineticButton globalRemoveSaveButton;
 
     private final List<String> globalExcludedLootTableIds = new ArrayList<>();
     private int globalExcludeSelectedIndex = -1;
     private double globalExcludeScroll;
     private int globalExcludeMaxScroll;
     private boolean draggingGlobalExcludeScroll;
-    private final KineticScroll.State globalExcludeScrollState = new KineticScroll.State();
+    private final KineticScrollAnimator globalExcludeScrollState = new KineticScrollAnimator();
     private boolean globalExcludeDirty;
-    private StateButton globalExcludeSaveButton;
+    private KineticButton globalExcludeSaveButton;
+    // 全局移除网格与全局排除列表的中键跳转/提示/闪烁：都跳回各自的选中项 / Middle-click jump/hint/flash for the global remove grid and exclude list: both jump back to their selected item.
+    private final FractionalScrollJump globalRemoveJump = new FractionalScrollJump(
+            () -> globalRemoveSelectedIndex < globalRemoveRules.size() ? globalRemoveSelectedIndex : -1,
+            index -> index / REMOVE_COLS - REMOVE_ROWS / 2);
+    private final FractionalScrollJump globalExcludeJump = new FractionalScrollJump(
+            () -> globalExcludeSelectedIndex < globalExcludedLootTableIds.size() ? globalExcludeSelectedIndex : -1,
+            index -> index - (EXCLUDE_VISIBLE_ROWS - 1) / 2);
 
     private record ChestSpecialSnapshot(
             List<GlobalRemoveRule> removeRules,
@@ -113,18 +126,30 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
         updateGlobalExcludeScroll();
     }
 
-    public ChestLootEditorScreen(List<LootEntryInfo> entries) {
-        this(entries, null);
-    }
-
-    public ChestLootEditorScreen(List<LootEntryInfo> entries, Screen parentScreen) {
-        super(LootEntryInfo.MODE_CHEST, entries, "gui.contentstudio.loot.loots.chest.title", parentScreen);
+    // 原 parentScreen 参数已移除（由 openChild 决定父界面）/ The former parentScreen parameter was removed (openChild decides the parent).
+    public ChestLootEditorPage(List<LootEntryInfo> entries) {
+        super(LootEntryInfo.MODE_CHEST, entries, "gui.contentstudio.loot.loots.chest.title");
         enableLootDraft();
     }
 
     @Override
     protected String lootTableType() {
         return "minecraft:chest";
+    }
+
+    @Override
+    protected void applyScrollJumps() {
+        super.applyScrollJumps();
+        double jump = globalRemoveJump.takeJump();
+        if (!Double.isNaN(jump)) {
+            globalRemoveScrollRow = jump;
+            globalRemoveScrollState.snap(globalRemoveScrollRow, globalRemoveMaxScrollRow);
+        }
+        jump = globalExcludeJump.takeJump();
+        if (!Double.isNaN(jump)) {
+            globalExcludeScroll = jump;
+            globalExcludeScrollState.snap(globalExcludeScroll, globalExcludeMaxScroll);
+        }
     }
 
     @Override
@@ -189,46 +214,21 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     @Override
     protected void initSpecialWidgets() {
         closeContextMenu();
-        globalRemoveAddButton = addButton(
-                GLOBAL_REMOVE_ADD_X, GLOBAL_REMOVE_BUTTON_Y, 78,
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.add"),
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.add"),
-                () -> {
+        globalRemoveAddButton = ui().button(GLOBAL_REMOVE_ADD_X, GLOBAL_REMOVE_BUTTON_Y, 78).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.add")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.add")).onClick(() -> {
                     closeContextMenu();
                     openGlobalRemoveItemPicker();
-                }
-        );
-        globalRemoveModeButton = addButton(
-                GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_MODE_W,
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none"),
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.match_mode"),
-                this::toggleGlobalRemoveModeMenu
-        );
-        globalRemoveNbtButton = addButton(
-                GLOBAL_REMOVE_NBT_X, GLOBAL_REMOVE_BUTTON_Y, 70,
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.edit_nbt"),
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.edit_nbt"),
-                () -> {
+                }).build();
+        globalRemoveModeButton = ui().button(GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_MODE_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.match_mode")).onClick(this::toggleGlobalRemoveModeMenu).build();
+        globalRemoveNbtButton = ui().button(GLOBAL_REMOVE_NBT_X, GLOBAL_REMOVE_BUTTON_Y, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.edit_nbt")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.edit_nbt")).onClick(() -> {
                     closeContextMenu();
                     openGlobalRemoveNbtEditor();
-                }
-        );
-        globalRemoveSaveButton = addButton(
-                GLOBAL_REMOVE_SAVE_X, GLOBAL_REMOVE_BUTTON_Y, 44,
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.save"),
-                Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.save"),
-                () -> {
+                }).build();
+        globalRemoveSaveButton = ui().button(GLOBAL_REMOVE_SAVE_X, GLOBAL_REMOVE_BUTTON_Y, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.save")).onClick(() -> {
                     closeContextMenu();
                     saveGlobalRemove();
-                }
-        );
+                }).build();
 
-        globalExcludeSaveButton = addButton(
-                RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44,
-                Component.translatable("gui.contentstudio.loot.loots.global_exclude.save"),
-                Component.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save"),
-                this::saveGlobalExclude
-        );
+        globalExcludeSaveButton = ui().button(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save")).onClick(this::saveGlobalExclude).build();
         updateSpecialButtons();
     }
 
@@ -368,34 +368,34 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 && globalRemoveSelectedIndex >= 0
                 && globalRemoveSelectedIndex < globalRemoveRules.size();
         if (globalRemoveAddButton != null) {
-            globalRemoveAddButton.setVisible(removeVisible);
+            globalRemoveAddButton.setControlVisible(removeVisible);
             globalRemoveAddButton.setEnabled(removeVisible);
         }
         if (globalRemoveModeButton != null) {
-            globalRemoveModeButton.setVisible(removeVisible);
+            globalRemoveModeButton.setControlVisible(removeVisible);
             globalRemoveModeButton.setEnabled(hasSelection);
             globalRemoveModeButton.setText(hasSelection
                     ? globalRemoveModeComponent(globalRemoveRules.get(globalRemoveSelectedIndex).mode(), true)
-                    : Component.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none"));
+                    : KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none"));
         }
         if (globalRemoveNbtButton != null) {
-            globalRemoveNbtButton.setVisible(removeVisible);
+            globalRemoveNbtButton.setControlVisible(removeVisible);
             globalRemoveNbtButton.setEnabled(hasSelection);
         }
         if (globalRemoveSaveButton != null) {
-            globalRemoveSaveButton.setVisible(removeVisible);
+            globalRemoveSaveButton.setControlVisible(removeVisible);
             globalRemoveSaveButton.setEnabled(removeVisible && globalRemoveDirty);
         }
 
         boolean excludeVisible = isGlobalExcludePanel();
         if (globalExcludeSaveButton != null) {
-            globalExcludeSaveButton.setVisible(excludeVisible);
+            globalExcludeSaveButton.setControlVisible(excludeVisible);
             globalExcludeSaveButton.setEnabled(excludeVisible && globalExcludeDirty);
         }
     }
 
     @Override
-    protected void renderSpecialPanel(GuiGraphics g, int mx, int my) {
+    protected void renderSpecialPanel(KineticGraphics g, int mx, int my) {
         if (isGlobalRemovePanel()) {
             renderGlobalRemovePanel(g, mx, my);
         } else if (isGlobalExcludePanel()) {
@@ -403,25 +403,19 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
         }
     }
 
-    private void renderGlobalRemovePanel(GuiGraphics g, int mx, int my) {
-        Component count = Component.translatable(
+    private void renderGlobalRemovePanel(KineticGraphics g, int mx, int my) {
+        Component count = KineticI18n.translatable(
                 "gui.contentstudio.loot.loots.global_remove.count",
                 Component.literal(Integer.toString(globalRemoveRules.size())).withStyle(ChatFormatting.AQUA)
         );
-        g.drawString(font, count, RIGHT_X + RIGHT_W - 10 - font.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
+        g.text(count, RIGHT_X + RIGHT_W - 10 - KineticText.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
 
         if (globalRemoveRules.isEmpty()) {
-            g.drawCenteredString(
-                    font,
-                    Component.translatable("gui.contentstudio.loot.loots.global_remove.empty"),
-                    SPECIAL_X + SPECIAL_W / 2,
-                    SPECIAL_Y + SPECIAL_H / 2 - 4,
-                    0xFFFFAA00
-            );
+            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.empty"), SPECIAL_X + SPECIAL_W / 2, SPECIAL_Y + SPECIAL_H / 2 - 4, 0xFFFFAA00, true);
             return;
         }
 
-        double smoothRemoveScroll = globalRemoveScrollState.follow(
+        double smoothRemoveScroll = globalRemoveScrollState.update(
                 globalRemoveScrollRow,
                 globalRemoveMaxScrollRow,
                 draggingGlobalRemoveScroll
@@ -435,9 +429,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 globalRemoveRules.size(),
                 start + REMOVE_VISIBLE_ITEMS + REMOVE_COLS
         );
-        enableUiScissor(
-                g,
-                SPECIAL_X,
+        g.scissor(SPECIAL_X,
                 SPECIAL_Y,
                 SPECIAL_X + SPECIAL_W - 10,
                 SPECIAL_Y + SPECIAL_H
@@ -449,12 +441,16 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             int x = SPECIAL_X + REMOVE_PADDING + col * REMOVE_PITCH;
             int y = SPECIAL_Y + REMOVE_PADDING + row * REMOVE_PITCH - removeShift;
             renderGlobalRemoveItem(g, index, x, y, mx, my);
+            globalRemoveJump.flash(g, index, x, y, REMOVE_CELL, REMOVE_CELL);
         }
 
-        disableUiScissor(g);
+        g.endScissor();
         if (globalRemoveMaxScrollRow > 0) {
-            int thumb = KineticScroll.stateThumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
-            KineticScroll.renderScrollbarState(
+            int thumb = LootScrollbars.thumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
+            globalRemoveJump.track(g, mx, my, SPECIAL_X + SPECIAL_W - 6, SPECIAL_Y + 2, 4, SPECIAL_H - 4, 18,
+                    smoothRemoveScroll, globalRemoveMaxScrollRow, totalGlobalRemoveRows(), REMOVE_ROWS,
+                    draggingGlobalRemoveScroll);
+            LootScrollbars.renderState(
                     g,
                     mx,
                     my,
@@ -470,16 +466,16 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
         }
     }
 
-    private void renderGlobalRemoveItem(GuiGraphics g, int index, int x, int y, int mx, int my) {
+    private void renderGlobalRemoveItem(KineticGraphics g, int index, int x, int y, int mx, int my) {
         GlobalRemoveRule rule = globalRemoveRules.get(index);
         ItemStack stack = itemStack(rule);
         boolean hovered = mx >= x && mx < x + REMOVE_CELL && my >= y && my < y + REMOVE_CELL;
         boolean selected = index == globalRemoveSelectedIndex;
 
         LootCheckerboard.draw(g, x, y, REMOVE_CELL, REMOVE_CELL);
-        GuiTheme.stateOutline(g, x, y, REMOVE_CELL, REMOVE_CELL, selected, hovered, false);
+        KineticTheme.stateOutline(g, x, y, REMOVE_CELL, REMOVE_CELL, selected, hovered, false);
         if (!stack.isEmpty()) {
-            g.renderItem(stack, x + 1, y + 1);
+            g.item(stack, x + 1, y + 1);
         }
 
         if (hovered) {
@@ -488,45 +484,32 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 tooltip.add(stack.getHoverName().copy().withStyle(ChatFormatting.GOLD));
             }
             tooltip.add(idComponent(rule.itemId()));
-            tooltip.add(Component.translatable(
+            tooltip.add(KineticI18n.translatable(
                     "gui.contentstudio.loot.loots.global_remove.rule.mode_line",
                     globalRemoveModeComponent(rule.mode(), false)
             ));
             if (rule.hasConfiguredNbt()) {
-                tooltip.add(Component.translatable("gui.contentstudio.loot.loots.global_remove.rule.nbt_set"));
+                tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.rule.nbt_set"));
             }
-            tooltip.add(Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.right_click"));
+            tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.right_click"));
             deferredTooltip = tooltip;
         }
     }
 
-    private void renderGlobalExcludePanel(GuiGraphics g, int mx, int my) {
-        Component count = Component.translatable(
+    private void renderGlobalExcludePanel(KineticGraphics g, int mx, int my) {
+        Component count = KineticI18n.translatable(
                 "gui.contentstudio.loot.loots.global_exclude.count",
                 Component.literal(Integer.toString(globalExcludedLootTableIds.size())).withStyle(ChatFormatting.AQUA)
         );
-        g.drawString(font, count, RIGHT_X + RIGHT_W - 10 - font.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
-        g.drawString(
-                font,
-                Component.translatable("gui.contentstudio.loot.loots.global_exclude.desc"),
-                SPECIAL_X + 4,
-                SPECIAL_Y + 4,
-                0xFFFFFF55,
-                false
-        );
+        g.text(count, RIGHT_X + RIGHT_W - 10 - KineticText.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.desc"), SPECIAL_X + 4, SPECIAL_Y + 4, 0xFFFFFF55, false);
 
         int listY = SPECIAL_Y + 18;
         int listH = SPECIAL_H - 18;
         if (globalExcludedLootTableIds.isEmpty()) {
-            g.drawCenteredString(
-                    font,
-                    Component.translatable("gui.contentstudio.loot.loots.global_exclude.empty"),
-                    SPECIAL_X + SPECIAL_W / 2,
-                    listY + listH / 2 - 4,
-                    0xFFFFAA00
-            );
+            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.empty"), SPECIAL_X + SPECIAL_W / 2, listY + listH / 2 - 4, 0xFFFFAA00, true);
         } else {
-            double smoothExcludeScroll = globalExcludeScrollState.follow(
+            double smoothExcludeScroll = globalExcludeScrollState.update(
                     globalExcludeScroll,
                     globalExcludeMaxScroll,
                     draggingGlobalExcludeScroll
@@ -539,9 +522,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                     globalExcludedLootTableIds.size(),
                     smoothExcludeRow + EXCLUDE_VISIBLE_ROWS + 1
             );
-            enableUiScissor(
-                    g,
-                    SPECIAL_X + 2,
+            g.scissor(SPECIAL_X + 2,
                     listY,
                     SPECIAL_X + SPECIAL_W - 10,
                     listY + listH
@@ -549,14 +530,18 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             for (int i = smoothExcludeRow; i < end; i++) {
                 int y = listY + (i - smoothExcludeRow) * EXCLUDE_ROW_H - excludeShift;
                 renderGlobalExcludeRow(g, i, y, mx, my);
+                globalExcludeJump.flash(g, i, SPECIAL_X + 2, y, SPECIAL_W - 12, EXCLUDE_ROW_H - 2);
             }
-            disableUiScissor(g);
+            g.endScissor();
         }
 
         if (globalExcludeMaxScroll > 0) {
             int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-            int thumb = KineticScroll.stateThumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
-            KineticScroll.renderScrollbarState(
+            int thumb = LootScrollbars.thumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
+            globalExcludeJump.track(g, mx, my, SPECIAL_X + SPECIAL_W - 6, listY + 2, 4, listH - 4, 18,
+                    globalExcludeScrollState.update(globalExcludeScroll, globalExcludeMaxScroll, draggingGlobalExcludeScroll),
+                    globalExcludeMaxScroll, globalExcludedLootTableIds.size(), visibleRows, draggingGlobalExcludeScroll);
+            LootScrollbars.renderState(
                     g,
                     mx,
                     my,
@@ -566,7 +551,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                     listH - 4,
                     thumb,
                     globalExcludeMaxScroll,
-                    globalExcludeScrollState.follow(
+                    globalExcludeScrollState.update(
                             globalExcludeScroll,
                             globalExcludeMaxScroll,
                             draggingGlobalExcludeScroll
@@ -576,22 +561,22 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
         }
     }
 
-    private void renderGlobalExcludeRow(GuiGraphics g, int index, int y, int mx, int my) {
+    private void renderGlobalExcludeRow(KineticGraphics g, int index, int y, int mx, int my) {
         String id = globalExcludedLootTableIds.get(index);
         boolean hovered = mx >= SPECIAL_X + 2
                 && mx < SPECIAL_X + SPECIAL_W - 10
                 && my >= y
                 && my < y + EXCLUDE_ROW_H;
         boolean selected = index == globalExcludeSelectedIndex;
-        GuiTheme.surface(
+        KineticTheme.surface(
                 g,
                 SPECIAL_X + 2,
                 y,
                 SPECIAL_W - 12,
                 EXCLUDE_ROW_H - 2,
-                GuiTheme.Surface.PANEL_ALT
+                KineticTheme.Surface.PANEL_ALT
         );
-        GuiTheme.stateOutline(
+        KineticTheme.stateOutline(
                 g,
                 SPECIAL_X + 2,
                 y,
@@ -604,10 +589,10 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
 
         String name = lootTableDisplayName(id);
         if (!name.equals(id)) {
-            g.drawString(font, trim(font, name, SPECIAL_W - 24), SPECIAL_X + 7, y + 2, 0xFFFFD75F, false);
-            g.drawString(font, trim(font, id, SPECIAL_W - 24), SPECIAL_X + 7, y + 12, 0xFF55FFFF, false);
+            g.text(KineticText.ellipsize(name, SPECIAL_W - 24), SPECIAL_X + 7, y + 2, 0xFFFFD75F, false);
+            g.text(KineticText.ellipsize(id, SPECIAL_W - 24), SPECIAL_X + 7, y + 12, 0xFF55FFFF, false);
         } else {
-            g.drawString(font, trim(font, id, SPECIAL_W - 24), SPECIAL_X + 7, y + 6, 0xFF55FFFF, false);
+            g.text(KineticText.ellipsize(id, SPECIAL_W - 24), SPECIAL_X + 7, y + 6, 0xFF55FFFF, false);
         }
 
         if (hovered) {
@@ -638,8 +623,8 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 && my >= SPECIAL_Y + 2
                 && my <= SPECIAL_Y + SPECIAL_H - 2) {
             draggingGlobalRemoveScroll = true;
-            int thumb = KineticScroll.stateThumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
-            globalRemoveScrollRow = KineticScroll.stateOffsetFromPointerPrecise(
+            int thumb = LootScrollbars.thumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
+            globalRemoveScrollRow = LootScrollbars.offsetFromPointer(
                     my,
                     SPECIAL_Y + 2,
                     SPECIAL_H - 4,
@@ -665,7 +650,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 || gridY % REMOVE_PITCH >= REMOVE_CELL) {
             return false;
         }
-        double smoothRemoveScroll = globalRemoveScrollState.follow(
+        double smoothRemoveScroll = globalRemoveScrollState.update(
                 globalRemoveScrollRow,
                 globalRemoveMaxScrollRow,
                 draggingGlobalRemoveScroll
@@ -709,8 +694,8 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 && my <= listY + listH - 2) {
             draggingGlobalExcludeScroll = true;
             int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-            int thumb = KineticScroll.stateThumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
-            globalExcludeScroll = KineticScroll.stateOffsetFromPointerPrecise(
+            int thumb = LootScrollbars.thumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
+            globalExcludeScroll = LootScrollbars.offsetFromPointer(
                     my,
                     listY + 2,
                     listH - 4,
@@ -727,7 +712,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 && mx < SPECIAL_X + SPECIAL_W - 10
                 && my >= listY
                 && my < listY + listH) {
-            double smoothExcludeScroll = globalExcludeScrollState.follow(
+            double smoothExcludeScroll = globalExcludeScrollState.update(
                     globalExcludeScroll,
                     globalExcludeMaxScroll,
                     draggingGlobalExcludeScroll
@@ -754,8 +739,8 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     @Override
     protected boolean handleSpecialPanelDragged(double mx, double my, int btn, double dx, double dy) {
         if (draggingGlobalRemoveScroll) {
-            int thumb = KineticScroll.stateThumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
-            globalRemoveScrollRow = KineticScroll.stateOffsetFromPointerPrecise(
+            int thumb = LootScrollbars.thumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
+            globalRemoveScrollRow = LootScrollbars.offsetFromPointer(
                     my,
                     SPECIAL_Y + 2,
                     SPECIAL_H - 4,
@@ -772,8 +757,8 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             int listY = SPECIAL_Y + 18;
             int listH = SPECIAL_H - 18;
             int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-            int thumb = KineticScroll.stateThumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
-            globalExcludeScroll = KineticScroll.stateOffsetFromPointerPrecise(
+            int thumb = LootScrollbars.thumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
+            globalExcludeScroll = LootScrollbars.offsetFromPointer(
                     my,
                     listY + 2,
                     listH - 4,
@@ -822,10 +807,10 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     }
 
     private void openGlobalRemoveItemPicker() {
-        if (minecraft == null) {
+        if (!isAttached()) {
             return;
         }
-        KineticSelectors.openItemSelector(this, selection -> {
+        KineticSelectors.openItemSelector(selection -> {
             if (selection == null || !selection.isItem()) {
                 return;
             }
@@ -838,7 +823,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                 globalRemoveSelectedIndex = existing;
                 ensureGlobalRemoveSelectedVisible();
                 updateButtons();
-                KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.global_remove.duplicate"));
+                KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.global_remove.duplicate"));
                 return;
             }
             globalRemoveRules.add(nextRule);
@@ -898,7 +883,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             closeContextMenu();
             ensureGlobalRemoveSelectedVisible();
             updateButtons();
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.global_remove.duplicate"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.global_remove.duplicate"));
             return;
         }
         globalRemoveRules.set(globalRemoveSelectedIndex, updated);
@@ -908,14 +893,14 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     }
 
     private void openGlobalRemoveNbtEditor() {
-        if (minecraft == null
+        if (!isAttached()
                 || globalRemoveSelectedIndex < 0
                 || globalRemoveSelectedIndex >= globalRemoveRules.size()) {
             return;
         }
         int editingIndex = globalRemoveSelectedIndex;
         GlobalRemoveRule original = globalRemoveRules.get(editingIndex);
-        KineticSelectors.openNbtEditor(this, original.nbt(), value -> {
+        KineticSelectors.openNbtEditor(original.nbt(), value -> {
             if (editingIndex < 0 || editingIndex >= globalRemoveRules.size()) {
                 return;
             }
@@ -927,7 +912,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             int duplicate = findEquivalentGlobalRemoveRule(updated);
             if (duplicate >= 0 && duplicate != editingIndex) {
                 globalRemoveSelectedIndex = duplicate;
-                KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.global_remove.duplicate"));
+                KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.global_remove.duplicate"));
                 return;
             }
             globalRemoveRules.set(editingIndex, updated);
@@ -944,7 +929,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             case NBT_FUZZY -> "nbt_fuzzy";
             case NBT_EXACT -> "nbt_exact";
         };
-        return Component.translatable("gui.contentstudio.loot.loots.global_remove.tip.mode." + suffix);
+        return KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.mode." + suffix);
     }
 
     private Component globalRemoveModeComponent(GlobalRemoveRule.MatchMode mode, boolean compact) {
@@ -957,7 +942,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
         String key = compact
                 ? "gui.contentstudio.loot.loots.global_remove.match_mode.compact." + suffix
                 : "gui.contentstudio.loot.loots.global_remove.match_mode." + suffix;
-        return Component.translatable(key);
+        return KineticI18n.translatable(key);
     }
 
     private void removeSelectedGlobalItem() {
@@ -1058,14 +1043,12 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     }
 
     @Override
-    protected void renderTargets(GuiGraphics g, int mx, int my) {
+    protected void renderTargets(KineticGraphics g, int mx, int my) {
         double smoothScroll = smoothTargetScroll();
         int start = (int) Math.floor(smoothScroll + 1.0E-6D);
         int scrollShift = (int) Math.round((smoothScroll - start) * ROW_HEIGHT);
         int end = Math.min(displayEntries.size(), start + targetVisibleEntryCount() + 1);
-        enableUiScissor(
-                g,
-                LEFT_X,
+        g.scissor(LEFT_X,
                 targetAreaY(),
                 LEFT_X + TARGET_WIDTH,
                 targetAreaY() + targetAreaHeight()
@@ -1079,32 +1062,33 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                     && selectedEntry.lootTableId().equals(entry.lootTableId());
             boolean changed = entry.overridden() || hasPendingDraft(entry) || (selected && dirty);
             boolean excluded = !entry.isGlobalChestEntry() && globalExcludedLootTableIds.contains(entry.lootTableId());
-            GuiTheme.surface(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, GuiTheme.Surface.PANEL_ALT);
+            KineticTheme.surface(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, KineticTheme.Surface.PANEL_ALT);
             if (selected) {
-                GuiTheme.stateOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, true, false, false);
+                KineticTheme.stateOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, true, false, false);
             } else if (excluded) {
-                GuiTheme.indicatorOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, GuiTheme.Indicator.DANGER);
+                KineticTheme.indicatorOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, KineticTheme.Indicator.DANGER);
             } else if (changed) {
-                GuiTheme.indicatorOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, GuiTheme.Indicator.WARNING);
+                KineticTheme.indicatorOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, KineticTheme.Indicator.WARNING);
             } else {
-                GuiTheme.stateOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, false, hover, false);
+                KineticTheme.stateOutline(g, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT, false, hover, false);
             }
 
             String name = getDisplayName(entry);
             String id = entry.lootTableId();
             if (!name.equals(id)) {
-                g.drawString(font, trim(font, name, TARGET_WIDTH - 10), LEFT_X + 5, y + 2, 0xFFFFD75F, false);
-                g.drawString(font, trim(font, id, TARGET_WIDTH - 10), LEFT_X + 5, y + 12, 0xFF55FFFF, false);
+                g.text(KineticText.ellipsize(name, TARGET_WIDTH - 10), LEFT_X + 5, y + 2, 0xFFFFD75F, false);
+                g.text(KineticText.ellipsize(id, TARGET_WIDTH - 10), LEFT_X + 5, y + 12, 0xFF55FFFF, false);
             } else {
-                g.drawString(font, trim(font, id, TARGET_WIDTH - 10), LEFT_X + 5, y + 6, 0xFF55FFFF, false);
+                g.text(KineticText.ellipsize(id, TARGET_WIDTH - 10), LEFT_X + 5, y + 6, 0xFF55FFFF, false);
             }
+            flashTarget(g, i, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT);
 
             if (hover) {
                 if (excluded) {
                     deferredTooltip = List.<Component>of(
                             name.equals(id) ? idComponent(id) : nameComponent(name),
                             name.equals(id) ? Component.empty() : idComponent(id),
-                            Component.translatable("gui.contentstudio.loot.loots.global_exclude.marked")
+                            KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.marked")
                     ).stream().filter(component -> !component.getString().isEmpty()).toList();
                 } else {
                     deferredTooltip = name.equals(id)
@@ -1114,7 +1098,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
             }
         }
 
-        disableUiScissor(g);
+        g.endScissor();
         renderTargetScrollbar(g, mx, my);
     }
 
@@ -1133,13 +1117,13 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
     @Override
     protected String getDisplayName(LootEntryInfo entry) {
         if (entry.isGlobalChestAppend()) {
-            return Component.translatable("gui.contentstudio.loot.loots.chest.global_append").getString();
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.chest.global_append").getString();
         }
         if (entry.isGlobalChestRemove()) {
-            return Component.translatable("gui.contentstudio.loot.loots.chest.global_remove").getString();
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.chest.global_remove").getString();
         }
         if (entry.isGlobalChestExclude()) {
-            return Component.translatable("gui.contentstudio.loot.loots.chest.global_exclude").getString();
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.chest.global_exclude").getString();
         }
         return lootTableDisplayName(entry.lootTableId());
     }
@@ -1151,7 +1135,7 @@ public class ChestLootEditorScreen extends AbstractLootEditorScreen {
                     + id.getNamespace()
                     + "."
                     + id.getPath().replace('/', '.');
-            String translated = Component.translatable(key).getString();
+            String translated = KineticI18n.translatable(key).getString();
             return translated.equals(key) ? lootTableId : translated;
         } catch (Exception ignored) {
             return lootTableId;

@@ -1,41 +1,44 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.input.KeyInput;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
-import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
 
-final class LootPoolEditScreen extends KineticScreen {
+final class LootPoolEditPage extends KineticPage {
     private static final int WIDTH = 440;
     private static final int HEIGHT = 240;
-    private static final int PANEL_X = (STANDARD_CANVAS_WIDTH - WIDTH) / 2;
-    private static final int PANEL_Y = (STANDARD_CANVAS_HEIGHT - HEIGHT) / 2;
+    private static final int PANEL_X = (CANVAS_WIDTH - WIDTH) / 2;
+    private static final int PANEL_Y = (CANVAS_HEIGHT - HEIGHT) / 2;
 
-    private final AbstractLootEditorScreen parent;
+    private final AbstractLootEditorPage parent;
     private final int poolIndex;
     private final JsonObject workingPool;
-    private NumericEditBox rollsMinBox;
-    private NumericEditBox rollsMaxBox;
-    private NumericEditBox bonusMinBox;
-    private NumericEditBox bonusMaxBox;
+    private KineticNumberField rollsMinBox;
+    private KineticNumberField rollsMaxBox;
+    private KineticNumberField bonusMinBox;
+    private KineticNumberField bonusMaxBox;
 
-    LootPoolEditScreen(AbstractLootEditorScreen parent, int poolIndex, JsonObject pool) {
-        super(Component.translatable("gui.contentstudio.loot.loots.pool_editor.title"));
+    LootPoolEditPage(AbstractLootEditorPage parent, int poolIndex, JsonObject pool) {
+        super(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.title"));
         this.parent = parent;
-        setParentScreen(parent);
         this.poolIndex = poolIndex;
         this.workingPool = pool;
 }
 
     @Override
-    protected void buildUi() {
+    protected void build(KineticUi ui) {
         LootJsonEditUtil.Range rolls = LootJsonEditUtil.range(workingPool.get("rolls"), 1);
         LootJsonEditUtil.Range bonus = LootJsonEditUtil.range(workingPool.get("bonus_rolls"), 0);
         rollsMinBox = numericBox(PANEL_X + 36, format(rolls.min()), LootNumericField.Type.POSITIVE_DECIMAL,
@@ -47,22 +50,13 @@ final class LootPoolEditScreen extends KineticScreen {
         bonusMaxBox = numericBox(PANEL_X + 324, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_max");
 
-        addButton(PANEL_X + 196, PANEL_Y + 194, 70,
-                Component.translatable("gui.contentstudio.loot.loots.pool_editor.apply"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.pool.apply"),
-                this::applyChanges);
-        addButton(PANEL_X + 272, PANEL_Y + 194, 70,
-                Component.translatable("gui.contentstudio.loot.loots.pool_editor.delete"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"),
-                this::openDeleteConfirm);
-        addButton(PANEL_X + 348, PANEL_Y + 194, 70,
-                Component.translatable("gui.contentstudio.loot.loots.pool_editor.cancel"),
-                null,
-                this::closeToParent);
+        ui().button(PANEL_X + 196, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.apply")).onClick(this::applyChanges).build();
+        ui().button(PANEL_X + 272, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.delete")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(this::openDeleteConfirm).build();
+        ui().button(PANEL_X + 348, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.cancel")).onClick(this::closeToParent).build();
 
     }
 
-    private NumericEditBox numericBox(
+    private KineticNumberField numericBox(
             int x,
             String value,
             LootNumericField.Type type,
@@ -70,10 +64,11 @@ final class LootPoolEditScreen extends KineticScreen {
     ) {
 
         return LootNumericField.add(
-                this,
+                ui(),
                 x,
                 PANEL_Y + 84,
                 76,
+                value,
                 value,
                 type,
                 tooltipKey
@@ -95,19 +90,19 @@ final class LootPoolEditScreen extends KineticScreen {
         workingPool.add("rolls", LootJsonEditUtil.rangeValue(rollsMin, rollsMax));
         workingPool.add("bonus_rolls", LootJsonEditUtil.rangeValue(bonusMin, bonusMax));
         parent.applyPoolEdit(poolIndex, workingPool);
-        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.applied"));
+        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.pool.applied"));
         closeToParent();
     }
 
     private void openDeleteConfirm() {
         openDialog(
-                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
-                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
-                Component.translatable("gui.contentstudio.loot.loots.confirm.delete"),
-                Component.translatable("gui.contentstudio.loot.loots.confirm.cancel"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.confirm.delete"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.confirm.cancel"),
                 () -> {
                     if (parent.deletePoolFromEditor(poolIndex)) {
-                        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.deleted"));
+                        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.pool.deleted"));
                     }
                     closeToParent();
                 },
@@ -116,19 +111,19 @@ final class LootPoolEditScreen extends KineticScreen {
     }
 
     private void closeToParent() {
-        if (minecraft != null) navigateBack();
+        if (isAttached()) navigateBack();
     }
 
     @Override
-    protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        GuiTheme.panel(g, PANEL_X, PANEL_Y, WIDTH, HEIGHT);
-        GuiTheme.stateSurface(
+    protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
+        KineticTheme.panel(g, PANEL_X, PANEL_Y, WIDTH, HEIGHT);
+        KineticTheme.stateSurface(
                 g,
                 PANEL_X + 12,
                 PANEL_Y + 12,
                 WIDTH - 24,
                 HEIGHT - 24,
-                GuiTheme.Surface.PANEL_ALT,
+                KineticTheme.Surface.PANEL_ALT,
                 true,
                 false,
                 false
@@ -136,9 +131,9 @@ final class LootPoolEditScreen extends KineticScreen {
     }
 
     @Override
-    protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        g.drawString(font, getTitle(), PANEL_X + 24, PANEL_Y + 24, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
+    protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
+        g.text(title(), PANEL_X + 24, PANEL_Y + 24, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
                 Component.literal(String.valueOf(poolIndex + 1)).withStyle(ChatFormatting.YELLOW)), PANEL_X + 24, PANEL_Y + 42, 0xFFE6E6E6, false);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 36, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_max", 132, 0xFF55FFFF);
@@ -148,16 +143,16 @@ final class LootPoolEditScreen extends KineticScreen {
         int entries = arraySize(workingPool.get("entries"));
         int conditions = arraySize(workingPool.get("conditions"));
         int functions = arraySize(workingPool.get("functions"));
-        Component summary = Component.translatable("gui.contentstudio.loot.loots.pool_editor.summary",
+        Component summary = KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.summary",
                 Component.literal(String.valueOf(entries)).withStyle(ChatFormatting.YELLOW),
                 Component.literal(String.valueOf(conditions)).withStyle(ChatFormatting.AQUA),
                 Component.literal(String.valueOf(functions)).withStyle(ChatFormatting.LIGHT_PURPLE));
-        g.drawString(font, summary, PANEL_X + 36, PANEL_Y + 128, 0xFFE6E6E6, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, 0xFFAAAAAA, false);
+        g.text(summary, PANEL_X + 36, PANEL_Y + 128, 0xFFE6E6E6, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, 0xFFAAAAAA, false);
     }
 
-    private void fieldLabel(GuiGraphics g, String key, int x, int color) {
-        g.drawString(font, Component.translatable(key), PANEL_X + x, PANEL_Y + 70, color, false);
+    private void fieldLabel(KineticGraphics g, String key, int x, int color) {
+        g.text(KineticI18n.translatable(key), PANEL_X + x, PANEL_Y + 70, color, false);
     }
 
     private int arraySize(JsonElement element) {
@@ -165,8 +160,8 @@ final class LootPoolEditScreen extends KineticScreen {
     }
 
     @Override
-    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
-        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ESCAPE, keyCode)) {
+    protected boolean onKeyPress(KeyInput input) {
+        if (input.is(KineticKeyBindings.Key.ESCAPE)) {
             closeToParent();
             return true;
         }

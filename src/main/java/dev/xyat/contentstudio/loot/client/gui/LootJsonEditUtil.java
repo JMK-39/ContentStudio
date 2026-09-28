@@ -72,7 +72,7 @@ final class LootJsonEditUtil {
 
     static JsonElement rangeValue(double min, double max) {
         if (Math.abs(min - max) < 0.000001D) {
-            return AbstractLootEditorScreen.GSON.toJsonTree(min);
+            return AbstractLootEditorPage.GSON.toJsonTree(min);
         }
         JsonObject range = new JsonObject();
         range.addProperty("type", "minecraft:uniform");
@@ -314,7 +314,7 @@ final class LootJsonEditUtil {
         for (JsonElement element : array(entry, "functions")) {
             String id = element.isJsonObject() ? string(element.getAsJsonObject().get("function")) : "-";
             if (!EDITED_FUNCTIONS.contains(suffix(id))) {
-                result.add(id.isBlank() ? AbstractLootEditorScreen.GSON.toJson(element) : id);
+                result.add(id.isBlank() ? AbstractLootEditorPage.GSON.toJson(element) : id);
             }
         }
         return result;
@@ -364,8 +364,8 @@ final class LootJsonEditUtil {
                 || !"this".equals(string(condition.get("entity")))) {
             return false;
         }
-        return AbstractLootEditorScreen.GSON.toJson(condition).contains("is_on_fire")
-                && AbstractLootEditorScreen.GSON.toJson(condition).contains("true");
+        return AbstractLootEditorPage.GSON.toJson(condition).contains("is_on_fire")
+                && AbstractLootEditorPage.GSON.toJson(condition).contains("true");
     }
 
     private static String suffix(String id) {

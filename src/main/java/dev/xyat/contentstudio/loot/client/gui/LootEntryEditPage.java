@@ -1,31 +1,35 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.input.KeyInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
+import dev.xyat.kineticcore.api.client.gui.text.KineticText;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 
 import com.google.gson.JsonObject;
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
-import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
-import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.ToggleButton;
-import dev.xyat.kineticcore.api.client.widget.input.KineticNumericFields.NumericEditBox;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
-final class LootEntryEditScreen extends KineticScreen {
+final class LootEntryEditPage extends KineticPage {
     private static final int WIDTH = 520;
     private static final int COMPACT_HEIGHT = 250;
     private static final int ENTITY_HEIGHT = 286;
@@ -43,30 +47,30 @@ final class LootEntryEditScreen extends KineticScreen {
     private static final int ENTITY_TITLE_Y = 203;
     private static final int ENTITY_BUTTON_Y = 218;
 
-    private final AbstractLootEditorScreen parent;
-    private final AbstractLootEditorScreen.DropVisual original;
+    private final AbstractLootEditorPage parent;
+    private final AbstractLootEditorPage.DropVisual original;
     private final JsonObject workingEntry;
     private final boolean itemEntry;
     private final boolean entityMode;
     private final int screenHeight;
 
-    private NumericEditBox chanceBox;
-    private NumericEditBox countMinBox;
-    private NumericEditBox countMaxBox;
-    private NumericEditBox weightBox;
-    private NumericEditBox lootingMinBox;
-    private NumericEditBox lootingMaxBox;
-    private NumericEditBox enchantMinBox;
-    private NumericEditBox enchantMaxBox;
-    private NumericEditBox damageMinBox;
-    private NumericEditBox damageMaxBox;
-    private ToggleButton randomEnchantButton;
-    private ToggleButton levelEnchantButton;
-    private ToggleButton furnaceButton;
-    private ToggleButton explosionButton;
-    private ToggleButton killedButton;
-    private ToggleButton fireRequiredButton;
-    private ToggleButton lootingButton;
+    private KineticNumberField chanceBox;
+    private KineticNumberField countMinBox;
+    private KineticNumberField countMaxBox;
+    private KineticNumberField weightBox;
+    private KineticNumberField lootingMinBox;
+    private KineticNumberField lootingMaxBox;
+    private KineticNumberField enchantMinBox;
+    private KineticNumberField enchantMaxBox;
+    private KineticNumberField damageMinBox;
+    private KineticNumberField damageMaxBox;
+    private KineticToggle randomEnchantButton;
+    private KineticToggle levelEnchantButton;
+    private KineticToggle furnaceButton;
+    private KineticToggle explosionButton;
+    private KineticToggle killedButton;
+    private KineticToggle fireRequiredButton;
+    private KineticToggle lootingButton;
 
     private boolean randomEnchant;
     private boolean levelEnchant;
@@ -91,10 +95,9 @@ final class LootEntryEditScreen extends KineticScreen {
     private String draftDamageMin;
     private String draftDamageMax;
 
-    LootEntryEditScreen(AbstractLootEditorScreen parent, AbstractLootEditorScreen.DropVisual visual) {
-        super(Component.translatable("gui.contentstudio.loot.loots.entry_editor.title"));
+    LootEntryEditPage(AbstractLootEditorPage parent, AbstractLootEditorPage.DropVisual visual) {
+        super(KineticI18n.translatable("gui.contentstudio.loot.loots.entry_editor.title"));
         this.parent = parent;
-        setParentScreen(parent);
         this.original = visual;
         this.workingEntry = visual.entry.deepCopy();
         String type = LootJsonEditUtil.string(workingEntry.get("type"));
@@ -114,128 +117,80 @@ final class LootEntryEditScreen extends KineticScreen {
 }
 
     @Override
-    protected void buildUi() {
+    protected void build(KineticUi ui) {
         LootJsonEditUtil.Range count = LootJsonEditUtil.count(workingEntry);
         LootJsonEditUtil.Range loot = LootJsonEditUtil.looting(workingEntry);
         LootJsonEditUtil.Range levels = LootJsonEditUtil.enchantmentLevels(workingEntry);
         LootJsonEditUtil.Range damage = LootJsonEditUtil.damage(workingEntry);
-        chanceBox = numericBox(24, NUMERIC_FIELD_Y, 65, draft(draftChance, format(LootJsonEditUtil.chance(workingEntry))), LootNumericField.Type.PROBABILITY, "gui.contentstudio.loot.loots.tip.chance");
-        countMinBox = numericBox(101, NUMERIC_FIELD_Y, 65, draft(draftCountMin, format(count.min())), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.count_min");
-        countMaxBox = numericBox(178, NUMERIC_FIELD_Y, 65, draft(draftCountMax, format(count.max())), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.count_max");
-        weightBox = numericBox(255, NUMERIC_FIELD_Y, 65, draft(draftWeight, String.valueOf(Math.max(1, LootJsonEditUtil.integer(workingEntry.get("weight"))))), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.weight");
-        lootingMinBox = numericBox(332, NUMERIC_FIELD_Y, 65, draft(draftLootingMin, format(loot.min())), LootNumericField.Type.NON_NEGATIVE_INTEGER, "gui.contentstudio.loot.loots.tip.looting_min");
-        lootingMaxBox = numericBox(409, NUMERIC_FIELD_Y, 65, draft(draftLootingMax, format(loot.max())), LootNumericField.Type.NON_NEGATIVE_INTEGER, "gui.contentstudio.loot.loots.tip.looting_max");
-        lootingMinBox.setVisible(entityMode);
-        lootingMaxBox.setVisible(entityMode);
+        chanceBox = numericBox(24, NUMERIC_FIELD_Y, 65, draft(draftChance, format(LootJsonEditUtil.chance(workingEntry))), format(LootJsonEditUtil.chance(workingEntry)), LootNumericField.Type.PROBABILITY, "gui.contentstudio.loot.loots.tip.chance");
+        countMinBox = numericBox(101, NUMERIC_FIELD_Y, 65, draft(draftCountMin, format(count.min())), format(count.min()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.count_min");
+        countMaxBox = numericBox(178, NUMERIC_FIELD_Y, 65, draft(draftCountMax, format(count.max())), format(count.max()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.count_max");
+        weightBox = numericBox(255, NUMERIC_FIELD_Y, 65, draft(draftWeight, String.valueOf(Math.max(1, LootJsonEditUtil.integer(workingEntry.get("weight"))))), String.valueOf(Math.max(1, LootJsonEditUtil.integer(workingEntry.get("weight")))), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.weight");
+        lootingMinBox = numericBox(332, NUMERIC_FIELD_Y, 65, draft(draftLootingMin, format(loot.min())), format(loot.min()), LootNumericField.Type.NON_NEGATIVE_INTEGER, "gui.contentstudio.loot.loots.tip.looting_min");
+        lootingMaxBox = numericBox(409, NUMERIC_FIELD_Y, 65, draft(draftLootingMax, format(loot.max())), format(loot.max()), LootNumericField.Type.NON_NEGATIVE_INTEGER, "gui.contentstudio.loot.loots.tip.looting_max");
+        lootingMinBox.setControlVisible(entityMode);
+        lootingMaxBox.setControlVisible(entityMode);
 
-        randomEnchantButton = addToggleButton(
-                24, FUNCTION_BUTTON_Y, 112, randomEnchant,
-                toggleText("gui.contentstudio.loot.loots.entry.random_enchant", true),
-                toggleText("gui.contentstudio.loot.loots.entry.random_enchant", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.random_enchant"), null,
-                value -> {
+        randomEnchantButton = ui().toggle(24, FUNCTION_BUTTON_Y, 112).value(randomEnchant).labels(toggleText("gui.contentstudio.loot.loots.entry.random_enchant", true), toggleText("gui.contentstudio.loot.loots.entry.random_enchant", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.random_enchant")).onChange(value -> {
                     randomEnchant = value;
                     if (randomEnchant) levelEnchant = false;
                     updateToggleValues();
-                });
-        levelEnchantButton = addToggleButton(
-                142, FUNCTION_BUTTON_Y, 112, levelEnchant,
-                toggleText("gui.contentstudio.loot.loots.entry.level_enchant", true),
-                toggleText("gui.contentstudio.loot.loots.entry.level_enchant", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.level_enchant"), null,
-                value -> {
+                }).build();
+        levelEnchantButton = ui().toggle(142, FUNCTION_BUTTON_Y, 112).value(levelEnchant).labels(toggleText("gui.contentstudio.loot.loots.entry.level_enchant", true), toggleText("gui.contentstudio.loot.loots.entry.level_enchant", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.level_enchant")).onChange(value -> {
                     levelEnchant = value;
                     if (levelEnchant) randomEnchant = false;
                     updateToggleValues();
-                });
-        furnaceButton = addToggleButton(
-                260, FUNCTION_BUTTON_Y, 112, furnaceSmelt,
-                toggleText("gui.contentstudio.loot.loots.entry.furnace", true),
-                toggleText("gui.contentstudio.loot.loots.entry.furnace", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.furnace"), null,
-                value -> furnaceSmelt = value);
-        explosionButton = addToggleButton(
-                378, FUNCTION_BUTTON_Y, 112, explosionDecay,
-                toggleText("gui.contentstudio.loot.loots.entry.explosion", true),
-                toggleText("gui.contentstudio.loot.loots.entry.explosion", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.explosion"), null,
-                value -> explosionDecay = value);
+                }).build();
+        furnaceButton = ui().toggle(260, FUNCTION_BUTTON_Y, 112).value(furnaceSmelt).labels(toggleText("gui.contentstudio.loot.loots.entry.furnace", true), toggleText("gui.contentstudio.loot.loots.entry.furnace", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.furnace")).onChange(value -> furnaceSmelt = value).build();
+        explosionButton = ui().toggle(378, FUNCTION_BUTTON_Y, 112).value(explosionDecay).labels(toggleText("gui.contentstudio.loot.loots.entry.explosion", true), toggleText("gui.contentstudio.loot.loots.entry.explosion", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.explosion")).onChange(value -> explosionDecay = value).build();
 
-        enchantMinBox = numericBox(82, ENCHANT_FIELD_Y, 46, draft(draftEnchantMin, format(levels.min())), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_min");
-        enchantMaxBox = numericBox(136, ENCHANT_FIELD_Y, 46, draft(draftEnchantMax, format(levels.max())), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_max");
-        damageMinBox = numericBox(264, ENCHANT_FIELD_Y, 46, draft(draftDamageMin, format(damage.min())), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_min");
-        damageMaxBox = numericBox(318, ENCHANT_FIELD_Y, 46, draft(draftDamageMax, format(damage.max())), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_max");
+        enchantMinBox = numericBox(82, ENCHANT_FIELD_Y, 46, draft(draftEnchantMin, format(levels.min())), format(levels.min()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_min");
+        enchantMaxBox = numericBox(136, ENCHANT_FIELD_Y, 46, draft(draftEnchantMax, format(levels.max())), format(levels.max()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_max");
+        damageMinBox = numericBox(264, ENCHANT_FIELD_Y, 46, draft(draftDamageMin, format(damage.min())), format(damage.min()), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_min");
+        damageMaxBox = numericBox(318, ENCHANT_FIELD_Y, 46, draft(draftDamageMax, format(damage.max())), format(damage.max()), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_max");
 
-        killedButton = addToggleButton(
-                24, ENTITY_BUTTON_Y, 151, killedByPlayer,
-                toggleText("gui.contentstudio.loot.loots.entry.killed", true),
-                toggleText("gui.contentstudio.loot.loots.entry.killed", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.killed_by_player"), null,
-                value -> killedByPlayer = value);
-        fireRequiredButton = addToggleButton(
-                181, ENTITY_BUTTON_Y, 151, requiresFire,
-                toggleText("gui.contentstudio.loot.loots.entry.fire_required", true),
-                toggleText("gui.contentstudio.loot.loots.entry.fire_required", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.fire_required"), null,
-                value -> requiresFire = value);
-        lootingButton = addToggleButton(
-                338, ENTITY_BUTTON_Y, 151, looting,
-                toggleText("gui.contentstudio.loot.loots.entry.looting", true),
-                toggleText("gui.contentstudio.loot.loots.entry.looting", false),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.looting_bonus"), null,
-                value -> {
+        killedButton = ui().toggle(24, ENTITY_BUTTON_Y, 151).value(killedByPlayer).labels(toggleText("gui.contentstudio.loot.loots.entry.killed", true), toggleText("gui.contentstudio.loot.loots.entry.killed", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.killed_by_player")).onChange(value -> killedByPlayer = value).build();
+        fireRequiredButton = ui().toggle(181, ENTITY_BUTTON_Y, 151).value(requiresFire).labels(toggleText("gui.contentstudio.loot.loots.entry.fire_required", true), toggleText("gui.contentstudio.loot.loots.entry.fire_required", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.fire_required")).onChange(value -> requiresFire = value).build();
+        lootingButton = ui().toggle(338, ENTITY_BUTTON_Y, 151).value(looting).labels(toggleText("gui.contentstudio.loot.loots.entry.looting", true), toggleText("gui.contentstudio.loot.loots.entry.looting", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.looting_bonus")).onChange(value -> {
                     looting = value;
                     updateToggleValues();
-                });
-        killedButton.setVisible(entityMode);
-        fireRequiredButton.setVisible(entityMode);
-        lootingButton.setVisible(entityMode);
+                }).build();
+        killedButton.setControlVisible(entityMode);
+        fireRequiredButton.setControlVisible(entityMode);
+        lootingButton.setControlVisible(entityMode);
 
-        addButton(
-                NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W,
-                Component.translatable("gui.contentstudio.loot.loots.entry.nbt"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.nbt"),
-                this::openNbtEditor
-        );
+        ui().button(NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.nbt")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.nbt")).onClick(this::openNbtEditor).build();
 
         int actionY = screenHeight - 38;
-        addButton(
-                360, actionY, 64,
-                Component.translatable("gui.contentstudio.loot.loots.entry.apply"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.apply"),
-                this::applyChanges
-        );
-        addButton(
-                432, actionY, 64,
-                Component.translatable("gui.contentstudio.loot.loots.entry.cancel"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.entry.cancel"),
-                this::closeToParent
-        );
+        ui().button(360, actionY, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.apply")).onClick(this::applyChanges).build();
+        ui().button(432, actionY, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.cancel")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.cancel")).onClick(this::closeToParent).build();
         updateToggleValues();
     }
 
-    private NumericEditBox numericBox(
+    private KineticNumberField numericBox(
             int x,
             int y,
             int width,
             String value,
+            String defaultText,
             LootNumericField.Type type,
             String tooltipKey
     ) {
 
         return LootNumericField.add(
-                this,
+                ui(),
                 x,
                 y,
                 width,
                 value,
+                defaultText,
                 type,
                 tooltipKey
         );
     }
 
     private Component toggleText(String key, boolean enabled) {
-        return Component.translatable(key, Component.translatable(enabled
+        return KineticI18n.translatable(key, KineticI18n.translatable(enabled
                 ? "gui.contentstudio.loot.loots.state.on"
                 : "gui.contentstudio.loot.loots.state.off"));
     }
@@ -259,13 +214,13 @@ final class LootEntryEditScreen extends KineticScreen {
         damageableItem = itemEntry && itemStack().isDamageableItem();
         if (damageMinBox != null) {
             damageMinBox.setEnabled(damageableItem);
-            registerWidgetTooltip(damageMinBox, Component.translatable(damageableItem
+            damageMinBox.setTooltip(KineticI18n.translatable(damageableItem
                     ? "gui.contentstudio.loot.loots.tip.entry.damage_min"
                     : "gui.contentstudio.loot.loots.tip.entry.damage_disabled"));
         }
         if (damageMaxBox != null) {
             damageMaxBox.setEnabled(damageableItem);
-            registerWidgetTooltip(damageMaxBox, Component.translatable(damageableItem
+            damageMaxBox.setTooltip(KineticI18n.translatable(damageableItem
                     ? "gui.contentstudio.loot.loots.tip.entry.damage_max"
                     : "gui.contentstudio.loot.loots.tip.entry.damage_disabled"));
         }
@@ -273,7 +228,7 @@ final class LootEntryEditScreen extends KineticScreen {
 
     private void applyChanges() {
         if (itemEntry && invalidItem(selectedItemId)) {
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.invalid_item"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.invalid_item"));
             return;
         }
         Double chance = LootNumericField.decimal(chanceBox);
@@ -322,7 +277,7 @@ final class LootEntryEditScreen extends KineticScreen {
             LootJsonEditUtil.setLooting(workingEntry, looting, lootMin, lootMax);
         }
         parent.applyEntryEdit(original, workingEntry);
-        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.entry.applied"));
+        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.entry.applied"));
         closeToParent();
     }
 
@@ -336,11 +291,11 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     private void openItemPicker() {
-        if (!itemEntry || minecraft == null) {
+        if (!itemEntry || !isAttached()) {
             return;
         }
         captureDraft();
-        KineticSelectors.openItemSelector(this, selection -> {
+        KineticSelectors.openItemSelector(selection -> {
             if (selection != null && selection.isItem()) {
                 ResourceLocation id = KineticRegistries.items().id(selection.stack().getItem());
                 if (id != null) {
@@ -353,11 +308,11 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     private void openNbtEditor() {
-        if (minecraft == null) {
+        if (!isAttached()) {
             return;
         }
         captureDraft();
-        KineticSelectors.openNbtEditor(this, currentItemNbt(), value -> {
+        KineticSelectors.openNbtEditor(currentItemNbt(), value -> {
             LootJsonEditUtil.setItemNbt(workingEntry, value);
             selectedItemStack = ItemStack.EMPTY;
         });
@@ -374,16 +329,16 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     private void captureDraft() {
-        if (chanceBox != null) draftChance = chanceBox.getValue();
-        if (countMinBox != null) draftCountMin = countMinBox.getValue();
-        if (countMaxBox != null) draftCountMax = countMaxBox.getValue();
-        if (weightBox != null) draftWeight = weightBox.getValue();
-        if (lootingMinBox != null) draftLootingMin = lootingMinBox.getValue();
-        if (lootingMaxBox != null) draftLootingMax = lootingMaxBox.getValue();
-        if (enchantMinBox != null) draftEnchantMin = enchantMinBox.getValue();
-        if (enchantMaxBox != null) draftEnchantMax = enchantMaxBox.getValue();
-        if (damageMinBox != null) draftDamageMin = damageMinBox.getValue();
-        if (damageMaxBox != null) draftDamageMax = damageMaxBox.getValue();
+        if (chanceBox != null) draftChance = chanceBox.textValue();
+        if (countMinBox != null) draftCountMin = countMinBox.textValue();
+        if (countMaxBox != null) draftCountMax = countMaxBox.textValue();
+        if (weightBox != null) draftWeight = weightBox.textValue();
+        if (lootingMinBox != null) draftLootingMin = lootingMinBox.textValue();
+        if (lootingMaxBox != null) draftLootingMax = lootingMaxBox.textValue();
+        if (enchantMinBox != null) draftEnchantMin = enchantMinBox.textValue();
+        if (enchantMaxBox != null) draftEnchantMax = enchantMaxBox.textValue();
+        if (damageMinBox != null) draftDamageMin = damageMinBox.textValue();
+        if (damageMaxBox != null) draftDamageMax = damageMaxBox.textValue();
     }
 
     private String draft(String value, String fallback) {
@@ -391,19 +346,19 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     private void closeToParent() {
-        if (minecraft != null) navigateBack();
+        if (isAttached()) navigateBack();
     }
 
     @Override
-    protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        GuiTheme.panel(g, 0, 0, WIDTH, screenHeight);
-        GuiTheme.stateSurface(
+    protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
+        KineticTheme.panel(g, 0, 0, WIDTH, screenHeight);
+        KineticTheme.stateSurface(
                 g,
                 12,
                 12,
                 WIDTH - 24,
                 screenHeight - 24,
-                GuiTheme.Surface.PANEL_ALT,
+                KineticTheme.Surface.PANEL_ALT,
                 true,
                 false,
                 false
@@ -411,10 +366,10 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     @Override
-    protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
+    protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
-        g.drawString(font, getTitle(), 24, 21, 0xFFFFAA00, false);
-        g.drawString(font, trim(parent.selectedTableName().getString(), WIDTH - 194), 170, 21, 0xFFFFD75F, false);
+        g.text(title(), 24, 21, 0xFFFFAA00, false);
+        g.text(trim(parent.selectedTableName().getString(), WIDTH - 194), 170, 21, 0xFFFFD75F, false);
         drawItem(g, mx, my);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_min", 101);
@@ -424,53 +379,51 @@ final class LootEntryEditScreen extends KineticScreen {
             fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_min", 332);
             fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_max", 409);
         }
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, 0xFFFF55FF, false);
-        g.drawString(font, trim(Component.translatable("gui.contentstudio.loot.loots.entry.functions_help").getString(), 270), 94, FUNCTION_TITLE_Y, 0xFFAAAAAA, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, 0xFFDD77FF, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6,
-                damageableItem ? 0xFFFFD75F : 0xFF777777, false);
-        Component damageHelp = Component.translatable(damageableItem
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, 0xFFFF55FF, false);
+        g.text(trim(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions_help").getString(), 270), 94, FUNCTION_TITLE_Y, 0xFFAAAAAA, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, 0xFFDD77FF, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6, damageableItem ? 0xFFFFD75F : 0xFF777777, false);
+        Component damageHelp = KineticI18n.translatable(damageableItem
                 ? "gui.contentstudio.loot.loots.entry.damage_enabled"
                 : "gui.contentstudio.loot.loots.entry.damage_disabled");
-        g.drawString(font, trim(damageHelp.getString(), 124), 372, ENCHANT_FIELD_Y + 6,
-                damageableItem ? 0xFF55FF55 : 0xFF777777, false);
+        g.text(trim(damageHelp.getString(), 124), 372, ENCHANT_FIELD_Y + 6, damageableItem ? 0xFF55FF55 : 0xFF777777, false);
         if (entityMode) {
-            g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, 0xFF55FFFF, false);
-            g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.entry.entity_help"), 132, ENTITY_TITLE_Y, 0xFFAAAAAA, false);
+            g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, 0xFF55FFFF, false);
+            g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_help"), 132, ENTITY_TITLE_Y, 0xFFAAAAAA, false);
         }
         renderUnknownFunctions(g, mx, my);
     }
 
-    private void fieldLabel(GuiGraphics g, String key, int x) {
-        g.drawString(font, Component.translatable(key), x, NUMERIC_LABEL_Y, 0xFFE6E6E6, false);
+    private void fieldLabel(KineticGraphics g, String key, int x) {
+        g.text(KineticI18n.translatable(key), x, NUMERIC_LABEL_Y, 0xFFE6E6E6, false);
     }
 
-    private void drawItem(GuiGraphics g, int mx, int my) {
+    private void drawItem(KineticGraphics g, int mx, int my) {
         ItemStack stack = itemStack();
         boolean hovered = mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE
                 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE;
         LootCheckerboard.draw(g, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE);
-        GuiTheme.stateOutline(g, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, itemEntry, hovered, false);
+        KineticTheme.stateOutline(g, ITEM_X, ITEM_Y, ITEM_SIZE, ITEM_SIZE, itemEntry, hovered, false);
         if (!stack.isEmpty()) {
-            g.pose().pushPose();
-            g.pose().translate(ITEM_X + 6, ITEM_Y + 6, 100);
-            g.renderItem(stack, 0, 0);
-            g.pose().popPose();
+            g.push();
+            g.translate(ITEM_X + 6, ITEM_Y + 6);
+            g.item(stack, 0, 0);
+            g.pop();
         }
         Component itemName = stack.isEmpty() ? original.name : stack.getHoverName();
         int itemTextWidth = NBT_BUTTON_X - 70;
-        g.drawString(font, trim(itemName.getString(), itemTextWidth), 62, ITEM_Y + 1, 0xFFFFAA00, false);
-        g.drawString(font, trim(selectedItemId, itemTextWidth), 62, ITEM_Y + 13, 0xFF55FFFF, false);
-        Component hint = Component.translatable(itemEntry
+        g.text(trim(itemName.getString(), itemTextWidth), 62, ITEM_Y + 1, 0xFFFFAA00, false);
+        g.text(trim(selectedItemId, itemTextWidth), 62, ITEM_Y + 13, 0xFF55FFFF, false);
+        Component hint = KineticI18n.translatable(itemEntry
                 ? "gui.contentstudio.loot.loots.entry.item_hint"
                 : "gui.contentstudio.loot.loots.tip.entry.locked_type");
-        g.drawString(font, trim(hint.getString(), itemTextWidth), 62, ITEM_Y + 25, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
+        g.text(trim(hint.getString(), itemTextWidth), 62, ITEM_Y + 25, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
         if (mx >= ITEM_X && mx < WIDTH - 24 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE + 10) {
             deferredTooltip = stack.isEmpty()
-                    ? List.of(Component.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
+                    ? List.of(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
                     : List.of(stack.getHoverName().copy().withStyle(ChatFormatting.GOLD),
                     Component.literal(selectedItemId).withStyle(ChatFormatting.AQUA),
-                    Component.translatable(itemEntry
+                    KineticI18n.translatable(itemEntry
                             ? "gui.contentstudio.loot.loots.tip.entry.item_icon"
                             : "gui.contentstudio.loot.loots.tip.entry.locked_type").withStyle(itemEntry ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
         }
@@ -497,16 +450,16 @@ final class LootEntryEditScreen extends KineticScreen {
         }
     }
 
-    private void renderUnknownFunctions(GuiGraphics g, int mx, int my) {
+    private void renderUnknownFunctions(KineticGraphics g, int mx, int my) {
         int count = LootJsonEditUtil.unknownFunctionCount(workingEntry);
-        Component text = Component.translatable("gui.contentstudio.loot.loots.entry.unknown_functions",
+        Component text = KineticI18n.translatable("gui.contentstudio.loot.loots.entry.unknown_functions",
                 Component.literal(String.valueOf(count)).withStyle(ChatFormatting.YELLOW));
-        int x = WIDTH - font.width(text) - 24;
+        int x = WIDTH - KineticText.width(text) - 24;
         int y = FUNCTION_TITLE_Y;
-        g.drawString(font, text, x, y, 0xFFAAAAAA, false);
-        if (mx >= x && mx <= x + font.width(text) && my >= y - 2 && my <= y + 11) {
+        g.text(text, x, y, 0xFFAAAAAA, false);
+        if (mx >= x && mx <= x + KineticText.width(text) && my >= y - 2 && my <= y + 11) {
             deferredTooltip = new ArrayList<>();
-            deferredTooltip.add(Component.translatable("gui.contentstudio.loot.loots.tip.entry.unknown_functions").withStyle(ChatFormatting.GRAY));
+            deferredTooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.unknown_functions").withStyle(ChatFormatting.GRAY));
             for (String id : LootJsonEditUtil.unknownFunctions(workingEntry)) {
                 deferredTooltip.add(Component.literal(id).withStyle(ChatFormatting.LIGHT_PURPLE));
             }
@@ -514,17 +467,20 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     @Override
-    protected boolean canvasMouseClicked(double mx, double my, int button) {
-        if (KineticMouseButtons.isPrimary(button) && itemEntry && mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE) {
+    protected boolean onMouseClickCapture(MouseInput input) {
+        // 原 canvasMouseClicked 在控件之前处理 / The old canvasMouseClicked handled this before controls.
+        double mx = input.x();
+        double my = input.y();
+        if (input.isLeft() && itemEntry && mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE) {
             openItemPicker();
             return true;
         }
-        return super.canvasMouseClicked(mx, my, button);
+        return false;
     }
 
     @Override
-    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
-        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ESCAPE, keyCode)) {
+    protected boolean onKeyPress(KeyInput input) {
+        if (input.isEscape()) {
             closeToParent();
             return true;
         }
@@ -532,9 +488,9 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     @Override
-    protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
+    protected void renderTooltips(int mx, int my) {
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
-            KineticOverlays.requestTooltip(deferredTooltip, mx, my);
+            showTooltip(deferredTooltip);
         }
     }
 
@@ -544,9 +500,9 @@ final class LootEntryEditScreen extends KineticScreen {
     }
 
     private String trim(String text, int width) {
-        if (text == null || font.width(text) <= width) {
+        if (text == null || KineticText.width(text) <= width) {
             return text == null ? "" : text;
         }
-        return font.plainSubstrByWidth(text, Math.max(4, width - font.width("..."))) + "...";
+        return KineticText.trim(text, Math.max(4, width - KineticText.width("..."))) + "...";
     }
 }

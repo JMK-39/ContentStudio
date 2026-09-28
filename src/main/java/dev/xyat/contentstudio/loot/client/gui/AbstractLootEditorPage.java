@@ -1,5 +1,23 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
+import dev.xyat.contentstudio.client.gui.FractionalScrollJump;
+
+import dev.xyat.kineticcore.api.text.KineticI18n;
+import dev.xyat.kineticcore.api.client.gui.input.KeyInput;
+import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
+import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
+import dev.xyat.kineticcore.api.client.gui.text.KineticText;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollAnimator;
+import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
@@ -10,22 +28,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.selector.KineticSelectors;
-import dev.xyat.kineticcore.api.client.screen.KineticScreen;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
-import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
-import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.ToggleButton;
-import dev.xyat.kineticcore.api.client.widget.input.KineticTextFields.KineticEditBox;
-import dev.xyat.kineticcore.api.client.widget.scroll.KineticScroll;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -33,7 +40,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,7 +53,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public abstract class AbstractLootEditorScreen extends KineticScreen {
+public abstract class AbstractLootEditorPage extends KineticPage {
     protected static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     protected static final int V_WIDTH = 640;
     protected static final int V_HEIGHT = 360;
@@ -80,30 +86,29 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     private static final int GROUP_SCROLLBAR_X = RIGHT_X + RIGHT_W - 13;
 
     protected final int mode;
-    protected final Screen parentScreen;
     protected final List<LootEntryInfo> allEntries;
     protected List<LootEntryInfo> displayEntries;
     protected final List<DropVisual> dropVisuals = new ArrayList<>();
     protected List<Component> deferredTooltip = null;
 
-    private KineticEditBox searchBox;
-    private KineticEditBox itemBox;
-    private KineticEditBox chanceBox;
-    private KineticEditBox rollsBox;
-    private KineticEditBox countMinBox;
-    private KineticEditBox countMaxBox;
-    private KineticEditBox weightBox;
-    private KineticEditBox lootingMinBox;
-    private KineticEditBox lootingMaxBox;
-    private StateButton saveButton;
-    private StateButton resetButton;
-    private StateButton deleteButton;
-    private StateButton applyButton;
-    private StateButton addButton;
-    private ToggleButton killedButton;
-    private ToggleButton lootingButton;
-    private ToggleButton fireButton;
-    private ToggleButton overrideModeButton;
+    private KineticTextField searchBox;
+    private KineticTextField itemBox;
+    private KineticTextField chanceBox;
+    private KineticTextField rollsBox;
+    private KineticTextField countMinBox;
+    private KineticTextField countMaxBox;
+    private KineticTextField weightBox;
+    private KineticTextField lootingMinBox;
+    private KineticTextField lootingMaxBox;
+    private KineticButton saveButton;
+    private KineticButton resetButton;
+    private KineticButton deleteButton;
+    private KineticButton applyButton;
+    private KineticButton addButton;
+    private KineticToggle killedButton;
+    private KineticToggle lootingButton;
+    private KineticToggle fireButton;
+    private KineticToggle overrideModeButton;
     private String searchQuery = "";
 
     protected LootEntryInfo selectedEntry;
@@ -128,22 +133,33 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     protected int maxDropScroll = 0;
     protected boolean draggingTargetScroll = false;
     private boolean draggingDropScroll = false;
-    protected final KineticScroll.State targetScrollState = new KineticScroll.State();
-    protected final KineticScroll.State dropScrollState = new KineticScroll.State();
-    private StateButton addPoolHeaderButton;
-    private StateButton[] groupArrowButtons;
-    private StateButton[] groupAddButtons;
-    private StateButton[] groupPoolEditButtons;
-    private StateButton[] groupPoolDeleteButtons;
-    private StateButton[] groupEntryDeleteButtons;
-    private StateButton[] groupEntryEditButtons;
+    protected final KineticScrollAnimator targetScrollState = new KineticScrollAnimator();
+    protected final KineticScrollAnimator dropScrollState = new KineticScrollAnimator();
+    private KineticButton addPoolHeaderButton;
+    private KineticButton[] groupArrowButtons;
+    private KineticButton[] groupAddButtons;
+    private KineticButton[] groupPoolEditButtons;
+    private KineticButton[] groupPoolDeleteButtons;
+    private KineticButton[] groupEntryDeleteButtons;
+    private KineticButton[] groupEntryEditButtons;
     private final List<GroupRow> groupedRows = new ArrayList<>();
     private final List<GroupRow> visibleGroupRows = new ArrayList<>();
     private final Set<Integer> expandedPools = new HashSet<>();
     private double groupScroll = 0D;
     private int maxGroupScroll = 0;
     private boolean draggingGroupScroll = false;
-    private final KineticScroll.State groupScrollState = new KineticScroll.State();
+    private final KineticScrollAnimator groupScrollState = new KineticScrollAnimator();
+    // 三个自绘滚动区域的中键跳转/提示/闪烁：左侧跳回选中表，掉落列表跳回选中掉落，分组列表无选中概念、跳回最近点击的行
+    // Middle-click jump/hint/flash for the three hand-drawn scroll areas: the left list jumps back to the selected
+    // table, the drop list to the selected drop, and the grouped list (no selection) to the last clicked row.
+    private final FractionalScrollJump targetJump = new FractionalScrollJump(
+            this::selectedTargetIndex, index -> targetUnitOf(index) - targetVisibleRows() / 2);
+    private final FractionalScrollJump dropJump = new FractionalScrollJump(
+            () -> selectedDrop == null ? -1 : dropVisuals.indexOf(selectedDrop), index -> index - visibleDropRows() / 2);
+    private final FractionalScrollJump groupJump = new FractionalScrollJump(
+            this::lastClickedGroupRowIndex, index -> index - Math.max(1, visibleGroupRows.size()) / 2);
+    private int lastClickedGroupPool = -1;
+    private DropVisual lastClickedGroupVisual;
     private final Map<TableDraftKey, String> pendingTableDrafts = new LinkedHashMap<>();
     private final Set<TableDraftKey> pendingTableResets = new LinkedHashSet<>();
     private final Map<TableDraftKey, String> savingTableDrafts = new LinkedHashMap<>();
@@ -307,32 +323,22 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         WHOLE_NUMBER
     }
 
-    protected AbstractLootEditorScreen(int mode, List<LootEntryInfo> entries, String titleKey, Screen parentScreen) {
-        super(Component.translatable(titleKey));
-        setParentScreen(parentScreen);
+    // 原 parentScreen 参数已移除：由 KineticGui.openChild 以当前界面为父 / The former parentScreen parameter was removed: KineticGui.openChild uses the current screen as parent.
+    protected AbstractLootEditorPage(int mode, List<LootEntryInfo> entries, String titleKey) {
+        super(KineticI18n.translatable(titleKey));
         this.mode = mode;
-        this.parentScreen = parentScreen;
         this.allEntries = new ArrayList<>(entries);
         this.displayEntries = new ArrayList<>(this.allEntries);
     }
 
     @Override
-    protected void buildUi() {
-        searchBox = addTextField(
-                LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2, Component.empty(),
-                Component.translatable("gui.contentstudio.loot.loots.search_hint"), null,
-                Component.translatable("gui.contentstudio.loot.loots.tip.search")
-        );
-        searchBox.setMaxLength(256);
-        searchBox.setValue(searchQuery);
-        searchBox.setResponder(this::onSearchChanged);
+    protected void build(KineticUi ui) {
+        searchBox = ui().textField(LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2).placeholder(KineticI18n.translatable("gui.contentstudio.loot.loots.search_hint")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.search")).build();
+        searchBox.limitTextLength(256);
+        searchBox.setTextValue(searchQuery);
+        searchBox.onTextChange(this::onSearchChanged);
 
-        addButton(
-                RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44,
-                Component.translatable("gui.contentstudio.loot.loots.back"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.back"),
-                this::onClose
-        );
+        ui().button(RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.back")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.back")).onClick(this::close).build();
 
         initEditWidgets();
         if (usesGroupedLayout()) {
@@ -352,7 +358,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             updateButtons();
         }
         if (pendingPickedItemId != null && itemBox != null) {
-            itemBox.setValue(pendingPickedItemId);
+            itemBox.setTextValue(pendingPickedItemId);
             pendingPickedItemId = null;
         }
         if (usesGroupedLayout()) {
@@ -362,11 +368,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void initEditWidgets() {
         int x0 = RIGHT_X + 10;
-        itemBox = addTextField(
-                -1000, -1000, 1, Component.empty(), null, null,
-                Component.translatable("gui.contentstudio.loot.loots.tip.item_id")
-        );
-        itemBox.setMaxLength(256);
+        itemBox = ui().textField(-1000, -1000, 1).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.item_id")).build();
+        itemBox.limitTextLength(256);
 
         int fieldY = EDIT_Y + 26;
         chanceBox = numberBox(x0 + 48, fieldY, "gui.contentstudio.loot.loots.tip.chance", "1", NumericInputType.PROBABILITY);
@@ -378,70 +381,31 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         lootingMaxBox = numberBox(x0 + 312, fieldY, "gui.contentstudio.loot.loots.tip.looting_max", "0", NumericInputType.WHOLE_NUMBER);
 
         int by = EDIT_Y + 48;
-        killedButton = addToggleButton(
-                x0, by, 44, requirePlayerKill,
-                Component.translatable("gui.contentstudio.loot.loots.killed_on"),
-                Component.translatable("gui.contentstudio.loot.loots.killed_off"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.killed"),
-                null, value -> requirePlayerKill = value
-        );
-        lootingButton = addToggleButton(
-                x0 + 48, by, 44, enableLooting,
-                Component.translatable("gui.contentstudio.loot.loots.looting_on"),
-                Component.translatable("gui.contentstudio.loot.loots.looting_off"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.looting"),
-                null, value -> enableLooting = value
-        );
-        fireButton = addToggleButton(
-                x0 + 96, by, 44, enableFireSmelt,
-                Component.translatable("gui.contentstudio.loot.loots.fire_on"),
-                Component.translatable("gui.contentstudio.loot.loots.fire_off"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.fire"),
-                null, value -> enableFireSmelt = value
-        );
+        killedButton = ui().toggle(x0, by, 44).value(requirePlayerKill).labels(KineticI18n.translatable("gui.contentstudio.loot.loots.killed_on"), KineticI18n.translatable("gui.contentstudio.loot.loots.killed_off")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.killed")).onChange(value -> requirePlayerKill = value).build();
+        lootingButton = ui().toggle(x0 + 48, by, 44).value(enableLooting).labels(KineticI18n.translatable("gui.contentstudio.loot.loots.looting_on"), KineticI18n.translatable("gui.contentstudio.loot.loots.looting_off")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.looting")).onChange(value -> enableLooting = value).build();
+        fireButton = ui().toggle(x0 + 96, by, 44).value(enableFireSmelt).labels(KineticI18n.translatable("gui.contentstudio.loot.loots.fire_on"), KineticI18n.translatable("gui.contentstudio.loot.loots.fire_off")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.fire")).onChange(value -> enableFireSmelt = value).build();
         int modeButtonX = modeButtonX(x0);
         int actionButtonX = actionButtonX(x0);
-        overrideModeButton = addToggleButton(
-                modeButtonX, by, 58, overrideMode,
-                Component.translatable("gui.contentstudio.loot.loots.mode.override"),
-                Component.translatable("gui.contentstudio.loot.loots.mode.append"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.override_mode"),
-                value -> selectedEntry != null, value -> toggleOverrideMode()
-        );
+        overrideModeButton = ui().toggle(modeButtonX, by, 58).value(overrideMode).labels(KineticI18n.translatable("gui.contentstudio.loot.loots.mode.override"), KineticI18n.translatable("gui.contentstudio.loot.loots.mode.append")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.override_mode")).validator(value -> selectedEntry != null).onChange(value -> toggleOverrideMode()).build();
 
-        applyButton = addButton(
-                actionButtonX, by, 38, Component.translatable("gui.contentstudio.loot.loots.apply_drop"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.apply_drop"), this::applyEditToSelected
-        );
-        addButton = addButton(
-                actionButtonX + 42, by, 38, Component.translatable("gui.contentstudio.loot.loots.add_drop"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.add_drop"), this::addDrop
-        );
-        deleteButton = addButton(
-                actionButtonX + 84, by, 38, Component.translatable("gui.contentstudio.loot.loots.delete_drop"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.delete_drop"), this::deleteSelectedDrop
-        );
-        saveButton = addButton(
-                RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.save"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.save"), this::saveCurrentJson
-        );
-        resetButton = addButton(
-                RIGHT_X + RIGHT_W - 148, RIGHT_Y + 10, 44, Component.translatable("gui.contentstudio.loot.loots.reset"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.reset"), this::openResetConfirmDialog
-        );
+        applyButton = ui().button(actionButtonX, by, 38).text(KineticI18n.translatable("gui.contentstudio.loot.loots.apply_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.apply_drop")).onClick(this::applyEditToSelected).build();
+        addButton = ui().button(actionButtonX + 42, by, 38).text(KineticI18n.translatable("gui.contentstudio.loot.loots.add_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.add_drop")).onClick(this::addDrop).build();
+        deleteButton = ui().button(actionButtonX + 84, by, 38).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.delete_drop")).onClick(this::deleteSelectedDrop).build();
+        saveButton = ui().button(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.save")).onClick(this::saveCurrentJson).build();
+        resetButton = ui().button(RIGHT_X + RIGHT_W - 148, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.reset")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.reset")).onClick(this::openResetConfirmDialog).build();
 
         if (!showEntityEditControls()) {
-            killedButton.setVisible(false);
-            lootingButton.setVisible(false);
-            fireButton.setVisible(false);
-            lootingMinBox.setVisible(false);
-            lootingMaxBox.setVisible(false);
+            killedButton.setControlVisible(false);
+            lootingButton.setControlVisible(false);
+            fireButton.setControlVisible(false);
+            lootingMinBox.setControlVisible(false);
+            lootingMaxBox.setControlVisible(false);
         }
         if (usesGroupedLayout()) {
             hideInlineWidgets();
-            overrideModeButton.setVisible(true);
-            overrideModeButton.setX(RIGHT_X + RIGHT_W - 212);
-            overrideModeButton.setY(RIGHT_Y + 10);
+            overrideModeButton.setControlVisible(true);
+            overrideModeButton.moveControlX(RIGHT_X + RIGHT_W - 212);
+            overrideModeButton.moveControlY(RIGHT_Y + 10);
         }
     }
 
@@ -450,62 +414,39 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private void hideInlineWidgets() {
-        if (itemBox != null) itemBox.setVisible(false);
-        if (chanceBox != null) chanceBox.setVisible(false);
-        if (rollsBox != null) rollsBox.setVisible(false);
-        if (countMinBox != null) countMinBox.setVisible(false);
-        if (countMaxBox != null) countMaxBox.setVisible(false);
-        if (weightBox != null) weightBox.setVisible(false);
-        if (lootingMinBox != null) lootingMinBox.setVisible(false);
-        if (lootingMaxBox != null) lootingMaxBox.setVisible(false);
-        if (killedButton != null) killedButton.setVisible(false);
-        if (lootingButton != null) lootingButton.setVisible(false);
-        if (fireButton != null) fireButton.setVisible(false);
-        if (applyButton != null) applyButton.setVisible(false);
-        if (addButton != null) addButton.setVisible(false);
-        if (deleteButton != null) deleteButton.setVisible(false);
+        if (itemBox != null) itemBox.setControlVisible(false);
+        if (chanceBox != null) chanceBox.setControlVisible(false);
+        if (rollsBox != null) rollsBox.setControlVisible(false);
+        if (countMinBox != null) countMinBox.setControlVisible(false);
+        if (countMaxBox != null) countMaxBox.setControlVisible(false);
+        if (weightBox != null) weightBox.setControlVisible(false);
+        if (lootingMinBox != null) lootingMinBox.setControlVisible(false);
+        if (lootingMaxBox != null) lootingMaxBox.setControlVisible(false);
+        if (killedButton != null) killedButton.setControlVisible(false);
+        if (lootingButton != null) lootingButton.setControlVisible(false);
+        if (fireButton != null) fireButton.setControlVisible(false);
+        if (applyButton != null) applyButton.setControlVisible(false);
+        if (addButton != null) addButton.setControlVisible(false);
+        if (deleteButton != null) deleteButton.setControlVisible(false);
     }
 
     private void initGroupedWidgets() {
-        addPoolHeaderButton = addButton(
-                RIGHT_X + RIGHT_W - 276, RIGHT_Y + 10, 58,
-                Component.translatable("gui.contentstudio.loot.loots.pool.add"),
-                Component.translatable("gui.contentstudio.loot.loots.tip.pool.add"),
-                this::addGroupedPool
-        );
+        addPoolHeaderButton = ui().button(RIGHT_X + RIGHT_W - 276, RIGHT_Y + 10, 58).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add")).onClick(this::addGroupedPool).build();
 
-        groupArrowButtons = new StateButton[GROUP_BUTTON_SLOTS];
-        groupAddButtons = new StateButton[GROUP_BUTTON_SLOTS];
-        groupPoolEditButtons = new StateButton[GROUP_BUTTON_SLOTS];
-        groupPoolDeleteButtons = new StateButton[GROUP_BUTTON_SLOTS];
-        groupEntryDeleteButtons = new StateButton[GROUP_BUTTON_SLOTS];
-        groupEntryEditButtons = new StateButton[GROUP_BUTTON_SLOTS];
+        groupArrowButtons = new KineticButton[GROUP_BUTTON_SLOTS];
+        groupAddButtons = new KineticButton[GROUP_BUTTON_SLOTS];
+        groupPoolEditButtons = new KineticButton[GROUP_BUTTON_SLOTS];
+        groupPoolDeleteButtons = new KineticButton[GROUP_BUTTON_SLOTS];
+        groupEntryDeleteButtons = new KineticButton[GROUP_BUTTON_SLOTS];
+        groupEntryEditButtons = new KineticButton[GROUP_BUTTON_SLOTS];
         for (int i = 0; i < GROUP_BUTTON_SLOTS; i++) {
             int slot = i;
-            groupArrowButtons[i] = addButton(
-                    RIGHT_X + 10, -1000, 18, Component.translatable("gui.contentstudio.common.expand_symbol"),
-                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.expand"), () -> toggleGroupedPool(slot)
-            );
-            groupAddButtons[i] = addButton(
-                    RIGHT_X + RIGHT_W - 141, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.pool.add_reward"),
-                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward"), () -> addGroupedReward(slot)
-            );
-            groupPoolEditButtons[i] = addButton(
-                    RIGHT_X + RIGHT_W - 93, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.edit.short"),
-                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.edit"), () -> editGroupedPool(slot)
-            );
-            groupPoolDeleteButtons[i] = addButton(
-                    RIGHT_X + RIGHT_W - 53, -1000, 36, Component.translatable("gui.contentstudio.loot.loots.delete.short"),
-                    Component.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm"), () -> confirmGroupedPoolDelete(slot)
-            );
-            groupEntryEditButtons[i] = addButton(
-                    RIGHT_X + RIGHT_W - 61, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.edit.short"),
-                    Component.translatable("gui.contentstudio.loot.loots.tip.drop.edit"), () -> editGroupedEntry(slot)
-            );
-            groupEntryDeleteButtons[i] = addButton(
-                    RIGHT_X + RIGHT_W - 109, -1000, 44, Component.translatable("gui.contentstudio.loot.loots.delete.short"),
-                    Component.translatable("gui.contentstudio.loot.loots.tip.entry.delete"), () -> deleteGroupedEntry(slot)
-            );
+            groupArrowButtons[i] = ui().button(RIGHT_X + 10, -1000, 18).text(KineticI18n.translatable("gui.contentstudio.common.expand_symbol")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.expand")).onClick(() -> toggleGroupedPool(slot)).build();
+            groupAddButtons[i] = ui().button(RIGHT_X + RIGHT_W - 141, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add_reward")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward")).onClick(() -> addGroupedReward(slot)).build();
+            groupPoolEditButtons[i] = ui().button(RIGHT_X + RIGHT_W - 93, -1000, 36).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.edit")).onClick(() -> editGroupedPool(slot)).build();
+            groupPoolDeleteButtons[i] = ui().button(RIGHT_X + RIGHT_W - 53, -1000, 36).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(() -> confirmGroupedPoolDelete(slot)).build();
+            groupEntryEditButtons[i] = ui().button(RIGHT_X + RIGHT_W - 61, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.drop.edit")).onClick(() -> editGroupedEntry(slot)).build();
+            groupEntryDeleteButtons[i] = ui().button(RIGHT_X + RIGHT_W - 109, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.delete")).onClick(() -> deleteGroupedEntry(slot)).build();
             hideGroupSlot(i);
         }
     }
@@ -514,12 +455,12 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (groupArrowButtons == null || slot < 0 || slot >= GROUP_BUTTON_SLOTS) {
             return;
         }
-        groupArrowButtons[slot].setVisible(false);
-        groupAddButtons[slot].setVisible(false);
-        groupPoolEditButtons[slot].setVisible(false);
-        groupPoolDeleteButtons[slot].setVisible(false);
-        groupEntryDeleteButtons[slot].setVisible(false);
-        groupEntryEditButtons[slot].setVisible(false);
+        groupArrowButtons[slot].setControlVisible(false);
+        groupAddButtons[slot].setControlVisible(false);
+        groupPoolEditButtons[slot].setControlVisible(false);
+        groupPoolDeleteButtons[slot].setControlVisible(false);
+        groupEntryDeleteButtons[slot].setControlVisible(false);
+        groupEntryEditButtons[slot].setControlVisible(false);
     }
 
     protected boolean showEntityEditControls() {
@@ -552,13 +493,13 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
     }
 
-    private KineticEditBox numberBox(int x, int y, String tooltipKey, String defaultValue, NumericInputType inputType) {
-        KineticEditBox box = addTextField(
-                x, y, 34, Component.empty(), null, null, Component.translatable(tooltipKey)
-        );
-        box.setMaxLength(16);
-        box.setFilter(value -> isAllowedNumericInput(value, inputType));
-        box.setValue(defaultValue);
+    private KineticTextField numberBox(int x, int y, String tooltipKey, String defaultValue, NumericInputType inputType) {
+        KineticTextField box = ui().textField(x, y, 34).tooltip(KineticI18n.translatable(tooltipKey)).build();
+        box.limitTextLength(16);
+        box.filterText(value -> isAllowedNumericInput(value, inputType));
+        box.setTextValue(defaultValue);
+        // 等于默认值时黑色，修改后绿色 / Black while equal to the default, green once modified.
+        box.setDefaultText(defaultValue);
         return box;
     }
 
@@ -586,7 +527,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     private void showNumericInputToast(String translationKey) {
         KineticOverlays.toast(
                 "loots_number_input",
-                Component.translatable(translationKey),
+                KineticI18n.translatable(translationKey),
                 KineticOverlays.Position.BOTTOM_CENTER,
                 3000,
                 0,
@@ -595,19 +536,19 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private Component getKilledText() {
-        return Component.translatable(requirePlayerKill ? "gui.contentstudio.loot.loots.killed_on" : "gui.contentstudio.loot.loots.killed_off");
+        return KineticI18n.translatable(requirePlayerKill ? "gui.contentstudio.loot.loots.killed_on" : "gui.contentstudio.loot.loots.killed_off");
     }
 
     private Component getLootingText() {
-        return Component.translatable(enableLooting ? "gui.contentstudio.loot.loots.looting_on" : "gui.contentstudio.loot.loots.looting_off");
+        return KineticI18n.translatable(enableLooting ? "gui.contentstudio.loot.loots.looting_on" : "gui.contentstudio.loot.loots.looting_off");
     }
 
     private Component getFireText() {
-        return Component.translatable(enableFireSmelt ? "gui.contentstudio.loot.loots.fire_on" : "gui.contentstudio.loot.loots.fire_off");
+        return KineticI18n.translatable(enableFireSmelt ? "gui.contentstudio.loot.loots.fire_on" : "gui.contentstudio.loot.loots.fire_off");
     }
 
     private Component getOverrideModeText() {
-        return Component.translatable(overrideMode ? "gui.contentstudio.loot.loots.mode.override" : "gui.contentstudio.loot.loots.mode.append");
+        return KineticI18n.translatable(overrideMode ? "gui.contentstudio.loot.loots.mode.override" : "gui.contentstudio.loot.loots.mode.append");
     }
 
     private void onSearchChanged(String query) {
@@ -672,7 +613,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     protected abstract int targetTotalRows();
 
     protected final double smoothTargetScroll() {
-        return targetScrollState.follow(
+        return targetScrollState.update(
                 targetScroll,
                 maxTargetScroll,
                 draggingTargetScroll
@@ -680,6 +621,58 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     protected abstract int targetStartIndex();
+
+    /** 目标下标所在的滚动单位（行）；网格子类按列数换算 / Scroll unit (row) of a target index; grid subclasses divide by columns. */
+    protected int targetUnitOf(int index) {
+        return index;
+    }
+
+    private int selectedTargetIndex() {
+        if (selectedEntry == null) return -1;
+        for (int i = 0; i < displayEntries.size(); i++) {
+            LootEntryInfo entry = displayEntries.get(i);
+            if (selectedEntry.targetId().equals(entry.targetId())
+                    && selectedEntry.lootTableId().equals(entry.lootTableId())) return i;
+        }
+        return -1;
+    }
+
+    /** 子类在绘制每个目标条目后调用 / Subclasses call this after drawing each target entry. */
+    protected final void flashTarget(KineticGraphics g, int index, int x, int y, int width, int height) {
+        targetJump.flash(g, index, x, y, width, height);
+    }
+
+    private int lastClickedGroupRowIndex() {
+        if (lastClickedGroupPool < 0) return -1;
+        for (int i = 0; i < groupedRows.size(); i++) {
+            GroupRow row = groupedRows.get(i);
+            if (row.poolIndex == lastClickedGroupPool && row.visual == lastClickedGroupVisual) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * 在本帧计算平滑偏移之前应用中键跳转（与标准控制器一样立即到位）；子类可追加自己的区域。
+     * Applies middle-click jumps before this frame computes smooth offsets (immediate, like the standard controller);
+     * subclasses may add their own areas.
+     */
+    protected void applyScrollJumps() {
+        double jump = targetJump.takeJump();
+        if (!Double.isNaN(jump)) {
+            targetScroll = jump;
+            targetScrollState.snap(targetScroll, maxTargetScroll);
+        }
+        jump = dropJump.takeJump();
+        if (!Double.isNaN(jump)) {
+            dropScroll = jump;
+            dropScrollState.snap(dropScroll, maxDropScroll);
+        }
+        jump = groupJump.takeJump();
+        if (!Double.isNaN(jump)) {
+            groupScroll = jump;
+            groupScrollState.snap(groupScroll, maxGroupScroll);
+        }
+    }
 
     protected abstract int targetVisibleEntryCount();
 
@@ -692,10 +685,10 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     protected int targetScrollbarThumbHeight() {
-        return KineticScroll.stateThumbHeight(targetAreaHeight(), targetVisibleRows(), targetTotalRows(), 24);
+        return LootScrollbars.thumbHeight(targetAreaHeight(), targetVisibleRows(), targetTotalRows(), 24);
     }
 
-    protected void renderTargetScrollbar(GuiGraphics g, int mx, int my) {
+    protected void renderTargetScrollbar(KineticGraphics g, int mx, int my) {
         if (maxTargetScroll <= 0) {
             return;
         }
@@ -705,9 +698,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         int height = targetAreaHeight() - 2;
         int thumbHeight = Math.min(height, targetScrollbarThumbHeight());
         double smoothTarget = smoothTargetScroll();
-        GuiTheme.scrollbar(
-                g,
-                mx,
+        targetJump.track(g, mx, my, x, y, width, height, 24, smoothTarget, maxTargetScroll,
+                targetTotalRows(), targetVisibleRows(), draggingTargetScroll);
+        LootScrollbars.renderThemed(g, mx,
                 my,
                 x,
                 y,
@@ -745,7 +738,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         return false;
     }
 
-    protected void renderSpecialPanel(GuiGraphics g, int mx, int my) {
+    protected void renderSpecialPanel(KineticGraphics g, int mx, int my) {
     }
 
     protected boolean handleSpecialPanelClick(double mx, double my, int btn) {
@@ -793,14 +786,14 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             return "";
         }
         return String.join("\u0001",
-                itemBox.getValue(),
-                chanceBox == null ? "" : chanceBox.getValue(),
-                rollsBox == null ? "" : rollsBox.getValue(),
-                countMinBox == null ? "" : countMinBox.getValue(),
-                countMaxBox == null ? "" : countMaxBox.getValue(),
-                weightBox == null ? "" : weightBox.getValue(),
-                lootingMinBox == null ? "" : lootingMinBox.getValue(),
-                lootingMaxBox == null ? "" : lootingMaxBox.getValue(),
+                itemBox.textValue(),
+                chanceBox == null ? "" : chanceBox.textValue(),
+                rollsBox == null ? "" : rollsBox.textValue(),
+                countMinBox == null ? "" : countMinBox.textValue(),
+                countMaxBox == null ? "" : countMaxBox.textValue(),
+                weightBox == null ? "" : weightBox.textValue(),
+                lootingMinBox == null ? "" : lootingMinBox.textValue(),
+                lootingMaxBox == null ? "" : lootingMaxBox.textValue(),
                 Boolean.toString(requirePlayerKill),
                 Boolean.toString(enableLooting),
                 Boolean.toString(enableFireSmelt));
@@ -847,6 +840,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             }
             stashCurrentDraft();
         }
+        // 切换战利品表时清除分组列表的跳转目标 / Switching loot tables clears the grouped-list jump target.
+        lastClickedGroupPool = -1;
+        lastClickedGroupVisual = null;
         selectedEntry = entry;
         selectedDrop = null;
         selectedDropEditorSnapshot = "";
@@ -893,7 +889,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         replaceEntry(selectedEntry);
         parseCurrentRoot();
         rebuildVisualData();
-        updateSearch(searchBox == null ? "" : searchBox.getValue(), false);
+        updateSearch(searchBox == null ? "" : searchBox.textValue(), false);
         updateButtons();
     }
 
@@ -922,7 +918,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 appendModeBackupRoot = null;
                 selectedEntry = new LootEntryInfo(mode, targetId, lootTableId, overridden);
                 replaceEntry(selectedEntry);
-                updateSearch(searchBox == null ? "" : searchBox.getValue(), false);
+                updateSearch(searchBox == null ? "" : searchBox.textValue(), false);
                 updateButtons();
             } else {
                 applyDetail(packetMode, targetId, lootTableId, json, overridden);
@@ -958,7 +954,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                     dirty = pendingTableDrafts.containsKey(key) || pendingTableResets.contains(key);
                     selectedJson = currentRoot == null ? selectedJson : GSON.toJson(currentRoot);
                 }
-                updateSearch(searchBox == null ? "" : searchBox.getValue(), false);
+                updateSearch(searchBox == null ? "" : searchBox.textValue(), false);
             }
         } else {
             saveBatchHadFailure = true;
@@ -987,7 +983,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     protected void updateEntryOverrideState(String targetId, String lootTableId, boolean overridden) {
         replaceEntry(new LootEntryInfo(mode, targetId, lootTableId, overridden));
-        updateSearch(searchBox == null ? searchQuery : searchBox.getValue(), false);
+        updateSearch(searchBox == null ? searchQuery : searchBox.textValue(), false);
         updateButtons();
     }
 
@@ -1118,7 +1114,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         visual.loadError = isInvalidItemEntry(type, name);
         visual.stack = stackForEntry(type, name, entry);
         visual.name = visual.loadError
-                ? Component.translatable("gui.contentstudio.loot.loots.drop.load_error")
+                ? KineticI18n.translatable("gui.contentstudio.loot.loots.drop.load_error")
                 : displayNameForEntry(type, name, visual.stack);
         visual.poolIndex = context.poolIndex;
         visual.entryIndex = entryIndex;
@@ -1127,30 +1123,30 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         visual.pool = context.pool;
         visual.parentEntries = parentEntries;
         int weight = readInt(entry.get("weight"));
-        visual.chance = Component.translatable("gui.contentstudio.loot.loots.drop.chance",
+        visual.chance = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.chance",
                         numberComponent(formatChance(weight, context.totalWeight, entry)),
                         numberComponent(context.rolls))
                 .withStyle(ChatFormatting.GREEN);
-        visual.probability = Component.translatable("gui.contentstudio.loot.loots.drop.probability_only",
+        visual.probability = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.probability_only",
                         numberComponent(formatChance(weight, context.totalWeight, entry)))
                 .withStyle(ChatFormatting.GREEN);
         List<Component> allFunctions = new ArrayList<>(context.functions);
         allFunctions.addAll(functions);
-        visual.count = Component.translatable("gui.contentstudio.loot.loots.drop.count", numberComponent(countText(allFunctions)))
+        visual.count = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.count", numberComponent(countText(allFunctions)))
                 .withStyle(ChatFormatting.GREEN);
-        visual.details.add(Component.translatable("gui.contentstudio.loot.loots.drop.pool", numberComponent(context.poolIndex))
+        visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.pool", numberComponent(context.poolIndex))
                 .withStyle(ChatFormatting.GRAY));
-        visual.details.add(Component.translatable("gui.contentstudio.loot.loots.drop.weight",
+        visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.weight",
                         numberComponent(weight), numberComponent(Math.max(context.totalWeight, weight)))
                 .withStyle(ChatFormatting.GRAY));
         if (depth > 0) {
-            visual.details.add(Component.translatable("gui.contentstudio.loot.loots.drop.nested", numberComponent(depth))
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.nested", numberComponent(depth))
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        visual.details.add(Component.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(context.rolls))
+        visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(context.rolls))
                 .withStyle(ChatFormatting.GRAY));
         if (!context.bonusRolls.equals("-")) {
-            visual.details.add(Component.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(context.bonusRolls))
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(context.bonusRolls))
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
         visual.details.addAll(context.conditions);
@@ -1158,10 +1154,10 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         visual.details.addAll(context.functions);
         visual.details.addAll(functions);
         if (visual.loadError) {
-            visual.details.add(Component.translatable("gui.contentstudio.loot.loots.drop.load_error_replaced"));
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.load_error_replaced"));
         }
         if (showMissingPlayerKillHint() && lacksKilledByPlayer(context.conditions, conditions)) {
-            visual.details.add(Component.translatable("gui.contentstudio.loot.loots.condition.no_player_kill").withStyle(ChatFormatting.RED));
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.condition.no_player_kill").withStyle(ChatFormatting.RED));
         }
         return visual;
     }
@@ -1183,11 +1179,11 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private Component loadErrorIdComponent(DropVisual visual) {
-        return Component.translatable("gui.contentstudio.loot.loots.drop.load_error_id", visual.displayId);
+        return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.load_error_id", visual.displayId);
     }
 
     private boolean lacksKilledByPlayer(List<Component> firstLines, List<Component> secondLines) {
-        String killed = Component.translatable("gui.contentstudio.loot.loots.condition.killed_by_player").getString();
+        String killed = KineticI18n.translatable("gui.contentstudio.loot.loots.condition.killed_by_player").getString();
         for (Component line : firstLines) {
             if (line.getString().equals(killed)) {
                 return false;
@@ -1203,14 +1199,14 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private Component displayNameForEntry(String type, String name, ItemStack stack) {
         if (type.endsWith("empty")) {
-            return Component.translatable("gui.contentstudio.loot.loots.drop.empty").withStyle(ChatFormatting.RED);
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.empty").withStyle(ChatFormatting.RED);
         }
         if (type.endsWith("loot_table")) {
-            return Component.translatable("gui.contentstudio.loot.loots.drop.sub_table", idComponent(blankToDash(name)))
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.sub_table", idComponent(blankToDash(name)))
                     .withStyle(ChatFormatting.GOLD);
         }
         if (type.endsWith("tag")) {
-            return Component.translatable("gui.contentstudio.loot.loots.drop.tag", idComponent(blankToDash(name)))
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.tag", idComponent(blankToDash(name)))
                     .withStyle(ChatFormatting.GOLD);
         }
         if (!stack.isEmpty()) {
@@ -1242,14 +1238,14 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     protected void clearEditFields() {
-        if (itemBox != null) itemBox.setValue("");
-        if (chanceBox != null) chanceBox.setValue("1");
-        if (rollsBox != null) rollsBox.setValue(defaultRollsValue());
-        if (countMinBox != null) countMinBox.setValue("1");
-        if (countMaxBox != null) countMaxBox.setValue("1");
-        if (weightBox != null) weightBox.setValue("1");
-        if (lootingMinBox != null) lootingMinBox.setValue("0");
-        if (lootingMaxBox != null) lootingMaxBox.setValue("0");
+        if (itemBox != null) itemBox.setTextValue("");
+        if (chanceBox != null) chanceBox.setTextValue("1");
+        if (rollsBox != null) rollsBox.setTextValue(defaultRollsValue());
+        if (countMinBox != null) countMinBox.setTextValue("1");
+        if (countMaxBox != null) countMaxBox.setTextValue("1");
+        if (weightBox != null) weightBox.setTextValue("1");
+        if (lootingMinBox != null) lootingMinBox.setTextValue("0");
+        if (lootingMaxBox != null) lootingMaxBox.setTextValue("0");
         requirePlayerKill = false;
         enableLooting = false;
         enableFireSmelt = false;
@@ -1268,18 +1264,18 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             clearEditFields();
             return;
         }
-        itemBox.setValue(safeString(selectedDrop.entry.get("name")));
-        chanceBox.setValue(trimNumber(readRandomChanceValue(selectedDrop.entry)));
-        rollsBox.setValue(readRollsForEditor(selectedDrop.pool));
-        weightBox.setValue(String.valueOf(readInt(selectedDrop.entry.get("weight"))));
+        itemBox.setTextValue(safeString(selectedDrop.entry.get("name")));
+        chanceBox.setTextValue(trimNumber(readRandomChanceValue(selectedDrop.entry)));
+        rollsBox.setTextValue(readRollsForEditor(selectedDrop.pool));
+        weightBox.setTextValue(String.valueOf(readInt(selectedDrop.entry.get("weight"))));
         JsonObject setCount = findFunction(selectedDrop.entry, "set_count");
         if (setCount != null) {
             setRangeFields(setCount.get("count"), countMinBox, countMaxBox, "1");
             enforceAtLeastOne(countMinBox);
             enforceAtLeastOne(countMaxBox);
         } else {
-            countMinBox.setValue("1");
-            countMaxBox.setValue("1");
+            countMinBox.setTextValue("1");
+            countMaxBox.setTextValue("1");
         }
         JsonObject looting = findFunction(selectedDrop.entry, "looting_enchant");
         enableLooting = looting != null;
@@ -1287,8 +1283,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (looting != null) {
             setRangeFields(looting.get("count"), lootingMinBox, lootingMaxBox, "0");
         } else {
-            lootingMinBox.setValue("0");
-            lootingMaxBox.setValue("0");
+            lootingMinBox.setTextValue("0");
+            lootingMaxBox.setTextValue("0");
         }
         requirePlayerKill = entryHasKilledByPlayer(selectedDrop.entry);
         killedButton.setValue(requirePlayerKill);
@@ -1298,18 +1294,18 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         updateButtons();
     }
 
-    private void setRangeFields(JsonElement element, KineticEditBox minBox, KineticEditBox maxBox, String fallback) {
+    private void setRangeFields(JsonElement element, KineticTextField minBox, KineticTextField maxBox, String fallback) {
         if (element != null && element.isJsonObject()) {
             JsonObject object = element.getAsJsonObject();
-            minBox.setValue(object.has("min") ? trimNumber(readDouble(object.get("min"), 1.0D)) : fallback);
-            maxBox.setValue(object.has("max") ? trimNumber(readDouble(object.get("max"), 1.0D)) : minBox.getValue());
+            minBox.setTextValue(object.has("min") ? trimNumber(readDouble(object.get("min"), 1.0D)) : fallback);
+            maxBox.setTextValue(object.has("max") ? trimNumber(readDouble(object.get("max"), 1.0D)) : minBox.textValue());
         } else if (element != null && element.isJsonPrimitive()) {
             String value = trimNumber(readDouble(element, 1.0D));
-            minBox.setValue(value);
-            maxBox.setValue(value);
+            minBox.setTextValue(value);
+            maxBox.setTextValue(value);
         } else {
-            minBox.setValue(fallback);
-            maxBox.setValue(fallback);
+            minBox.setTextValue(fallback);
+            maxBox.setTextValue(fallback);
         }
     }
 
@@ -1344,7 +1340,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void applyEditToSelected() {
         if (selectedDrop == null || selectedDrop.entry == null) {
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
             return;
         }
         if (hasEditorValueError(selectedDrop.entry, selectedDrop.pool)) {
@@ -1420,7 +1416,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void deleteSelectedDrop() {
         if (selectedDrop == null || selectedDrop.parentEntries == null) {
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.no_drop_selected"));
             return;
         }
         selectedDrop.parentEntries.remove(selectedDrop.entryIndex);
@@ -1428,9 +1424,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private boolean hasEditorValueError(JsonObject entry, JsonObject pool) {
-        String itemId = itemBox.getValue().trim();
+        String itemId = itemBox.textValue().trim();
         if (isInvalidItemId(itemId)) {
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.invalid_item"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.invalid_item"));
             return true;
         }
         if (hasEmptyNumericField()) {
@@ -1501,18 +1497,18 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 || isEmpty(lootingMaxBox);
     }
 
-    private boolean isEmpty(KineticEditBox box) {
-        return box == null || box.getValue().trim().isEmpty();
+    private boolean isEmpty(KineticTextField box) {
+        return box == null || box.textValue().trim().isEmpty();
     }
 
     private void restoreEmptyNumericDefaults() {
-        if (isEmpty(chanceBox)) chanceBox.setValue("1");
-        if (isEmpty(rollsBox)) rollsBox.setValue(defaultRollsValue());
-        if (isEmpty(countMinBox)) countMinBox.setValue("1");
-        if (isEmpty(countMaxBox)) countMaxBox.setValue("1");
-        if (isEmpty(weightBox)) weightBox.setValue("1");
-        if (isEmpty(lootingMinBox)) lootingMinBox.setValue("0");
-        if (isEmpty(lootingMaxBox)) lootingMaxBox.setValue("0");
+        if (isEmpty(chanceBox)) chanceBox.setTextValue("1");
+        if (isEmpty(rollsBox)) rollsBox.setTextValue(defaultRollsValue());
+        if (isEmpty(countMinBox)) countMinBox.setTextValue("1");
+        if (isEmpty(countMaxBox)) countMaxBox.setTextValue("1");
+        if (isEmpty(weightBox)) weightBox.setTextValue("1");
+        if (isEmpty(lootingMinBox)) lootingMinBox.setTextValue("0");
+        if (isEmpty(lootingMaxBox)) lootingMaxBox.setTextValue("0");
     }
 
     private boolean isInvalidItemId(String itemId) {
@@ -1524,25 +1520,25 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
     }
 
-    private Integer parseIntegerBox(KineticEditBox box) {
+    private Integer parseIntegerBox(KineticTextField box) {
         try {
-            return Integer.parseInt(box.getValue().trim());
+            return Integer.parseInt(box.textValue().trim());
         } catch (Exception e) {
             return null;
         }
     }
 
-    private Double parseDoubleBox(KineticEditBox box) {
+    private Double parseDoubleBox(KineticTextField box) {
         try {
-            return Double.parseDouble(box.getValue().trim());
+            return Double.parseDouble(box.textValue().trim());
         } catch (Exception e) {
             return null;
         }
     }
 
-    private RollRange parseRollRange(KineticEditBox box) {
+    private RollRange parseRollRange(KineticTextField box) {
         try {
-            String value = box.getValue().trim().replace(" ", "");
+            String value = box.textValue().trim().replace(" ", "");
             int separator = value.indexOf('-');
             if (separator < 0) {
                 double number = Double.parseDouble(value);
@@ -1556,10 +1552,10 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
     }
 
-    private void enforceAtLeastOne(KineticEditBox box) {
+    private void enforceAtLeastOne(KineticTextField box) {
         Integer value = parseIntegerBox(box);
         if (value == null || value < 1) {
-            box.setValue("1");
+            box.setTextValue("1");
         }
     }
 
@@ -1825,10 +1821,10 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             return;
         }
         openDialog(
-                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.title"),
-                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.desc"),
-                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.yes"),
-                Component.translatable("gui.contentstudio.loot.loots.reset.confirm.cancel"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.reset.confirm.title"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.reset.confirm.desc"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.reset.confirm.yes"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.reset.confirm.cancel"),
                 this::resetCurrentJson,
                 () -> { }
         );
@@ -1863,10 +1859,10 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private void openItemPicker() {
-        if (this.minecraft == null) {
+        if (!isAttached()) {
             return;
         }
-        KineticSelectors.openItemSelector(this, selection -> {
+        KineticSelectors.openItemSelector(selection -> {
             if (selection != null && selection.isItem()) {
                 ResourceLocation id = KineticRegistries.items().id(selection.stack().getItem());
                 if (id != null && itemBox != null) {
@@ -1874,7 +1870,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                     pendingPickedItemStackId = id.toString();
                     pendingPickedItemStack = selection.stack().copy();
                     pendingPickedTargetEntry = selectedDrop == null ? null : selectedDrop.entry;
-                    itemBox.setValue(id.toString());
+                    itemBox.setTextValue(id.toString());
                 }
             }
         });
@@ -2036,8 +2032,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private String countText(List<Component> functions) {
-        String setCountPrefix = Component.translatable("gui.contentstudio.loot.loots.function.set_count.prefix").getString();
-        String lootingPrefix = Component.translatable("gui.contentstudio.loot.loots.function.looting.prefix").getString();
+        String setCountPrefix = KineticI18n.translatable("gui.contentstudio.loot.loots.function.set_count.prefix").getString();
+        String lootingPrefix = KineticI18n.translatable("gui.contentstudio.loot.loots.function.looting.prefix").getString();
         String base = "1";
         String looting = "";
         for (Component component : functions) {
@@ -2049,7 +2045,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             }
         }
         if (!looting.isBlank()) {
-            return Component.translatable("gui.contentstudio.loot.loots.drop.count_with_looting", base, looting).getString();
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.count_with_looting", base, looting).getString();
         }
         return base;
     }
@@ -2073,7 +2069,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private String formatChance(int weight, int totalWeight, JsonObject entry) {
         if (totalWeight <= 0) {
-            return Component.translatable("gui.contentstudio.loot.loots.drop.unknown_chance").getString();
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.unknown_chance").getString();
         }
         double value = (double) weight * 100.0D / (double) totalWeight;
         value = value * readRandomChanceValue(entry);
@@ -2251,7 +2247,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 hideGroupSlot(i);
             }
         }
-        double visualScroll = groupScrollState.follow(groupScroll, maxGroupScroll, draggingGroupScroll);
+        double visualScroll = groupScrollState.update(groupScroll, maxGroupScroll, draggingGroupScroll);
         int firstIndex = Math.max(0, Math.min((int) Math.floor(visualScroll + 1.0E-6D), maxGroupScroll));
         double fraction = Math.max(0D, visualScroll - firstIndex);
         int top = GROUP_Y + 6;
@@ -2279,23 +2275,23 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 continue;
             }
             if (row.isPool()) {
-                groupArrowButtons[slot].setVisible(true);
-                groupArrowButtons[slot].setY(row.y + 2);
-                groupArrowButtons[slot].setText(Component.translatable(expandedPools.contains(row.poolIndex)
+                groupArrowButtons[slot].setControlVisible(true);
+                groupArrowButtons[slot].moveControlY(row.y + 2);
+                groupArrowButtons[slot].setText(KineticI18n.translatable(expandedPools.contains(row.poolIndex)
                         ? "gui.contentstudio.common.collapse_symbol"
                         : "gui.contentstudio.common.expand_symbol"));
-                groupAddButtons[slot].setVisible(true);
-                groupAddButtons[slot].setY(row.y + 2);
-                groupPoolEditButtons[slot].setVisible(true);
-                groupPoolEditButtons[slot].setY(row.y + 2);
-                groupPoolDeleteButtons[slot].setVisible(true);
+                groupAddButtons[slot].setControlVisible(true);
+                groupAddButtons[slot].moveControlY(row.y + 2);
+                groupPoolEditButtons[slot].setControlVisible(true);
+                groupPoolEditButtons[slot].moveControlY(row.y + 2);
+                groupPoolDeleteButtons[slot].setControlVisible(true);
                 groupPoolDeleteButtons[slot].setEnabled(poolCountForGroupedLayout() > 0);
-                groupPoolDeleteButtons[slot].setY(row.y + 2);
+                groupPoolDeleteButtons[slot].moveControlY(row.y + 2);
             } else {
-                groupEntryDeleteButtons[slot].setVisible(true);
-                groupEntryDeleteButtons[slot].setY(row.y + 5);
-                groupEntryEditButtons[slot].setVisible(true);
-                groupEntryEditButtons[slot].setY(row.y + 5);
+                groupEntryDeleteButtons[slot].setControlVisible(true);
+                groupEntryDeleteButtons[slot].moveControlY(row.y + 5);
+                groupEntryEditButtons[slot].setControlVisible(true);
+                groupEntryEditButtons[slot].moveControlY(row.y + 5);
             }
         }
     }
@@ -2324,8 +2320,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void editGroupedPool(int slot) {
         GroupRow row = visibleGroupRow(slot);
-        if (row != null && row.isPool() && minecraft != null) {
-            KineticClientRuntime.openScreen(new LootPoolEditScreen(this, row.poolIndex, groupedPool(row.poolIndex).deepCopy()));
+        if (row != null && row.isPool() && isAttached()) {
+            openChild(new LootPoolEditPage(this, row.poolIndex, groupedPool(row.poolIndex).deepCopy()));
         }
     }
 
@@ -2336,13 +2332,13 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
         int poolIndex = row.poolIndex;
         openDialog(
-                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
-                Component.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
-                Component.translatable("gui.contentstudio.loot.loots.confirm.delete"),
-                Component.translatable("gui.contentstudio.loot.loots.confirm.cancel"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.confirm.delete"),
+                KineticI18n.translatable("gui.contentstudio.loot.loots.confirm.cancel"),
                 () -> {
                     if (deletePoolFromEditor(poolIndex)) {
-                        KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.pool.deleted"));
+                        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.pool.deleted"));
                     }
                 },
                 () -> { }
@@ -2351,8 +2347,8 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
 
     private void editGroupedEntry(int slot) {
         GroupRow row = visibleGroupRow(slot);
-        if (row != null && !row.isPool() && row.visual != null && minecraft != null) {
-            KineticClientRuntime.openScreen(new LootEntryEditScreen(this, row.visual));
+        if (row != null && !row.isPool() && row.visual != null && isAttached()) {
+            openChild(new LootEntryEditPage(this, row.visual));
         }
     }
 
@@ -2360,7 +2356,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         GroupRow row = visibleGroupRow(slot);
         if (row != null && !row.isPool() && row.visual != null) {
             deleteEntryFromEditor(row.visual);
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.entry.deleted"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.entry.deleted"));
         }
     }
 
@@ -2373,16 +2369,16 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         int poolIndex = pools.size() - 1;
         expandedPools.add(poolIndex);
         markDirtyAndRebuild(null);
-        if (minecraft != null) {
-            KineticClientRuntime.openScreen(new LootPoolEditScreen(this, poolIndex, groupedPool(poolIndex).deepCopy()));
+        if (isAttached()) {
+            openChild(new LootPoolEditPage(this, poolIndex, groupedPool(poolIndex).deepCopy()));
         }
     }
 
     private void openGroupedItemPicker(int poolIndex) {
-        if (minecraft == null) {
+        if (!isAttached()) {
             return;
         }
-        KineticSelectors.openItemSelector(this, selection -> {
+        KineticSelectors.openItemSelector(selection -> {
             if (selection == null || !selection.isItem()) {
                 return;
             }
@@ -2404,7 +2400,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             groupedPool(poolIndex).getAsJsonArray("entries").add(entry);
             expandedPools.add(poolIndex);
             markDirtyAndRebuild(entry);
-            KineticOverlays.toast(Component.translatable("msg.contentstudio.loot.loots.drop.added"));
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.loot.loots.drop.added"));
         });
     }
 
@@ -2471,13 +2467,13 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     List<Component> groupedPoolTooltip(int poolIndex) {
         List<Component> tooltip = new ArrayList<>();
         JsonObject pool = groupedPool(poolIndex);
-        tooltip.add(Component.translatable("gui.contentstudio.loot.loots.pool.number", numberComponent(poolIndex + 1)).withStyle(ChatFormatting.GOLD));
-        tooltip.add(Component.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(readRollsForEditor(pool))).withStyle(ChatFormatting.GRAY));
+        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.number", numberComponent(poolIndex + 1)).withStyle(ChatFormatting.GOLD));
+        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(readRollsForEditor(pool))).withStyle(ChatFormatting.GRAY));
         String bonusRolls = readNumberRange(pool.get("bonus_rolls"));
         if (!bonusRolls.equals("-")) {
-            tooltip.add(Component.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(bonusRolls)).withStyle(ChatFormatting.LIGHT_PURPLE));
+            tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(bonusRolls)).withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        tooltip.add(Component.translatable("gui.contentstudio.loot.loots.pool.entry_count", numberComponent(pool.getAsJsonArray("entries").size())).withStyle(ChatFormatting.GRAY));
+        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.entry_count", numberComponent(pool.getAsJsonArray("entries").size())).withStyle(ChatFormatting.GRAY));
         appendReadableConditions(tooltip, pool.get("conditions"));
         appendReadableFunctions(tooltip, pool.get("functions"));
         return tooltip;
@@ -2489,22 +2485,22 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         boolean specialPanel = isSpecialPanelActive();
         boolean saving = isSavingBatch();
         if (saveButton != null) {
-            saveButton.setVisible(!specialPanel);
+            saveButton.setControlVisible(!specialPanel);
             saveButton.setEnabled(!specialPanel && hasEntry && !saving);
         }
         if (resetButton != null) {
-            resetButton.setVisible(!specialPanel);
+            resetButton.setControlVisible(!specialPanel);
             resetButton.setEnabled(!specialPanel && hasEntry && !saving);
         }
         if (addPoolHeaderButton != null) {
-            addPoolHeaderButton.setVisible(!specialPanel);
+            addPoolHeaderButton.setControlVisible(!specialPanel);
             addPoolHeaderButton.setEnabled(!specialPanel && hasEntry);
         }
         if (deleteButton != null) deleteButton.setEnabled(!specialPanel && hasDrop);
         if (applyButton != null) applyButton.setEnabled(!specialPanel && hasDrop);
         if (fireButton != null) fireButton.setEnabled(!specialPanel && hasEntry);
         if (overrideModeButton != null) {
-            overrideModeButton.setVisible(!specialPanel);
+            overrideModeButton.setControlVisible(!specialPanel);
             overrideModeButton.setEnabled(!specialPanel && hasEntry);
             overrideModeButton.setValue(overrideMode);
         }
@@ -2534,8 +2530,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     @Override
-    protected void renderCanvasBackground(@NotNull GuiGraphics g, int mx, int my, float pt) {
-        GuiTheme.panel(g, 0, 0, V_WIDTH, V_HEIGHT);
+    protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
+        applyScrollJumps();
+        KineticTheme.panel(g, 0, 0, V_WIDTH, V_HEIGHT);
         drawPanel(g, LEFT_X - 2, RIGHT_Y - 2, TARGET_WIDTH + 14, RIGHT_H + 4);
         drawPanel(g, RIGHT_X - 2, RIGHT_Y - 2, RIGHT_W + 4, RIGHT_H + 4);
         if (isSpecialPanelActive()) {
@@ -2550,12 +2547,12 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
     }
 
-    private void drawPanel(GuiGraphics g, int x, int y, int w, int h) {
-        GuiTheme.stateSurface(g, x, y, w, h, GuiTheme.Surface.PANEL_ALT, true, false, false);
+    private void drawPanel(KineticGraphics g, int x, int y, int w, int h) {
+        KineticTheme.stateSurface(g, x, y, w, h, KineticTheme.Surface.PANEL_ALT, true, false, false);
     }
 
     @Override
-    protected void renderCanvasForeground(@NotNull GuiGraphics g, int mx, int my, float pt) {
+    protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
         updateTargetScrollLimit();
         renderTargets(g, mx, my);
@@ -2571,33 +2568,32 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         }
         if (selectedEntry == null) {
             int centerY = usesGroupedLayout() ? GROUP_Y + GROUP_H / 2 : DROP_Y + DROP_H / 2;
-            g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.no_selection"), RIGHT_X + RIGHT_W / 2, centerY, 0xFFFFAA00);
+            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.no_selection"), RIGHT_X + RIGHT_W / 2, centerY, 0xFFFFAA00, true);
         }
     }
 
-    protected abstract void renderTargets(GuiGraphics g, int mx, int my);
+    protected abstract void renderTargets(KineticGraphics g, int mx, int my);
 
     protected abstract LootEntryInfo targetEntryAt(double mx, double my);
 
     protected abstract String getDisplayName(LootEntryInfo entry);
 
-    private void renderTopInfo(GuiGraphics g, int mx, int my) {
-        g.drawString(font, getTitle(), RIGHT_X + 6, RIGHT_Y + 6, 0xFFFFAA00, false);
+    private void renderTopInfo(KineticGraphics g, int mx, int my) {
+        g.text(title(), RIGHT_X + 6, RIGHT_Y + 6, 0xFFFFAA00, false);
         if (detailLoading) {
-            g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.loading"),
-                    RIGHT_X + 6, RIGHT_Y + 25, 0xFFFFD75F, false);
+            g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.loading"), RIGHT_X + 6, RIGHT_Y + 25, 0xFFFFD75F, false);
         }
     }
 
-    private void renderEditLabels(GuiGraphics g, int mx, int my) {
+    private void renderEditLabels(KineticGraphics g, int mx, int my) {
         int x0 = RIGHT_X + 10;
         int y = EDIT_Y + 10;
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.item"), x0, y, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.chance"), x0 + 48, y, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.rolls"), x0 + 92, y, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.count_min"), x0 + 136, y, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.count_max"), x0 + 180, y, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.weight"), x0 + 224, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.item"), x0, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.chance"), x0 + 48, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.rolls"), x0 + 92, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.count_min"), x0 + 136, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.count_max"), x0 + 180, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.weight"), x0 + 224, y, 0xFFFFAA00, false);
         renderModeEditLabels(g, x0, y);
 
         if (my >= y - 2 && my <= y + 11) {
@@ -2610,14 +2606,14 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             else if (mx >= x0 + 224 && mx < x0 + 264) tooltipKey = "gui.contentstudio.loot.loots.tip.weight";
             else tooltipKey = modeLabelTooltipKey(mx, x0);
             if (tooltipKey != null) {
-                deferredTooltip = List.of(Component.translatable(tooltipKey));
+                deferredTooltip = List.of(KineticI18n.translatable(tooltipKey));
             }
         }
     }
 
-    protected void renderModeEditLabels(GuiGraphics g, int x0, int y) {
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.looting_min"), x0 + 268, y, 0xFFFFAA00, false);
-        g.drawString(font, Component.translatable("gui.contentstudio.loot.loots.edit.looting_max"), x0 + 312, y, 0xFFFFAA00, false);
+    protected void renderModeEditLabels(KineticGraphics g, int x0, int y) {
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.looting_min"), x0 + 268, y, 0xFFFFAA00, false);
+        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.looting_max"), x0 + 312, y, 0xFFFFAA00, false);
     }
 
     protected String modeLabelTooltipKey(int mx, int x0) {
@@ -2630,29 +2626,29 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         return null;
     }
 
-    private void renderEditorItemPreview(GuiGraphics g, int mx, int my) {
+    private void renderEditorItemPreview(KineticGraphics g, int mx, int my) {
         int x = RIGHT_X + 18;
         int y = EDIT_Y + 25;
         ItemStack stack = editorPreviewStack();
         boolean hovered = mx >= x && mx <= x + EDIT_ICON && my >= y && my <= y + EDIT_ICON;
         drawCheckerboard(g, x, y, EDIT_ICON, EDIT_ICON);
-        GuiTheme.stateOutline(g, x, y, EDIT_ICON, EDIT_ICON, true, hovered, false);
+        KineticTheme.stateOutline(g, x, y, EDIT_ICON, EDIT_ICON, true, hovered, false);
         if (!stack.isEmpty()) {
             int itemOffset = (EDIT_ICON - 16) / 2;
-            g.pose().pushPose();
-            g.pose().translate(x + itemOffset, y + itemOffset, 80.0F);
-            g.renderItem(stack, 0, 0);
-            g.renderItemDecorations(font, stack, 0, 0);
-            g.pose().popPose();
+            g.push();
+            g.translate(x + itemOffset, y + itemOffset);
+            g.item(stack, 0, 0);
+            g.itemDecorations(stack, 0, 0);
+            g.pop();
         }
         if (hovered) {
             if (!stack.isEmpty()) {
                 deferredTooltip = List.of(
                         stack.getHoverName().copy().withStyle(ChatFormatting.GOLD),
-                        idComponent(itemBox == null ? "" : itemBox.getValue())
+                        idComponent(itemBox == null ? "" : itemBox.textValue())
                 );
             } else {
-                deferredTooltip = List.of(Component.translatable("gui.contentstudio.loot.loots.tip.pick_item"));
+                deferredTooltip = List.of(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pick_item"));
             }
         }
     }
@@ -2661,7 +2657,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (itemBox == null) {
             return ItemStack.EMPTY;
         }
-        String itemId = itemBox.getValue().trim();
+        String itemId = itemBox.textValue().trim();
         if (pendingPickedItemStackId != null
                 && pendingPickedItemStackId.equals(itemId)
                 && (pendingPickedTargetEntry == null
@@ -2689,39 +2685,44 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         pendingPickedTargetEntry = null;
     }
 
-    private void renderGroupedPanel(GuiGraphics g, int mx, int my) {
+    private void renderGroupedPanel(KineticGraphics g, int mx, int my) {
         if (selectedEntry == null || currentRoot == null) {
             return;
         }
         if (groupedRows.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, GROUP_Y + GROUP_H / 2, 0xFFFFAA00);
+            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, GROUP_Y + GROUP_H / 2, 0xFFFFAA00, true);
             return;
         }
-        enableUiScissor(g, RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
+        g.scissor(RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
         try {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
                     renderGroupedPoolRow(g, row, mx, my);
+                    groupJump.flash(g, groupedRows.indexOf(row), RIGHT_X + 8, row.y, RIGHT_W - 22, GROUP_POOL_H - GROUP_ROW_GAP);
                 } else {
                     renderGroupedEntryRow(g, row, mx, my);
+                    groupJump.flash(g, groupedRows.indexOf(row), RIGHT_X + 10, row.y, RIGHT_W - 24, GROUP_ENTRY_H - GROUP_ROW_GAP);
                 }
             }
         } finally {
-            disableUiScissor(g);
+            g.endScissor();
         }
         if (maxGroupScroll > 0) {
             int trackH = GROUP_H - 12;
-            int thumbH = KineticScroll.stateThumbHeight(trackH,
+            int thumbH = LootScrollbars.thumbHeight(trackH,
                     Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-            KineticScroll.renderScrollbarState(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH,
+            groupJump.track(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH, 18,
+                    groupScrollState.update(groupScroll, maxGroupScroll, draggingGroupScroll), maxGroupScroll,
+                    groupedRows.size(), Math.max(1, visibleGroupRows.size()), draggingGroupScroll);
+            LootScrollbars.renderState(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH,
                     thumbH, maxGroupScroll,
-                    groupScrollState.follow(groupScroll, maxGroupScroll, draggingGroupScroll),
+                    groupScrollState.update(groupScroll, maxGroupScroll, draggingGroupScroll),
                     draggingGroupScroll);
         }
     }
 
-    private void renderGroupedRowBackgrounds(GuiGraphics g, int mx, int my) {
-        enableUiScissor(g, RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
+    private void renderGroupedRowBackgrounds(KineticGraphics g, int mx, int my) {
+        g.scissor(RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
         try {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
@@ -2729,27 +2730,27 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 int width = RIGHT_W - 22;
                 boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
                 int drawHeight = GROUP_POOL_H - GROUP_ROW_GAP;
-                GuiTheme.stateSurface(
+                KineticTheme.stateSurface(
                         g, x, row.y, width, drawHeight,
-                        GuiTheme.Surface.PANEL_ALT, false, hover, false
+                        KineticTheme.Surface.PANEL_ALT, false, hover, false
                 );
             } else {
                 int x = RIGHT_X + 10;
                 int width = RIGHT_W - 24;
                 int drawHeight = GROUP_ENTRY_H - GROUP_ROW_GAP;
                 boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + drawHeight;
-                GuiTheme.stateSurface(
+                KineticTheme.stateSurface(
                         g, x, row.y, width, drawHeight,
-                        GuiTheme.Surface.PANEL_ALT, false, hover, row.visual.loadError
+                        KineticTheme.Surface.PANEL_ALT, false, hover, row.visual.loadError
                 );
                 }
             }
         } finally {
-            disableUiScissor(g);
+            g.endScissor();
         }
     }
 
-    private void renderGroupedPoolRow(GuiGraphics g, GroupRow row, int mx, int my) {
+    private void renderGroupedPoolRow(KineticGraphics g, GroupRow row, int mx, int my) {
         int x = RIGHT_X + 8;
         int width = RIGHT_W - 22;
         boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
@@ -2758,26 +2759,24 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         for (DropVisual visual : dropVisuals) {
             if (visual.poolIndex == row.poolIndex + 1) entryCount++;
         }
-        Component line = Component.translatable("gui.contentstudio.loot.loots.pool.header",
+        Component line = KineticI18n.translatable("gui.contentstudio.loot.loots.pool.header",
                         numberComponent(row.poolIndex + 1),
                         numberComponent(readRollsForEditor(pool)),
                         numberComponent(entryCount))
                 .withStyle(ChatFormatting.GRAY);
-        enableUiScissor(
-                g,
-                RIGHT_X + 34,
+        g.scissor(RIGHT_X + 34,
                 row.y + 1,
                 RIGHT_X + RIGHT_W - 146,
                 row.y + GROUP_POOL_H - 2
         );
-        g.drawString(font, line, RIGHT_X + 34, row.y + 8, 0xFFFFFFFF, false);
-        disableUiScissor(g);
+        g.text(line, RIGHT_X + 34, row.y + 8, 0xFFFFFFFF, false);
+        g.endScissor();
         if (hover && mx >= RIGHT_X + 32 && mx < RIGHT_X + RIGHT_W - 145) {
             deferredTooltip = groupedPoolTooltip(row.poolIndex);
         }
     }
 
-    private void renderGroupedEntryRow(GuiGraphics g, GroupRow row, int mx, int my) {
+    private void renderGroupedEntryRow(KineticGraphics g, GroupRow row, int mx, int my) {
         DropVisual visual = row.visual;
         int x = RIGHT_X + 10;
         int width = RIGHT_W - 24;
@@ -2793,20 +2792,18 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 .append(Component.literal("    "))
                 .append(visual.count);
         Component secondLine = visual.loadError ? loadErrorIdComponent(visual) : buildGroupedSecondLine(visual);
-        enableUiScissor(
-                g,
-                textX,
+        g.scissor(textX,
                 row.y + 1,
                 textRight,
                 row.y + drawHeight - 1
         );
-        g.drawString(font, firstLine, textX, row.y + 4, 0xFFFFFFFF, false);
+        g.text(firstLine, textX, row.y + 4, 0xFFFFFFFF, false);
         if (visual.loadError) {
             drawFittedComponent(g, secondLine, textX, row.y + 16, textRight - textX);
         } else {
-            g.drawString(font, secondLine, textX, row.y + 16, 0xFFFFFFFF, false);
+            g.text(secondLine, textX, row.y + 16, 0xFFFFFFFF, false);
         }
-        disableUiScissor(g);
+        g.endScissor();
         if (hover && mx < RIGHT_X + RIGHT_W - 112) {
             deferredTooltip = buildGroupedDropTooltip(visual);
         }
@@ -2852,15 +2849,15 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         return true;
     }
 
-    private void renderDropPanel(GuiGraphics g, int mx, int my) {
+    private void renderDropPanel(KineticGraphics g, int mx, int my) {
         if (dropVisuals.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, DROP_Y + DROP_H / 2, 0xFFFFAA00);
+            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, DROP_Y + DROP_H / 2, 0xFFFFAA00, true);
             return;
         }
         int startY = dropListStartY();
         int listH = dropListHeight();
         int visible = visibleDropRows();
-        double smoothDropScroll = dropScrollState.follow(
+        double smoothDropScroll = dropScrollState.update(
                 dropScroll,
                 maxDropScroll,
                 draggingDropScroll
@@ -2870,9 +2867,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                 (smoothDropScroll - smoothDropRow) * DROP_ROW_H
         );
         int end = Math.min(dropVisuals.size(), smoothDropRow + visible + 1);
-        enableUiScissor(
-                g,
-                RIGHT_X + 8,
+        g.scissor(RIGHT_X + 8,
                 startY,
                 RIGHT_X + RIGHT_W - 8,
                 startY + listH
@@ -2882,13 +2877,13 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             int rowY = startY + (i - smoothDropRow) * DROP_ROW_H - dropShift;
             boolean hover = mx >= RIGHT_X + 10 && mx <= RIGHT_X + RIGHT_W - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4;
             boolean selected = selectedDrop == visual;
-            GuiTheme.stateSurface(
+            KineticTheme.stateSurface(
                     g,
                     RIGHT_X + 10,
                     rowY,
                     RIGHT_W - 26,
                     DROP_ROW_H - 4,
-                    GuiTheme.Surface.PANEL_ALT,
+                    KineticTheme.Surface.PANEL_ALT,
                     selected,
                     hover,
                     visual.loadError
@@ -2904,62 +2899,64 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                     .append(Component.literal("    "))
                     .append(visual.count);
             Component secondLine = visual.loadError ? loadErrorIdComponent(visual) : buildDropSecondLine(visual);
-            enableUiScissor(
-                    g,
-                    textX,
+            g.scissor(textX,
                     rowY + 2,
                     RIGHT_X + RIGHT_W - 17,
                     rowY + DROP_ROW_H - 5
             );
-            g.drawString(font, firstLine, textX, lineOneY, 0xFFFFFFFF, false);
+            g.text(firstLine, textX, lineOneY, 0xFFFFFFFF, false);
             if (visual.loadError) {
                 drawFittedComponent(g, secondLine, textX, lineTwoY, RIGHT_X + RIGHT_W - 17 - textX);
             } else {
-                g.drawString(font, secondLine, textX, lineTwoY, 0xFFFFFFFF, false);
+                g.text(secondLine, textX, lineTwoY, 0xFFFFFFFF, false);
             }
-            disableUiScissor(g);
+            g.endScissor();
             if (hover) {
                 deferredTooltip = buildDropTooltip(visual);
             }
+            dropJump.flash(g, i, RIGHT_X + 10, rowY, RIGHT_W - 26, DROP_ROW_H - 4);
         }
-        disableUiScissor(g);
+        g.endScissor();
         if (maxDropScroll > 0) {
-            int thumbH = KineticScroll.stateThumbHeight(listH, visible, dropVisuals.size(), 18);
-            KineticScroll.renderScrollbarState(
+            int thumbH = LootScrollbars.thumbHeight(listH, visible, dropVisuals.size(), 18);
+            dropJump.track(g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2, 18,
+                    dropScrollState.update(dropScroll, maxDropScroll, draggingDropScroll), maxDropScroll,
+                    dropVisuals.size(), visible, draggingDropScroll);
+            LootScrollbars.renderState(
                     g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2,
                     thumbH, maxDropScroll,
-                    dropScrollState.follow(dropScroll, maxDropScroll, draggingDropScroll),
+                    dropScrollState.update(dropScroll, maxDropScroll, draggingDropScroll),
                     draggingDropScroll
             );
         }
     }
 
-    private void renderDropIcon(GuiGraphics g, DropVisual visual, int rowY, boolean hovered) {
+    private void renderDropIcon(KineticGraphics g, DropVisual visual, int rowY, boolean hovered) {
         int x = RIGHT_X + 13;
         int y = rowY + (GROUP_ENTRY_H - GROUP_ROW_GAP - ICON_CELL) / 2;
         ItemStack stack = visual.stack == null ? ItemStack.EMPTY : visual.stack;
         LootCheckerboard.draw(g, x, y, ICON_CELL, ICON_CELL);
-        GuiTheme.stateOutline(g, x, y, ICON_CELL, ICON_CELL, false, hovered, visual.loadError);
+        KineticTheme.stateOutline(g, x, y, ICON_CELL, ICON_CELL, false, hovered, visual.loadError);
         if (!stack.isEmpty()) {
             renderLargeItem(g, stack, x + 3, y + 3, ICON_CELL - 6);
         }
     }
 
-    protected void drawCheckerboard(GuiGraphics g, int x, int y, int w, int h) {
-        GuiTheme.itemGrid(g, x, y, w, h);
+    protected void drawCheckerboard(KineticGraphics g, int x, int y, int w, int h) {
+        KineticTheme.itemGrid(g, x, y, w, h);
     }
 
-    protected void renderLargeItem(GuiGraphics g, ItemStack stack, int x, int y, int size) {
+    protected void renderLargeItem(KineticGraphics g, ItemStack stack, int x, int y, int size) {
         if (stack == null || stack.isEmpty()) {
             return;
         }
         float scale = size / 16.0f;
-        g.pose().pushPose();
-        g.pose().translate(x, y, 120);
-        g.pose().scale(scale, scale, scale);
-        g.renderItem(stack, 0, 0);
-        g.renderItemDecorations(font, stack, 0, 0);
-        g.pose().popPose();
+        g.push();
+        g.translate(x, y);
+        g.scale(scale, scale);
+        g.item(stack, 0, 0);
+        g.itemDecorations(stack, 0, 0);
+        g.pop();
     }
 
     private Component buildDropSecondLine(DropVisual visual) {
@@ -3034,44 +3031,61 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     private MutableComponent conditionLine(String key, Object... args) {
-        return Component.translatable(key, args).withStyle(ChatFormatting.AQUA);
+        return KineticI18n.translatable(key, args).withStyle(ChatFormatting.AQUA);
     }
 
     private MutableComponent functionLine(String key, Object... args) {
-        return Component.translatable(key, args).withStyle(ChatFormatting.LIGHT_PURPLE);
+        return KineticI18n.translatable(key, args).withStyle(ChatFormatting.LIGHT_PURPLE);
     }
 
-    private void drawFittedComponent(GuiGraphics g, Component text, int x, int y, int maxWidth) {
-        int textWidth = font.width(text);
+    private void drawFittedComponent(KineticGraphics g, Component text, int x, int y, int maxWidth) {
+        int textWidth = KineticText.width(text);
         if (textWidth <= maxWidth || textWidth <= 0) {
-            g.drawString(font, text, x, y, 0xFFFFFFFF, false);
+            g.text(text, x, y, 0xFFFFFFFF, false);
             return;
         }
         float scale = (float) maxWidth / textWidth;
-        g.pose().pushPose();
-        g.pose().translate(x, y, 0);
-        g.pose().scale(scale, scale, 1.0f);
-        g.drawString(font, text, 0, 0, 0xFFFFFFFF, false);
-        g.pose().popPose();
+        g.push();
+        g.translate(x, y);
+        g.scale(scale, scale);
+        g.text(text, 0, 0, 0xFFFFFFFF, false);
+        g.pop();
     }
 
-    protected String trim(Font font, String text, int width) {
+    protected String trim(String text, int width) {
         if (text == null) {
             return "";
         }
-        return font.width(text) > width ? font.plainSubstrByWidth(text, Math.max(4, width - font.width("..."))) + "..." : text;
+        return KineticText.width(text) > width ? KineticText.trim(text, Math.max(4, width - KineticText.width("..."))) + "..." : text;
     }
 
     @Override
-    protected boolean canvasMouseClicked(double mx, double my, int btn) {
+    protected boolean onMouseClickCapture(MouseInput input) {
+        // 原逻辑在控件分发前执行：保存中吞掉点击并刷新目标滚动上限 / Ran before control dispatch originally: swallow clicks while saving and refresh the target scroll limit.
         if (isSavingBatch()) {
             return true;
         }
         updateTargetScrollLimit();
-        boolean handled = super.canvasMouseClicked(mx, my, btn);
-        if (handled) {
-            return true;
+        // 分组行上的点击多由行内按钮处理，这里只记录中键跳转目标，不消费点击 / Grouped-row clicks are mostly handled by row buttons; only record the middle-click target here without consuming the click.
+        if (usesGroupedLayout() && !isSpecialPanelActive()
+                && input.x() >= RIGHT_X + 4 && input.x() < RIGHT_X + RIGHT_W - 8
+                && input.y() >= GROUP_Y + 6 && input.y() < GROUP_Y + GROUP_H - 6) {
+            for (GroupRow row : visibleGroupRows) {
+                if (input.y() >= row.y && input.y() < row.y + row.height()) {
+                    lastClickedGroupPool = row.poolIndex;
+                    lastClickedGroupVisual = row.visual;
+                    break;
+                }
+            }
         }
+        return false;
+    }
+
+    @Override
+    protected boolean onMouseClick(MouseInput input) {
+        double mx = input.x();
+        double my = input.y();
+        int btn = input.rawButton();
         if (!KineticMouseButtons.isPrimary(btn) && isSpecialPanelActive() && handleSpecialPanelClick(mx, my, btn)) {
             return true;
         }
@@ -3086,7 +3100,7 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             }
             if (maxTargetScroll > 0 && mx >= TARGET_SCROLLBAR_X && mx <= TARGET_SCROLLBAR_X + TARGET_SCROLLBAR_WIDTH && my >= targetAreaY() + 1 && my <= targetAreaY() + targetAreaHeight() - 1) {
                 draggingTargetScroll = true;
-                targetScroll = KineticScroll.stateOffsetFromPointerPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
+                targetScroll = LootScrollbars.offsetFromPointer(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
                 targetScrollState.snap(targetScroll, maxTargetScroll);
                 return true;
             }
@@ -3098,9 +3112,9 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
                         && my >= GROUP_Y + 6 && my <= GROUP_Y + GROUP_H - 6) {
                     draggingGroupScroll = true;
                     int trackH = GROUP_H - 12;
-                    int thumbH = KineticScroll.stateThumbHeight(trackH,
+                    int thumbH = LootScrollbars.thumbHeight(trackH,
                             Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-                    groupScroll = KineticScroll.stateOffsetFromPointerPrecise(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
+                    groupScroll = LootScrollbars.offsetFromPointer(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
                     groupScrollState.snap(groupScroll, maxGroupScroll);
                     updateVisibleGroupedRows();
                     return true;
@@ -3117,13 +3131,13 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             int dropListH = dropListHeight();
             if (maxDropScroll > 0 && mx >= DROP_SCROLLBAR_X && mx <= DROP_SCROLLBAR_X + 4 && my >= dropStartY + 1 && my <= dropStartY + dropListH - 1) {
                 draggingDropScroll = true;
-                int thumbH = KineticScroll.stateThumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
-                dropScroll = KineticScroll.stateOffsetFromPointerPrecise(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
+                int thumbH = LootScrollbars.thumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
+                dropScroll = LootScrollbars.offsetFromPointer(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
                 dropScrollState.snap(dropScroll, maxDropScroll);
                 return true;
             }
             int visible = visibleDropRows();
-            double smoothDropScroll = dropScrollState.follow(
+            double smoothDropScroll = dropScrollState.update(
                     dropScroll,
                     maxDropScroll,
                     draggingDropScroll
@@ -3149,9 +3163,14 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
     }
 
     @Override
-    protected boolean canvasMouseDragged(double mx, double my, int btn, double dx, double dy) {
+    protected boolean onMouseDrag(MouseDragInput input) {
+        double mx = input.x();
+        double my = input.y();
+        int btn = input.rawButton();
+        double dx = input.deltaX();
+        double dy = input.deltaY();
         if (draggingTargetScroll) {
-            targetScroll = KineticScroll.stateOffsetFromPointerPrecise(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
+            targetScroll = LootScrollbars.offsetFromPointer(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
             targetScrollState.snap(targetScroll, maxTargetScroll);
             return true;
         }
@@ -3161,36 +3180,42 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
         if (draggingDropScroll) {
             int dropStartY = dropListStartY();
             int dropListH = dropListHeight();
-            int thumbH = KineticScroll.stateThumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
-            dropScroll = KineticScroll.stateOffsetFromPointerPrecise(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
+            int thumbH = LootScrollbars.thumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
+            dropScroll = LootScrollbars.offsetFromPointer(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
             dropScrollState.snap(dropScroll, maxDropScroll);
             return true;
         }
         if (draggingGroupScroll) {
             int trackH = GROUP_H - 12;
-            int thumbH = KineticScroll.stateThumbHeight(trackH,
+            int thumbH = LootScrollbars.thumbHeight(trackH,
                     Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-            groupScroll = KineticScroll.stateOffsetFromPointerPrecise(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
+            groupScroll = LootScrollbars.offsetFromPointer(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
             groupScrollState.snap(groupScroll, maxGroupScroll);
             updateVisibleGroupedRows();
             return true;
         }
-        return super.canvasMouseDragged(mx, my, btn, dx, dy);
+        return false;
     }
 
     @Override
-    protected boolean canvasMouseReleased(double mx, double my, int btn) {
+    protected boolean onMouseRelease(MouseInput input) {
+        double mx = input.x();
+        double my = input.y();
+        int btn = input.rawButton();
         draggingTargetScroll = false;
         draggingDropScroll = false;
         draggingGroupScroll = false;
         if (isSpecialPanelActive()) {
             handleSpecialPanelReleased(mx, my, btn);
         }
-        return super.canvasMouseReleased(mx, my, btn);
+        return false;
     }
 
     @Override
-    protected boolean canvasMouseScrolled(double mx, double my, double delta) {
+    protected boolean onMouseScroll(ScrollInput input) {
+        double mx = input.x();
+        double my = input.y();
+        double delta = input.deltaY();
         updateTargetScrollLimit();
         if (mx >= LEFT_X && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && maxTargetScroll > 0) {
             targetScroll = targetScrollState.wheel(
@@ -3215,31 +3240,31 @@ public abstract class AbstractLootEditorScreen extends KineticScreen {
             );
             return true;
         }
-        return super.canvasMouseScrolled(mx, my, delta);
+        return false;
     }
 
     @Override
-    protected boolean handleCloseRequest() {
+    protected boolean onCloseRequested() {
         return isSavingBatch();
     }
 
     @Override
-    protected boolean canvasKeyPressed(int keyCode, int scanCode, int modifiers) {
+    protected boolean onKeyPress(KeyInput input) {
         if (isSavingBatch()) {
             return true;
         }
-        if (KineticKeyBindings.matchesKeyCode(KineticKeyBindings.Key.ESCAPE, keyCode)) {
+        if (input.is(KineticKeyBindings.Key.ESCAPE)) {
             commitDraft();
-            onClose();
+            close();
             return true;
         }
         return false;
     }
 
     @Override
-    protected void renderTooltips(GuiGraphics g, int smx, int smy, int mx, int my) {
+    protected void renderTooltips(int smx, int smy) {
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
-            KineticOverlays.requestTooltip(deferredTooltip, mx, my);
+            showTooltip(deferredTooltip);
         }
     }
 }

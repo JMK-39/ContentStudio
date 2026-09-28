@@ -14,7 +14,7 @@ Content Studio gives pack authors and server administrators in-game editors for 
 | --- | --- |
 | Minecraft | 1.20.1 |
 | Forge | 47.4.2 or newer |
-| KineticCore | 26.9.20 or newer; required |
+$126.9.27 or newer; required |
 | Recipe viewers | JEI 15.20+, EMI, and REI are optional |
 | Item tooltips | Rendered by Content Studio on clients; no KubeJS dependency |
 
@@ -114,7 +114,7 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 | --- | --- |
 | Minecraft | 1.20.1 |
 | Forge | 47.4.2 或更新版本 |
-| KineticCore | 必需，26.9.20 或更新版本 |
+| KineticCore | 必需，26.9.27 或更新版本 |
 | 配方查看器 | JEI 15.20+、EMI、REI 为可选依赖 |
 | 物品提示 | 由 Content Studio 客户端直接渲染，无需 KubeJS |
 

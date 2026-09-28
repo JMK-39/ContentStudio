@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.loot.network;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.contentstudio.loot.GlobalRemoveRule;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
@@ -15,7 +16,6 @@ import dev.xyat.kineticcore.api.network.NetworkVersionPolicy;
 import dev.xyat.kineticcore.api.network.PacketChannel;
 import dev.xyat.kineticcore.api.network.PacketRegistrations;
 import dev.xyat.kineticcore.api.network.ServerPacketContext;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -360,7 +360,7 @@ public final class LootNetwork {
         }
 
         public static void handle(SaveResultPacket packet) {
-            LootClientHandler.applySaveResult(packet.mode, packet.targetId, packet.lootTableId, packet.json, packet.overridden, packet.success, Component.translatable(packet.messageKey));
+            LootClientHandler.applySaveResult(packet.mode, packet.targetId, packet.lootTableId, packet.json, packet.overridden, packet.success, KineticI18n.translatable(packet.messageKey));
         }
     }
 
@@ -435,7 +435,7 @@ public final class LootNetwork {
             LootClientHandler.applyGlobalRemoveSaveResult(
                     packet.rules,
                     packet.success,
-                    Component.translatable(packet.messageKey)
+                    KineticI18n.translatable(packet.messageKey)
             );
         }
     }
@@ -512,7 +512,7 @@ public final class LootNetwork {
             LootClientHandler.applyGlobalExcludeSaveResult(
                     packet.lootTableIds,
                     packet.success,
-                    Component.translatable(packet.messageKey)
+                    KineticI18n.translatable(packet.messageKey)
             );
         }
     }

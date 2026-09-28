@@ -1,29 +1,35 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
-import dev.xyat.kineticcore.api.client.screen.KineticScreen;
-import dev.xyat.kineticcore.api.client.theme.GuiTheme;
-import dev.xyat.kineticcore.api.client.widget.button.KineticButtons.StateButton;
+import dev.xyat.kineticcore.api.client.gui.text.KineticText;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphicsInterop;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
+import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
+import dev.xyat.kineticcore.api.client.gui.widget.*;
+import dev.xyat.kineticcore.api.client.gui.widget.list.*;
+
 import dev.xyat.contentstudio.recipe.client.RecipeJeiBridge;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
-final class RecipeRemovalPreviewScreen extends KineticScreen {
-    private final RecipeRemovalScreen parent;
+final class RecipeRemovalPreviewPage extends KineticPage {
+    private final RecipeRemovalPage parent;
     private final RecipeJeiBridge.Entry entry;
     private RecipeJeiBridge.Preview preview;
-    private StateButton toggle;
-    private StateButton viewerButton;
+    private KineticButton toggle;
+    private KineticButton viewerButton;
     private boolean dataError;
     private float previewScale = 1;
     private int previewX, previewY;
 
-    RecipeRemovalPreviewScreen(RecipeRemovalScreen parent, RecipeJeiBridge.Entry entry) {
+    RecipeRemovalPreviewPage(RecipeRemovalPage parent, RecipeJeiBridge.Entry entry) {
         super(entry.category());
-        setParentScreen(parent);
+        // 原 isPauseScreen() 返回 false / Former isPauseScreen() returned false.
+        setPausesGame(false);
         this.parent = parent;
         this.entry = entry;
         if (entry.preview() != null) {
@@ -32,22 +38,15 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         }
     }
 
-    @Override protected void buildUi() {
-        addButton(366, 328, 60, RecipeRemovalScreen.tr("back"), null, this::onClose);
-        viewerButton = addButton(
-                432, 328, 60, RecipeRemovalScreen.tr("open_viewer"),
-                RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"),
-                this::openViewerMenu
-        );
+    @Override protected void build(KineticUi ui) {
+        ui().button(366, 328, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
+        viewerButton = ui().button(432, 328, 60).text(RecipeRemovalPage.tr("open_viewer")).tooltip(RecipeRemovalPage.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing")).onClick(this::openViewerMenu).build();
         viewerButton.setEnabled(RecipeJeiBridge.available());
-        toggle = addButton(498, 328, 60, parent.recipeAction(entry), null, () -> {
+        toggle = ui().button(498, 328, 60).text(parent.recipeAction(entry)).onClick(() -> {
             parent.toggleRecipe(entry);
             refreshAction();
-        });
-        addButton(
-                564, 328, 60, RecipeRemovalScreen.tr("save"),
-                RecipeRemovalScreen.tr("save_hint"), parent::save
-        );
+        }).build();
+        ui().button(564, 328, 60).text(RecipeRemovalPage.tr("save")).tooltip(RecipeRemovalPage.tr("save_hint")).onClick(parent::save).build();
         refreshAction();
         if (preview != null) {
             previewScale = Math.min(2, Math.min(580f / Math.max(1, preview.width()), 214f / Math.max(1, preview.height())));
@@ -59,7 +58,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     private void openViewerMenu() {
         List<RecipeJeiBridge.Viewer> viewers = RecipeJeiBridge.availableViewers();
         if (viewers.isEmpty()) {
-            parent.showToast(RecipeRemovalScreen.tr("viewer_missing"));
+            parent.showToast(RecipeRemovalPage.tr("viewer_missing"));
             return;
         }
         if (viewers.size() == 1) {
@@ -69,7 +68,7 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         List<KineticOverlays.MenuItem> items = viewers.stream()
                 .map(viewer -> KineticOverlays.MenuItem.action(
                         viewer.displayName(),
-                        RecipeRemovalScreen.tr("viewer_choice_hint", viewer.displayName()),
+                        RecipeRemovalPage.tr("viewer_choice_hint", viewer.displayName()),
                         () -> openViewer(viewer)
                 ))
                 .toList();
@@ -79,17 +78,17 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
     private void openViewer(RecipeJeiBridge.Viewer viewer) {
         if (!RecipeJeiBridge.show(viewer, entry.recipe().output(), entry)) {
             parent.markRecipeError();
-            parent.showToast(RecipeRemovalScreen.tr("viewer_failed", viewer.displayName()));
+            parent.showToast(RecipeRemovalPage.tr("viewer_failed", viewer.displayName()));
         }
     }
 
     private void refreshAction() {
         toggle.setText(parent.recipeAction(entry));
         toggle.setEnabled(parent.canToggle(entry) && !dataError);
-        registerWidgetTooltip(toggle, RecipeRemovalScreen.tr(parent.canToggle(entry) ? "exact_hint" : "view_only_hint"));
+        toggle.setTooltip(RecipeRemovalPage.tr(parent.canToggle(entry) ? "exact_hint" : "view_only_hint"));
         if (viewerButton != null) {
             viewerButton.setEnabled(RecipeJeiBridge.available());
-            registerWidgetTooltip(viewerButton, RecipeRemovalScreen.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
+            viewerButton.setTooltip(RecipeRemovalPage.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing"));
         }
     }
 
@@ -99,71 +98,74 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         if (toggle != null) refreshAction();
     }
 
-    @Override protected void canvasTick() {
+    @Override protected void onTick() {
         if (preview != null && !dataError) {
             try { preview.tick(); } catch (RuntimeException ignored) { markError(); }
         }
         if (viewerButton != null) refreshAction();
     }
 
-    @Override protected void renderCanvasBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        GuiTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.drawCenteredString(font, title, 320, 16, GuiTheme.current().text());
-        Component id = entry.recipe().id() == null ? RecipeRemovalScreen.tr("no_id") : Component.literal(entry.recipe().id().toString());
-        graphics.drawCenteredString(font, font.plainSubstrByWidth(id.getString(), 608), 320, 36, GuiTheme.current().mutedText());
-        graphics.drawCenteredString(font, parent.statusLabel(entry), 320, 50, GuiTheme.current().mutedText());
-        GuiTheme.panelAlt(graphics, 16, 62, 608, 250);
-        if (dataError) graphics.drawCenteredString(font, RecipeRemovalScreen.tr("data_error"), 320, 170, GuiTheme.current().danger());
+    @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        KineticTheme.panel(graphics, 0, 0, 640, 360);
+        graphics.centeredText(title(), 320, 16, KineticTheme.current().text(), true);
+        Component id = entry.recipe().id() == null ? RecipeRemovalPage.tr("no_id") : Component.literal(entry.recipe().id().toString());
+        graphics.centeredText(KineticText.trim(id.getString(), 608), 320, 36, KineticTheme.current().mutedText(), true);
+        graphics.centeredText(parent.statusLabel(entry), 320, 50, KineticTheme.current().mutedText(), true);
+        KineticTheme.panelAlt(graphics, 16, 62, 608, 250);
+        if (dataError) graphics.centeredText(RecipeRemovalPage.tr("data_error"), 320, 170, KineticTheme.current().danger(), true);
         else if (preview != null) drawPreview(graphics, mouseX, mouseY, false);
         else {
             try { renderFallback(graphics); } catch (RuntimeException ignored) { markError(); }
         }
     }
 
-    @Override protected void renderCanvasForeground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    @Override protected void renderForeground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         if (preview != null && !dataError) drawPreview(graphics, mouseX, mouseY, true);
     }
 
-    private void drawPreview(GuiGraphics graphics, int mouseX, int mouseY, boolean overlays) {
-        graphics.pose().pushPose();
+    private void drawPreview(KineticGraphics graphics, int mouseX, int mouseY, boolean overlays) {
+        graphics.push();
         try {
-            graphics.pose().translate(previewX, previewY, 0);
-            graphics.pose().scale(previewScale, previewScale, 1);
+            graphics.translate(previewX, previewY);
+            graphics.scale(previewScale, previewScale);
             int x = (int) ((mouseX - previewX) / previewScale), y = (int) ((mouseY - previewY) / previewScale);
-            if (overlays) preview.drawOverlays(graphics, x, y); else preview.draw(graphics, x, y);
+            // JEI 的 IRecipeLayoutDrawable 需要原版 GuiGraphics：通过核心的第三方 API 桥接取回（与 push/translate 共用同一上下文）。
+            // JEI's IRecipeLayoutDrawable needs a vanilla GuiGraphics: obtained through the core's third-party bridge
+            // (same context as the push/translate above).
+            var vanilla = KineticGraphicsInterop.unwrap(graphics);
+            if (overlays) preview.drawOverlays(vanilla, x, y); else preview.draw(vanilla, x, y);
         } catch (RuntimeException ignored) {
             markError();
-        } finally { graphics.pose().popPose(); }
+        } finally { graphics.pop(); }
     }
 
-    private void renderFallback(GuiGraphics graphics) {
+    private void renderFallback(KineticGraphics graphics) {
         var recipe = entry.recipe();
-        graphics.drawCenteredString(font, RecipeRemovalScreen.tr(dataError ? "data_error" : "fallback_preview"), 320, 82,
-                dataError ? GuiTheme.current().danger() : GuiTheme.current().mutedText());
+        graphics.centeredText(RecipeRemovalPage.tr(dataError ? "data_error" : "fallback_preview"), 320, 82, dataError ? KineticTheme.current().danger() : KineticTheme.current().mutedText(), true);
         int columns = recipe.craftingWidth() > 0 ? Math.min(9, recipe.craftingWidth()) : 9;
         int cycle = (int) ((System.currentTimeMillis() / 1000) % Integer.MAX_VALUE);
         for (int i = 0; i < Math.min(recipe.inputs().size(), columns * 6); i++) {
             int x = 100 + i % columns * 22, y = 118 + i / columns * 22;
-            GuiTheme.itemSlot(graphics, x, y, 20, false);
+            KineticTheme.itemSlot(graphics, x, y, 20, false);
             try {
                 var alternatives = recipe.inputs().get(i).getItems();
-                if (alternatives.length > 0) graphics.renderItem(alternatives[cycle % alternatives.length], x + 2, y + 2);
+                if (alternatives.length > 0) graphics.item(alternatives[cycle % alternatives.length], x + 2, y + 2);
             } catch (RuntimeException ignored) { markError(); }
         }
-        graphics.drawString(font, "→", 362, 172, GuiTheme.current().text(), false);
-        GuiTheme.itemSlot(graphics, 412, 164, 20, false);
-        graphics.renderItem(recipe.output(), 414, 166);
-        graphics.renderItemDecorations(font, recipe.output(), 414, 166);
+        graphics.text("→", 362, 172, KineticTheme.current().text(), false);
+        KineticTheme.itemSlot(graphics, 412, 164, 20, false);
+        graphics.item(recipe.output(), 414, 166);
+        graphics.itemDecorations(recipe.output(), 414, 166);
     }
 
-    @Override protected void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY, int screenMouseX, int screenMouseY) {
+    @Override protected void renderTooltips(int mouseX, int mouseY) {
         if (mouseY >= 32 && mouseY < 62) {
-            KineticOverlays.requestTooltip(parent.recipeReasonLines(entry), 360, screenMouseX, screenMouseY);
+            showTooltip(parent.recipeReasonLines(entry), 360);
             return;
         }
         if (preview != null || dataError) return;
         ItemStack hovered = hoveredFallbackStack(mouseX, mouseY);
-        if (!hovered.isEmpty()) KineticOverlays.requestItemTooltip(hovered, screenMouseX, screenMouseY);
+        if (!hovered.isEmpty()) showItemTooltip(hovered);
     }
 
     private ItemStack hoveredFallbackStack(double mouseX, double mouseY) {
@@ -186,5 +188,4 @@ final class RecipeRemovalPreviewScreen extends KineticScreen {
         return ItemStack.EMPTY;
     }
 
-    @Override public boolean isPauseScreen() { return false; }
 }

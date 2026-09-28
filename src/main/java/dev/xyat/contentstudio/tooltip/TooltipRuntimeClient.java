@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.tooltip;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import com.google.gson.reflect.TypeToken;
 import dev.xyat.kineticcore.api.client.event.KineticClientEvents;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
@@ -31,7 +32,7 @@ public final class TooltipRuntimeClient {
             List<Component> tooltip = context.tooltip();
             for (TooltipManager.TooltipRule rule : itemRules) {
                 if (!matchesKeys(rule.keyCond, shift, alt)) continue;
-                Component line = Component.translatable(rule.text);
+                Component line = KineticI18n.translatable(rule.text);
                 if (rule.mode == 0 && rule.line < tooltip.size()) {
                     tooltip.set(rule.line, line);
                 } else {

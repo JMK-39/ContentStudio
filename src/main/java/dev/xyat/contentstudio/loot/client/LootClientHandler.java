@@ -1,49 +1,44 @@
 package dev.xyat.contentstudio.loot.client;
 
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
-import dev.xyat.kineticcore.api.client.overlay.KineticOverlays;
+import dev.xyat.kineticcore.api.client.gui.KineticGui;
+import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.GlobalRemoveRule;
-import dev.xyat.contentstudio.loot.client.gui.AbstractLootEditorScreen;
-import dev.xyat.contentstudio.loot.client.gui.ChestLootEditorScreen;
-import dev.xyat.contentstudio.loot.client.gui.LootEditorScreen;
+import dev.xyat.contentstudio.loot.client.gui.AbstractLootEditorPage;
+import dev.xyat.contentstudio.loot.client.gui.ChestLootEditorPage;
+import dev.xyat.contentstudio.loot.client.gui.LootEditorPage;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
 public class LootClientHandler {
-    private static Screen pendingParentScreen;
-
     public static void requestOpenEditor(int mode) {
-        pendingParentScreen = KineticClientRuntime.currentScreen();
         LootNetwork.requestOpenEditor(mode);
     }
 
+    // 返回到回包时的当前界面（无界面时回到游戏）/ Back returns to the screen current when the reply arrives (or the game).
     public static void openScreen(int mode, List<LootEntryInfo> entries) {
-        Screen parentScreen = pendingParentScreen != null ? pendingParentScreen : KineticClientRuntime.currentScreen();
-        pendingParentScreen = null;
-        KineticClientRuntime.openScreen(mode == LootEntryInfo.MODE_CHEST
-                ? new ChestLootEditorScreen(entries, parentScreen)
-                : new LootEditorScreen(mode, entries, parentScreen));
+        KineticGui.openChild(mode == LootEntryInfo.MODE_CHEST
+                ? new ChestLootEditorPage(entries)
+                : new LootEditorPage(mode, entries));
     }
 
     public static void applyDetail(int mode, String targetId, String lootTableId, String json, boolean overridden) {
-        if (KineticClientRuntime.currentScreen() instanceof AbstractLootEditorScreen screen) {
-            screen.applyDetail(mode, targetId, lootTableId, json, overridden);
+        if (KineticGui.currentPage() instanceof AbstractLootEditorPage page) {
+            page.applyDetail(mode, targetId, lootTableId, json, overridden);
         }
     }
 
     public static void applyResetPreview(int mode, String targetId, String lootTableId, String json) {
-        if (KineticClientRuntime.currentScreen() instanceof AbstractLootEditorScreen screen) {
-            screen.applyResetPreview(mode, targetId, lootTableId, json);
+        if (KineticGui.currentPage() instanceof AbstractLootEditorPage page) {
+            page.applyResetPreview(mode, targetId, lootTableId, json);
         }
     }
 
     public static void applySaveResult(int mode, String targetId, String lootTableId, String json, boolean overridden, boolean success, Component message) {
-        if (KineticClientRuntime.currentScreen() instanceof AbstractLootEditorScreen screen) {
-            screen.applySaveResult(mode, targetId, lootTableId, json, overridden, success, message);
+        if (KineticGui.currentPage() instanceof AbstractLootEditorPage page) {
+            page.applySaveResult(mode, targetId, lootTableId, json, overridden, success, message);
         } else if (success) {
             KineticOverlays.toast("loots_save_result", message, KineticOverlays.Position.CENTER, 4000, 0, 0);
         } else {
@@ -52,14 +47,14 @@ public class LootClientHandler {
     }
 
     public static void applyGlobalRemoveDetail(List<GlobalRemoveRule> rules) {
-        if (KineticClientRuntime.currentScreen() instanceof ChestLootEditorScreen screen) {
-            screen.applyGlobalRemoveDetail(rules);
+        if (KineticGui.currentPage() instanceof ChestLootEditorPage page) {
+            page.applyGlobalRemoveDetail(rules);
         }
     }
 
     public static void applyGlobalRemoveSaveResult(List<GlobalRemoveRule> rules, boolean success, Component message) {
-        if (KineticClientRuntime.currentScreen() instanceof ChestLootEditorScreen screen) {
-            screen.applyGlobalRemoveSaveResult(rules, success, message);
+        if (KineticGui.currentPage() instanceof ChestLootEditorPage page) {
+            page.applyGlobalRemoveSaveResult(rules, success, message);
         } else if (success) {
             KineticOverlays.toast("loots_global_remove_save_result", message, KineticOverlays.Position.CENTER, 4000, 0, 0);
         } else {
@@ -68,14 +63,14 @@ public class LootClientHandler {
     }
 
     public static void applyGlobalExcludeDetail(List<String> lootTableIds) {
-        if (KineticClientRuntime.currentScreen() instanceof ChestLootEditorScreen screen) {
-            screen.applyGlobalExcludeDetail(lootTableIds);
+        if (KineticGui.currentPage() instanceof ChestLootEditorPage page) {
+            page.applyGlobalExcludeDetail(lootTableIds);
         }
     }
 
     public static void applyGlobalExcludeSaveResult(List<String> lootTableIds, boolean success, Component message) {
-        if (KineticClientRuntime.currentScreen() instanceof ChestLootEditorScreen screen) {
-            screen.applyGlobalExcludeSaveResult(lootTableIds, success, message);
+        if (KineticGui.currentPage() instanceof ChestLootEditorPage page) {
+            page.applyGlobalExcludeSaveResult(lootTableIds, success, message);
         } else if (success) {
             KineticOverlays.toast("loots_global_exclude_save_result", message, KineticOverlays.Position.CENTER, 4000, 0, 0);
         } else {

@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.recipe.network;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.contentstudio.recipe.RecipeDatabase;
 import dev.xyat.contentstudio.recipe.RecipeMemoryManager;
@@ -208,7 +209,7 @@ public final class RecipeNetwork {
             RecipeDatabase.loadDatabase();
             KineticMenus.open(
                     player,
-                    Component.translatable("gui.contentstudio.recipe.recipehud.title"),
+                    KineticI18n.translatable("gui.contentstudio.recipe.recipehud.title"),
                     (id, inventory, menuPlayer) -> new RecipeMenu(id, inventory)
             );
         }
@@ -245,7 +246,7 @@ public final class RecipeNetwork {
                 return;
             }
             if (packet.configIndex < 0 && !packet.uuid.isEmpty() && isInvalidUuid(packet.uuid)) {
-                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
                 return;
             }
             RecipeDatabase.reloadDatabase();
@@ -264,7 +265,7 @@ public final class RecipeNetwork {
             }
 
             if (packet.configIndex >= 0 && record == null) {
-                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
                 return;
             }
 
@@ -275,7 +276,7 @@ public final class RecipeNetwork {
             } catch (IllegalArgumentException exception) {
                 sendToast(
                         player,
-                        Component.translatable("msg.contentstudio.recipe.recipehud.invalid_type", resolvedType)
+                        KineticI18n.translatable("msg.contentstudio.recipe.recipehud.invalid_type", resolvedType)
                 );
                 return;
             }
@@ -347,27 +348,27 @@ public final class RecipeNetwork {
                 return;
             }
             if (packet.action != 0 && packet.action != 1) {
-                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
                 return;
             }
             if (packet.action == 1) {
                 if (packet.configIndex < 0 && isInvalidUuid(packet.uuid)) {
-                    sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                    sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
                     return;
                 }
                 RecipeSaveManager.deleteOnly(player, packet.uuid, packet.configIndex);
                 return;
             }
             if (isInvalidRecipeChange(packet)) {
-                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
+                sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.invalid_data"));
                 return;
             }
             if (packet.inputs.stream().allMatch(ItemStack::isEmpty)) {
-                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.input_empty"));
+                sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.input_empty"));
                 return;
             }
             if (packet.output.isEmpty()) {
-                sendToast(player, Component.translatable("gui.contentstudio.recipe.recipehud.err.output_empty"));
+                sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.err.output_empty"));
                 return;
             }
             RecipeSaveManager.saveOnly(player, packet);

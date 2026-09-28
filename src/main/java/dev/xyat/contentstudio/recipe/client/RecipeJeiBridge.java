@@ -1,5 +1,6 @@
 package dev.xyat.contentstudio.recipe.client;
 
+import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
 import net.minecraft.client.gui.GuiGraphics;
@@ -31,7 +32,7 @@ public final class RecipeJeiBridge {
         }
 
         public Component displayName() {
-            return Component.translatable("gui.contentstudio.recipe.removal.viewer." + id);
+            return KineticI18n.translatable("gui.contentstudio.recipe.removal.viewer." + id);
         }
     }
 
