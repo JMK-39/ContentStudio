@@ -1,11 +1,11 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.contentstudio.client.gui.FractionalScrollJump;
 
+import dev.xyat.kineticcore.api.client.gui.input.MouseButton;
+import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
-import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollAnimator;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
@@ -19,7 +19,6 @@ import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.contentstudio.loot.GlobalRemoveRule;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
-import net.minecraft.ChatFormatting;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
@@ -63,10 +62,9 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     private final List<GlobalRemoveRule> globalRemoveRules = new ArrayList<>();
     private int globalRemoveSelectedIndex = -1;
-    private double globalRemoveScrollRow;
-    private int globalRemoveMaxScrollRow;
-    private boolean draggingGlobalRemoveScroll;
-    private final KineticScrollAnimator globalRemoveScrollState = new KineticScrollAnimator();
+    private final KineticScrollController globalRemoveScroller = new KineticScrollController()
+            .bindSelection(() -> globalRemoveSelectedIndex < globalRemoveRules.size() ? globalRemoveSelectedIndex : -1,
+                    index -> index / REMOVE_COLS - REMOVE_ROWS / 2);
     private boolean globalRemoveDirty;
     private KineticButton globalRemoveAddButton;
     private KineticButton globalRemoveModeButton;
@@ -75,19 +73,11 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     private final List<String> globalExcludedLootTableIds = new ArrayList<>();
     private int globalExcludeSelectedIndex = -1;
-    private double globalExcludeScroll;
-    private int globalExcludeMaxScroll;
-    private boolean draggingGlobalExcludeScroll;
-    private final KineticScrollAnimator globalExcludeScrollState = new KineticScrollAnimator();
+    private final KineticScrollController globalExcludeScroller = new KineticScrollController()
+            .bindSelection(() -> globalExcludeSelectedIndex < globalExcludedLootTableIds.size() ? globalExcludeSelectedIndex : -1,
+                    index -> index - (EXCLUDE_VISIBLE_ROWS - 1) / 2);
     private boolean globalExcludeDirty;
     private KineticButton globalExcludeSaveButton;
-    // 全局移除网格与全局排除列表的中键跳转/提示/闪烁：都跳回各自的选中项 / Middle-click jump/hint/flash for the global remove grid and exclude list: both jump back to their selected item.
-    private final FractionalScrollJump globalRemoveJump = new FractionalScrollJump(
-            () -> globalRemoveSelectedIndex < globalRemoveRules.size() ? globalRemoveSelectedIndex : -1,
-            index -> index / REMOVE_COLS - REMOVE_ROWS / 2);
-    private final FractionalScrollJump globalExcludeJump = new FractionalScrollJump(
-            () -> globalExcludeSelectedIndex < globalExcludedLootTableIds.size() ? globalExcludeSelectedIndex : -1,
-            index -> index - (EXCLUDE_VISIBLE_ROWS - 1) / 2);
 
     private record ChestSpecialSnapshot(
             List<GlobalRemoveRule> removeRules,
@@ -135,21 +125,6 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     @Override
     protected String lootTableType() {
         return "minecraft:chest";
-    }
-
-    @Override
-    protected void applyScrollJumps() {
-        super.applyScrollJumps();
-        double jump = globalRemoveJump.takeJump();
-        if (!Double.isNaN(jump)) {
-            globalRemoveScrollRow = jump;
-            globalRemoveScrollState.snap(globalRemoveScrollRow, globalRemoveMaxScrollRow);
-        }
-        jump = globalExcludeJump.takeJump();
-        if (!Double.isNaN(jump)) {
-            globalExcludeScroll = jump;
-            globalExcludeScrollState.snap(globalExcludeScroll, globalExcludeMaxScroll);
-        }
     }
 
     @Override
@@ -406,7 +381,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     private void renderGlobalRemovePanel(KineticGraphics g, int mx, int my) {
         Component count = KineticI18n.translatable(
                 "gui.contentstudio.loot.loots.global_remove.count",
-                Component.literal(Integer.toString(globalRemoveRules.size())).withStyle(ChatFormatting.AQUA)
+                Component.literal(Integer.toString(globalRemoveRules.size()))
         );
         g.text(count, RIGHT_X + RIGHT_W - 10 - KineticText.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
 
@@ -415,11 +390,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
             return;
         }
 
-        double smoothRemoveScroll = globalRemoveScrollState.update(
-                globalRemoveScrollRow,
-                globalRemoveMaxScrollRow,
-                draggingGlobalRemoveScroll
-        );
+        double smoothRemoveScroll = globalRemoveScroller.smoothOffset();
         int smoothRemoveRow = (int) Math.floor(smoothRemoveScroll + 1.0E-6D);
         int removeShift = (int) Math.round(
                 (smoothRemoveScroll - smoothRemoveRow) * REMOVE_PITCH
@@ -441,29 +412,11 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
             int x = SPECIAL_X + REMOVE_PADDING + col * REMOVE_PITCH;
             int y = SPECIAL_Y + REMOVE_PADDING + row * REMOVE_PITCH - removeShift;
             renderGlobalRemoveItem(g, index, x, y, mx, my);
-            globalRemoveJump.flash(g, index, x, y, REMOVE_CELL, REMOVE_CELL);
+            globalRemoveScroller.renderSelectionFlash(g, index, x, y, REMOVE_CELL, REMOVE_CELL);
         }
 
         g.endScissor();
-        if (globalRemoveMaxScrollRow > 0) {
-            int thumb = LootScrollbars.thumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
-            globalRemoveJump.track(g, mx, my, SPECIAL_X + SPECIAL_W - 6, SPECIAL_Y + 2, 4, SPECIAL_H - 4, 18,
-                    smoothRemoveScroll, globalRemoveMaxScrollRow, totalGlobalRemoveRows(), REMOVE_ROWS,
-                    draggingGlobalRemoveScroll);
-            LootScrollbars.renderState(
-                    g,
-                    mx,
-                    my,
-                    SPECIAL_X + SPECIAL_W - 6,
-                    SPECIAL_Y + 2,
-                    4,
-                    SPECIAL_H - 4,
-                    thumb,
-                    globalRemoveMaxScrollRow,
-                    smoothRemoveScroll,
-                    draggingGlobalRemoveScroll
-            );
-        }
+        globalRemoveScroller.render(g, mx, my, SPECIAL_X + SPECIAL_W - 6, SPECIAL_Y + 2, 4, SPECIAL_H - 4, 18);
     }
 
     private void renderGlobalRemoveItem(KineticGraphics g, int index, int x, int y, int mx, int my) {
@@ -481,7 +434,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         if (hovered) {
             List<Component> tooltip = new ArrayList<>();
             if (!stack.isEmpty()) {
-                tooltip.add(stack.getHoverName().copy().withStyle(ChatFormatting.GOLD));
+                tooltip.add(KineticI18n.styled("gui.contentstudio.loot.style.name", stack.getHoverName()));
             }
             tooltip.add(idComponent(rule.itemId()));
             tooltip.add(KineticI18n.translatable(
@@ -499,7 +452,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     private void renderGlobalExcludePanel(KineticGraphics g, int mx, int my) {
         Component count = KineticI18n.translatable(
                 "gui.contentstudio.loot.loots.global_exclude.count",
-                Component.literal(Integer.toString(globalExcludedLootTableIds.size())).withStyle(ChatFormatting.AQUA)
+                Component.literal(Integer.toString(globalExcludedLootTableIds.size()))
         );
         g.text(count, RIGHT_X + RIGHT_W - 10 - KineticText.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
         g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.desc"), SPECIAL_X + 4, SPECIAL_Y + 4, 0xFFFFFF55, false);
@@ -509,11 +462,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         if (globalExcludedLootTableIds.isEmpty()) {
             g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.empty"), SPECIAL_X + SPECIAL_W / 2, listY + listH / 2 - 4, 0xFFFFAA00, true);
         } else {
-            double smoothExcludeScroll = globalExcludeScrollState.update(
-                    globalExcludeScroll,
-                    globalExcludeMaxScroll,
-                    draggingGlobalExcludeScroll
-            );
+            double smoothExcludeScroll = globalExcludeScroller.smoothOffset();
             int smoothExcludeRow = (int) Math.floor(smoothExcludeScroll + 1.0E-6D);
             int excludeShift = (int) Math.round(
                     (smoothExcludeScroll - smoothExcludeRow) * EXCLUDE_ROW_H
@@ -530,35 +479,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
             for (int i = smoothExcludeRow; i < end; i++) {
                 int y = listY + (i - smoothExcludeRow) * EXCLUDE_ROW_H - excludeShift;
                 renderGlobalExcludeRow(g, i, y, mx, my);
-                globalExcludeJump.flash(g, i, SPECIAL_X + 2, y, SPECIAL_W - 12, EXCLUDE_ROW_H - 2);
+                globalExcludeScroller.renderSelectionFlash(g, i, SPECIAL_X + 2, y, SPECIAL_W - 12, EXCLUDE_ROW_H - 2);
             }
             g.endScissor();
         }
 
-        if (globalExcludeMaxScroll > 0) {
-            int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-            int thumb = LootScrollbars.thumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
-            globalExcludeJump.track(g, mx, my, SPECIAL_X + SPECIAL_W - 6, listY + 2, 4, listH - 4, 18,
-                    globalExcludeScrollState.update(globalExcludeScroll, globalExcludeMaxScroll, draggingGlobalExcludeScroll),
-                    globalExcludeMaxScroll, globalExcludedLootTableIds.size(), visibleRows, draggingGlobalExcludeScroll);
-            LootScrollbars.renderState(
-                    g,
-                    mx,
-                    my,
-                    SPECIAL_X + SPECIAL_W - 6,
-                    listY + 2,
-                    4,
-                    listH - 4,
-                    thumb,
-                    globalExcludeMaxScroll,
-                    globalExcludeScrollState.update(
-                            globalExcludeScroll,
-                            globalExcludeMaxScroll,
-                            draggingGlobalExcludeScroll
-                    ),
-                    draggingGlobalExcludeScroll
-            );
-        }
+        globalExcludeScroller.render(g, mx, my, SPECIAL_X + SPECIAL_W - 6, listY + 2, 4, listH - 4, 18);
     }
 
     private void renderGlobalExcludeRow(KineticGraphics g, int index, int y, int mx, int my) {
@@ -617,24 +543,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     }
 
     private boolean handleGlobalRemoveClick(double mx, double my, int btn) {
-        if (KineticMouseButtons.isPrimary(btn) && globalRemoveMaxScrollRow > 0
-                && mx >= SPECIAL_X + SPECIAL_W - 9
-                && mx <= SPECIAL_X + SPECIAL_W
-                && my >= SPECIAL_Y + 2
-                && my <= SPECIAL_Y + SPECIAL_H - 2) {
-            draggingGlobalRemoveScroll = true;
-            int thumb = LootScrollbars.thumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
-            globalRemoveScrollRow = LootScrollbars.offsetFromPointer(
-                    my,
-                    SPECIAL_Y + 2,
-                    SPECIAL_H - 4,
-                    thumb,
-                    globalRemoveMaxScrollRow
-            );
-            globalRemoveScrollState.snap(
-                    globalRemoveScrollRow,
-                    globalRemoveMaxScrollRow
-            );
+        if (globalRemoveScroller.beginDrag(mx, my, MouseButton.of(btn), SPECIAL_X + SPECIAL_W - 6, SPECIAL_Y + 2, 4, SPECIAL_H - 4, 18, 3)) {
             return true;
         }
 
@@ -650,11 +559,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                 || gridY % REMOVE_PITCH >= REMOVE_CELL) {
             return false;
         }
-        double smoothRemoveScroll = globalRemoveScrollState.update(
-                globalRemoveScrollRow,
-                globalRemoveMaxScrollRow,
-                draggingGlobalRemoveScroll
-        );
+        double smoothRemoveScroll = globalRemoveScroller.smoothOffset();
         int smoothRemoveRow = (int) Math.floor(smoothRemoveScroll + 1.0E-6D);
         int removeShift = (int) Math.round(
                 (smoothRemoveScroll - smoothRemoveRow) * REMOVE_PITCH
@@ -687,36 +592,14 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         }
         int listY = SPECIAL_Y + 18;
         int listH = SPECIAL_H - 18;
-        if (KineticMouseButtons.isPrimary(btn) && globalExcludeMaxScroll > 0
-                && mx >= SPECIAL_X + SPECIAL_W - 9
-                && mx <= SPECIAL_X + SPECIAL_W
-                && my >= listY + 2
-                && my <= listY + listH - 2) {
-            draggingGlobalExcludeScroll = true;
-            int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-            int thumb = LootScrollbars.thumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
-            globalExcludeScroll = LootScrollbars.offsetFromPointer(
-                    my,
-                    listY + 2,
-                    listH - 4,
-                    thumb,
-                    globalExcludeMaxScroll
-            );
-            globalExcludeScrollState.snap(
-                    globalExcludeScroll,
-                    globalExcludeMaxScroll
-            );
+        if (globalExcludeScroller.beginDrag(mx, my, MouseButton.of(btn), SPECIAL_X + SPECIAL_W - 6, listY + 2, 4, listH - 4, 18, 3)) {
             return true;
         }
         if (mx >= SPECIAL_X + 2
                 && mx < SPECIAL_X + SPECIAL_W - 10
                 && my >= listY
                 && my < listY + listH) {
-            double smoothExcludeScroll = globalExcludeScrollState.update(
-                    globalExcludeScroll,
-                    globalExcludeMaxScroll,
-                    draggingGlobalExcludeScroll
-            );
+            double smoothExcludeScroll = globalExcludeScroller.smoothOffset();
             int smoothExcludeRow = (int) Math.floor(smoothExcludeScroll + 1.0E-6D);
             int excludeShift = (int) Math.round(
                     (smoothExcludeScroll - smoothExcludeRow) * EXCLUDE_ROW_H
@@ -738,37 +621,10 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     @Override
     protected boolean handleSpecialPanelDragged(double mx, double my, int btn, double dx, double dy) {
-        if (draggingGlobalRemoveScroll) {
-            int thumb = LootScrollbars.thumbHeight(SPECIAL_H - 4, REMOVE_ROWS, totalGlobalRemoveRows(), 18);
-            globalRemoveScrollRow = LootScrollbars.offsetFromPointer(
-                    my,
-                    SPECIAL_Y + 2,
-                    SPECIAL_H - 4,
-                    thumb,
-                    globalRemoveMaxScrollRow
-            );
-            globalRemoveScrollState.snap(
-                    globalRemoveScrollRow,
-                    globalRemoveMaxScrollRow
-            );
+        if (globalRemoveScroller.drag(my, SPECIAL_Y + 2, SPECIAL_H - 4, 18)) {
             return true;
         }
-        if (draggingGlobalExcludeScroll) {
-            int listY = SPECIAL_Y + 18;
-            int listH = SPECIAL_H - 18;
-            int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-            int thumb = LootScrollbars.thumbHeight(listH - 4, visibleRows, globalExcludedLootTableIds.size(), 18);
-            globalExcludeScroll = LootScrollbars.offsetFromPointer(
-                    my,
-                    listY + 2,
-                    listH - 4,
-                    thumb,
-                    globalExcludeMaxScroll
-            );
-            globalExcludeScrollState.snap(
-                    globalExcludeScroll,
-                    globalExcludeMaxScroll
-            );
+        if (globalExcludeScroller.drag(my, SPECIAL_Y + 20, SPECIAL_H - 22, 18)) {
             return true;
         }
         return false;
@@ -779,22 +635,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         if (mx < SPECIAL_X || mx > SPECIAL_X + SPECIAL_W || my < SPECIAL_Y || my > SPECIAL_Y + SPECIAL_H) {
             return false;
         }
-        if (isGlobalRemovePanel() && globalRemoveMaxScrollRow > 0) {
-            globalRemoveScrollRow = globalRemoveScrollState.wheel(
-                    globalRemoveScrollRow,
-                    delta,
-                    1.0D,
-                    globalRemoveMaxScrollRow
-            );
+        if (isGlobalRemovePanel() && globalRemoveScroller.canScroll()) {
+            globalRemoveScroller.scroll(delta);
             return true;
         }
-        if (isGlobalExcludePanel() && globalExcludeMaxScroll > 0) {
-            globalExcludeScroll = globalExcludeScrollState.wheel(
-                    globalExcludeScroll,
-                    delta,
-                    1.0D,
-                    globalExcludeMaxScroll
-            );
+        if (isGlobalExcludePanel() && globalExcludeScroller.canScroll()) {
+            globalExcludeScroller.scroll(delta);
             return true;
         }
         return false;
@@ -802,8 +648,8 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     @Override
     protected void handleSpecialPanelReleased(double mx, double my, int btn) {
-        draggingGlobalRemoveScroll = false;
-        draggingGlobalExcludeScroll = false;
+        globalRemoveScroller.release(MouseButton.of(btn));
+        globalExcludeScroller.release(MouseButton.of(btn));
     }
 
     private void openGlobalRemoveItemPicker() {
@@ -989,8 +835,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     }
 
     private void updateGlobalRemoveScroll() {
-        globalRemoveMaxScrollRow = Math.max(0, totalGlobalRemoveRows() - REMOVE_ROWS);
-        globalRemoveScrollRow = Math.max(0D, Math.min(globalRemoveScrollRow, globalRemoveMaxScrollRow));
+        globalRemoveScroller.update(totalGlobalRemoveRows(), REMOVE_ROWS);
     }
 
     private void ensureGlobalRemoveSelectedVisible() {
@@ -998,18 +843,16 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
             return;
         }
         int selectedRow = globalRemoveSelectedIndex / REMOVE_COLS;
-        if (selectedRow < globalRemoveScrollRow) {
-            globalRemoveScrollRow = selectedRow;
-        } else if (selectedRow >= globalRemoveScrollRow + REMOVE_ROWS) {
-            globalRemoveScrollRow = selectedRow - REMOVE_ROWS + 1;
+        int offset = globalRemoveScroller.offset();
+        if (selectedRow < offset) {
+            globalRemoveScroller.scrollTo(selectedRow);
+        } else if (selectedRow >= offset + REMOVE_ROWS) {
+            globalRemoveScroller.scrollTo(selectedRow - REMOVE_ROWS + 1);
         }
-        globalRemoveScrollRow = Math.max(0D, Math.min(globalRemoveScrollRow, globalRemoveMaxScrollRow));
     }
 
     private void updateGlobalExcludeScroll() {
-        int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-        globalExcludeMaxScroll = Math.max(0, globalExcludedLootTableIds.size() - visibleRows);
-        globalExcludeScroll = Math.max(0D, Math.min(globalExcludeScroll, globalExcludeMaxScroll));
+        globalExcludeScroller.update(globalExcludedLootTableIds.size(), EXCLUDE_VISIBLE_ROWS - 1);
     }
 
     private void ensureGlobalExcludeSelectedVisible() {
@@ -1017,12 +860,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
             return;
         }
         int visibleRows = EXCLUDE_VISIBLE_ROWS - 1;
-        if (globalExcludeSelectedIndex < globalExcludeScroll) {
-            globalExcludeScroll = globalExcludeSelectedIndex;
-        } else if (globalExcludeSelectedIndex >= globalExcludeScroll + visibleRows) {
-            globalExcludeScroll = globalExcludeSelectedIndex - visibleRows + 1;
+        int offset = globalExcludeScroller.offset();
+        if (globalExcludeSelectedIndex < offset) {
+            globalExcludeScroller.scrollTo(globalExcludeSelectedIndex);
+        } else if (globalExcludeSelectedIndex >= offset + visibleRows) {
+            globalExcludeScroller.scrollTo(globalExcludeSelectedIndex - visibleRows + 1);
         }
-        globalExcludeScroll = Math.max(0D, Math.min(globalExcludeScroll, globalExcludeMaxScroll));
     }
 
     private ItemStack itemStack(GlobalRemoveRule rule) {

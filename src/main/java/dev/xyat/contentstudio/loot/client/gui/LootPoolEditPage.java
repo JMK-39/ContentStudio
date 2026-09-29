@@ -13,7 +13,6 @@ import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 final class LootPoolEditPage extends KineticPage {
@@ -134,7 +133,7 @@ final class LootPoolEditPage extends KineticPage {
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         g.text(title(), PANEL_X + 24, PANEL_Y + 24, 0xFFFFAA00, false);
         g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
-                Component.literal(String.valueOf(poolIndex + 1)).withStyle(ChatFormatting.YELLOW)), PANEL_X + 24, PANEL_Y + 42, 0xFFE6E6E6, false);
+                Component.literal(String.valueOf(poolIndex + 1))), PANEL_X + 24, PANEL_Y + 42, 0xFFE6E6E6, false);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 36, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_max", 132, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_min", 228, 0xFFDD77FF);
@@ -144,9 +143,9 @@ final class LootPoolEditPage extends KineticPage {
         int conditions = arraySize(workingPool.get("conditions"));
         int functions = arraySize(workingPool.get("functions"));
         Component summary = KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.summary",
-                Component.literal(String.valueOf(entries)).withStyle(ChatFormatting.YELLOW),
-                Component.literal(String.valueOf(conditions)).withStyle(ChatFormatting.AQUA),
-                Component.literal(String.valueOf(functions)).withStyle(ChatFormatting.LIGHT_PURPLE));
+                Component.literal(String.valueOf(entries)),
+                Component.literal(String.valueOf(conditions)),
+                Component.literal(String.valueOf(functions)));
         g.text(summary, PANEL_X + 36, PANEL_Y + 128, 0xFFE6E6E6, false);
         g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, 0xFFAAAAAA, false);
     }

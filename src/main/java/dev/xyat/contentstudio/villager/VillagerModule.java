@@ -8,7 +8,7 @@ import dev.xyat.contentstudio.villager.network.VillagerNetwork;
 import dev.xyat.contentstudio.villager.trade.VillagerTradeRegistry;
 import dev.xyat.kineticcore.api.config.server.KTServerConfigApi;
 import dev.xyat.kineticcore.api.config.server.KTServerConfigSpec;
-import dev.xyat.kineticcore.api.runtime.KineticEnvironment;
+import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import org.slf4j.Logger;
 
 public final class VillagerModule {
@@ -41,6 +41,6 @@ public final class VillagerModule {
         VillagerTradeRegistry.register();
         VillagerNetwork.init();
         VillagerCommandExtension.install();
-        KineticEnvironment.runOnClient(() -> VillagerConfigGui::load);
+        KineticPlatform.runOnClient(() -> VillagerConfigGui::load);
     }
 }

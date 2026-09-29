@@ -14,7 +14,6 @@ import dev.xyat.kineticcore.api.client.gui.ui.NumberType;
 import dev.xyat.kineticcore.api.client.gui.widget.KineticButton;
 import dev.xyat.kineticcore.api.client.gui.widget.KineticNumberField;
 import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
-import net.minecraft.ChatFormatting;
 import dev.xyat.contentstudio.recipe.RecipeRecord;
 import dev.xyat.contentstudio.recipe.RecipeRegistry;
 import dev.xyat.contentstudio.recipe.UniversalRecipeMenu;
@@ -229,7 +228,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             String tagId = "#" + selection.value();
             ItemStack dummy = new ItemStack(Items.PAPER);
             dummy.getOrCreateTag().putString("kt_tag", tagId);
-            dummy.setHoverName(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.tag_item.colored", Component.literal(tagId).withStyle(ChatFormatting.GREEN)));
+            dummy.setHoverName(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.tag_item.colored", Component.literal(tagId)));
             container.setItem(slotIdx, dummy);
             return;
         }

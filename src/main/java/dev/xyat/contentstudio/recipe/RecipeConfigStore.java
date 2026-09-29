@@ -1,9 +1,9 @@
 package dev.xyat.contentstudio.recipe;
 
+import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -38,7 +38,7 @@ import java.util.Set;
 public final class RecipeConfigStore {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    public static final Path CONFIG_FILE = KineticPaths.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json");
+    public static final Path CONFIG_FILE = KineticPlatform.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json");
     public static final ResourceLocation DATAPACK_RESOURCE = KineticResourceIds.of("contentstudio", "recipe/recipe_bundle.json");
 
     private RecipeConfigStore() {

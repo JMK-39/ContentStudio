@@ -2,7 +2,7 @@ package dev.xyat.contentstudio.loot.server;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticPaths;
+import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -50,7 +50,7 @@ public class LootTableOverrideStore {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String LOG_PREFIX = "[LootModule]";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final Path ROOT = KineticPaths.configDirectory().resolve("kineticcore");
+    private static final Path ROOT = KineticPlatform.configDirectory().resolve("kineticcore");
     private static final Path OVERRIDES_FILE = ROOT.resolve("loot_overrides.json");
     private static final ResourceLocation GLOBAL_CHEST_APPEND = KineticResourceIds.parse(LootEntryInfo.GLOBAL_CHEST_APPEND_ID);
     private static final Object STORAGE_LOCK = new Object();

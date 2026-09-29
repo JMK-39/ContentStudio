@@ -1,4 +1,4 @@
-﻿# Content Studio
+# Content Studio
 
 [![🇺🇸 English](https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8_English-2F81F7?style=for-the-badge)](#english) [![🇨🇳 简体中文](https://img.shields.io/badge/%F0%9F%87%A8%F0%9F%87%B3_%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-DC2828?style=for-the-badge)](#chinese) [![CurseForge](https://img.shields.io/badge/CurseForge-Open-F16436?style=for-the-badge&logo=curseforge&logoColor=white)](https://www.curseforge.com/minecraft/mc-mods/contentstudio)
 
@@ -14,7 +14,7 @@ Content Studio gives pack authors and server administrators in-game editors for 
 | --- | --- |
 | Minecraft | 1.20.1 |
 | Forge | 47.4.2 or newer |
-$126.9.27 or newer; required |
+26.9.27 or newer; required |
 | Recipe viewers | JEI 15.20+, EMI, and REI are optional |
 | Item tooltips | Rendered by Content Studio on clients; no KubeJS dependency |
 

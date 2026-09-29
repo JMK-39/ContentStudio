@@ -19,7 +19,6 @@ import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import com.google.gson.JsonObject;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -421,11 +420,11 @@ final class LootEntryEditPage extends KineticPage {
         if (mx >= ITEM_X && mx < WIDTH - 24 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE + 10) {
             deferredTooltip = stack.isEmpty()
                     ? List.of(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
-                    : List.of(stack.getHoverName().copy().withStyle(ChatFormatting.GOLD),
-                    Component.literal(selectedItemId).withStyle(ChatFormatting.AQUA),
-                    KineticI18n.translatable(itemEntry
+                    : List.of(KineticI18n.styled("gui.contentstudio.loot.style.name", stack.getHoverName()),
+                    KineticI18n.styled("gui.contentstudio.loot.style.id", selectedItemId),
+                    KineticI18n.styled(itemEntry ? "gui.contentstudio.loot.style.hint_ok" : "gui.contentstudio.loot.style.hint_warning", KineticI18n.translatable(itemEntry
                             ? "gui.contentstudio.loot.loots.tip.entry.item_icon"
-                            : "gui.contentstudio.loot.loots.tip.entry.locked_type").withStyle(itemEntry ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+                            : "gui.contentstudio.loot.loots.tip.entry.locked_type")));
         }
     }
 
@@ -453,15 +452,15 @@ final class LootEntryEditPage extends KineticPage {
     private void renderUnknownFunctions(KineticGraphics g, int mx, int my) {
         int count = LootJsonEditUtil.unknownFunctionCount(workingEntry);
         Component text = KineticI18n.translatable("gui.contentstudio.loot.loots.entry.unknown_functions",
-                Component.literal(String.valueOf(count)).withStyle(ChatFormatting.YELLOW));
+                Component.literal(String.valueOf(count)));
         int x = WIDTH - KineticText.width(text) - 24;
         int y = FUNCTION_TITLE_Y;
         g.text(text, x, y, 0xFFAAAAAA, false);
         if (mx >= x && mx <= x + KineticText.width(text) && my >= y - 2 && my <= y + 11) {
             deferredTooltip = new ArrayList<>();
-            deferredTooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.unknown_functions").withStyle(ChatFormatting.GRAY));
+            deferredTooltip.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.unknown_functions")));
             for (String id : LootJsonEditUtil.unknownFunctions(workingEntry)) {
-                deferredTooltip.add(Component.literal(id).withStyle(ChatFormatting.LIGHT_PURPLE));
+                deferredTooltip.add(KineticI18n.styled("gui.contentstudio.loot.style.value", id));
             }
         }
     }

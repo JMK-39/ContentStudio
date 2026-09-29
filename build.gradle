@@ -101,6 +101,21 @@ repositories {
         content { includeGroup 'maven.modrinth' }
     }
 
+    def kineticCoreLocalArtifactDirs = []
+    File gradleHomeParent = gradle.gradleUserHomeDir.canonicalFile.parentFile
+    if (gradleHomeParent != null) {
+        File localPool = new File(gradleHomeParent, 'libs')
+        if (localPool.isDirectory()) kineticCoreLocalArtifactDirs.add(localPool)
+    }
+    File localCoreBuildLibs = rootProject.file('../KineticCore/build/libs')
+    if (localCoreBuildLibs.isDirectory()) kineticCoreLocalArtifactDirs.add(localCoreBuildLibs)
+    if (!kineticCoreLocalArtifactDirs.isEmpty()) {
+        flatDir {
+            name = 'KineticCoreLocalPool'
+            dirs kineticCoreLocalArtifactDirs
+            content { includeModule 'dev.xyat.kineticcore', 'kineticcore' }
+        }
+    }
     ivy {
         name = 'KineticCoreGitHubReleases'
         url = 'https://github.com/JMK-39/KineticCore/releases/download'
@@ -122,8 +137,8 @@ dependencies {
         }
     }
     def kineticCoreMinimumVersion = project.findProperty('kineticcore_min_version')?.toString() ?: '26.9.27'
-    // Default builds query GitHub's newest stable release; pass the version just verified online if the JVM cannot reach GitHub.
-    def kineticCoreVersion = project.findProperty('kineticcore_version')?.toString()
+    // Compare local KineticCore JARs with GitHub's latest stable release; prefer local unless the official version is newer.
+    def kineticCoreVersion = project.findProperty('kineticcore_resolved_version')?.toString() ?: project.findProperty('kineticcore_version')?.toString()
     def parseKineticCoreVersion = { String value ->
         def parts = value.replaceFirst(/^v/, '').tokenize('.')
         if (parts.size() < 3 || parts.any { part -> !(part ==~ /\d+/) }) {
@@ -142,7 +157,27 @@ dependencies {
         return 0
     }
 
+    def localKineticCoreDirs = []
+    File localGradleHomeParent = gradle.gradleUserHomeDir.canonicalFile.parentFile
+    if (localGradleHomeParent != null) {
+        File localPool = new File(localGradleHomeParent, 'libs')
+        if (localPool.isDirectory()) localKineticCoreDirs.add(localPool)
+    }
+    File localCoreBuildLibs = rootProject.file('../KineticCore/build/libs')
+    if (localCoreBuildLibs.isDirectory()) localKineticCoreDirs.add(localCoreBuildLibs)
+    def localKineticCoreVersions = []
+    localKineticCoreDirs.each { File directory ->
+        directory.eachFile { File jar ->
+            def match = jar.name =~ /^kineticcore-(\d+(?:\.\d+){2,})\.jar$/
+            if (jar.isFile() && match.matches()) localKineticCoreVersions.add(match.group(1))
+        }
+    }
+    def localKineticCoreVersion = localKineticCoreVersions.isEmpty() ? null :
+            localKineticCoreVersions.max { left, right -> compareKineticCoreVersions(left, right) }
+
     if (!kineticCoreVersion) {
+        String latestOfficialVersion = null
+        def latestRelease = null
         def connection = (java.net.HttpURLConnection) new java.net.URL(
                 'https://api.github.com/repos/JMK-39/KineticCore/releases/latest').openConnection()
         connection.connectTimeout = 10000
@@ -153,23 +188,45 @@ dependencies {
             if (connection.responseCode != 200) {
                 throw new org.gradle.api.GradleException("GitHub returned HTTP ${connection.responseCode}.")
             }
-            def latestRelease = connection.inputStream.withCloseable {
+            latestRelease = connection.inputStream.withCloseable {
                 new groovy.json.JsonSlurper().parse(it)
             }
-            kineticCoreVersion = latestRelease.tag_name.toString().replaceFirst(/^v/, '')
-            if (!(latestRelease.assets ?: []).any { asset ->
-                asset.name == "kineticcore-${kineticCoreVersion}.jar"
-            }) {
-                throw new org.gradle.api.GradleException(
-                        "KineticCore release ${kineticCoreVersion} has no matching JAR asset.")
-            }
+            latestOfficialVersion = latestRelease.tag_name.toString().replaceFirst(/^v/, '')
+            parseKineticCoreVersion(latestOfficialVersion)
         } catch (Exception exception) {
-            throw new org.gradle.api.GradleException(
-                    'Could not resolve the latest stable KineticCore release from GitHub. Check network/API availability.',
-                    exception)
+            if (!localKineticCoreVersion) {
+                throw new org.gradle.api.GradleException(
+                        'Could not resolve the latest stable KineticCore release from GitHub and no local KineticCore JAR is available. Set -Pkineticcore_version=<verified-version> or restore network access.',
+                        exception)
+            }
+            logger.warn("Could not check the latest KineticCore release; using local KineticCore ${localKineticCoreVersion}: ${exception.message}")
         } finally {
             connection.disconnect()
         }
+
+        if (latestOfficialVersion && (!localKineticCoreVersion ||
+                compareKineticCoreVersions(latestOfficialVersion, localKineticCoreVersion) > 0) &&
+                !(latestRelease?.assets ?: []).any { asset ->
+                    asset.name == "kineticcore-${latestOfficialVersion}.jar"
+                }) {
+            throw new org.gradle.api.GradleException(
+                    "Newer KineticCore release ${latestOfficialVersion} has no matching JAR asset.")
+        }
+
+        if (latestOfficialVersion && localKineticCoreVersion &&
+                compareKineticCoreVersions(localKineticCoreVersion, latestOfficialVersion) >= 0) {
+            kineticCoreVersion = localKineticCoreVersion
+            logger.lifecycle("Using local KineticCore ${kineticCoreVersion}; GitHub latest is ${latestOfficialVersion}. No official JAR download is needed.")
+        } else if (latestOfficialVersion) {
+            kineticCoreVersion = latestOfficialVersion
+            logger.lifecycle("Using official KineticCore ${kineticCoreVersion}; local version is ${localKineticCoreVersion ?: 'not available'}.")
+        } else if (localKineticCoreVersion) {
+            kineticCoreVersion = localKineticCoreVersion
+        }
+    } else if (localKineticCoreVersion &&
+            compareKineticCoreVersions(localKineticCoreVersion, kineticCoreVersion) > 0) {
+        logger.lifecycle("Using local KineticCore ${localKineticCoreVersion} instead of the lower configured version ${kineticCoreVersion}.")
+        kineticCoreVersion = localKineticCoreVersion
     }
 
     if (compareKineticCoreVersions(kineticCoreVersion, kineticCoreMinimumVersion) < 0) {

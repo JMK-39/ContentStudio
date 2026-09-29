@@ -1,5 +1,7 @@
 package dev.xyat.contentstudio.recipe.network;
 
+import dev.xyat.kineticcore.api.event.KineticEventPriority;
+import dev.xyat.kineticcore.api.server.event.KineticServerEvents;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.contentstudio.recipe.RecipeDatabase;
@@ -33,8 +35,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,8 +89,8 @@ public final class RecipeNetwork {
                 () -> registered = allPacketsRegistered()
         );
         if (registered) {
-            MinecraftForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent event) ->
-                    PENDING_DRAFTS.remove(event.getEntity().getUUID()));
+            KineticServerEvents.onPlayerLogout(KineticEventPriority.NORMAL, player ->
+                    PENDING_DRAFTS.remove(player.getUUID()));
         }
     }
 

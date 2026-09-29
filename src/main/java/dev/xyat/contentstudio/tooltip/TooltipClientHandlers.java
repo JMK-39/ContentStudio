@@ -1,6 +1,5 @@
 package dev.xyat.contentstudio.tooltip;
 
-import dev.xyat.contentstudio.client.gui.FractionalScrollJump;
 
 import dev.xyat.kineticcore.api.client.gui.KineticGui;
 import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
@@ -10,7 +9,6 @@ import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
-import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollAnimator;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
@@ -674,16 +672,12 @@ public class TooltipClientHandlers {
         private List<TooltipManager.TooltipRule> rules;
         private final List<RuleWidget> widgets = new ArrayList<>();
 
-        private double scrollOffset = 0D;
-        private int maxScroll = 0;
-        private boolean isDraggingScrollbar = false;
-        private final KineticScrollAnimator scrollState = new KineticScrollAnimator();
         private int draggingIndex = -1, hoverTargetIndex = -1;
         // 规则列表无选中概念：中键跳转目标为最近点击的规则行，-1 表示无 / The rule list has no selection: the middle-click target is the last clicked rule row; -1 means none.
         private int lastClickedRuleIndex = -1;
-        private final FractionalScrollJump ruleJump = new FractionalScrollJump(
-                () -> lastClickedRuleIndex < this.rules.size() ? lastClickedRuleIndex : -1,
-                index -> index - this.visibleRows / 2);
+        private final KineticScrollController scroller = new KineticScrollController()
+                .bindSelection(() -> lastClickedRuleIndex < this.rules.size() ? lastClickedRuleIndex : -1,
+                        index -> index - this.visibleRows / 2);
 
         private final int ROW_HEIGHT = 28;
         private int listStartY, listH, visibleRows, startX, listW, infoX;
@@ -716,7 +710,7 @@ public class TooltipClientHandlers {
             lastClickedRuleIndex = -1;
             Item item = KineticRegistries.items().get(KineticResourceIds.parse(itemId));
             itemStack = item == null ? ItemStack.EMPTY : new ItemStack(item);
-            scrollOffset = Math.min(scrollOffset, Math.max(0D, rules.size() - visibleRows));
+            scroller.update(rules.size(), visibleRows);
         }
 
         @Override
@@ -763,7 +757,7 @@ public class TooltipClientHandlers {
             int availableH = this.height() - listStartY - 15;
             visibleRows = availableH / ROW_HEIGHT;
             listH = visibleRows * ROW_HEIGHT;
-            maxScroll = Math.max(0, rules.size() - visibleRows);
+            scroller.update(rules.size(), visibleRows);
 
             // 规则行放入按像素偏移滚动的视口（原 addScrollableWidget）/ Rule rows live in a pixel-offset scroll viewport (formerly addScrollableWidget).
             KineticUi rowUi = ui.scrollViewport(startX, listStartY, startX + listW, listStartY + listH, this::scrollPixelOffset);
@@ -801,11 +795,7 @@ public class TooltipClientHandlers {
         }
 
         private double scrollPixelOffset() {
-            return scrollState.update(
-                    scrollOffset,
-                    maxScroll,
-                    isDraggingScrollbar
-            ) * ROW_HEIGHT;
+            return scroller.smoothOffset() * ROW_HEIGHT;
         }
 
         private void updateWidgetPositions() {
@@ -816,12 +806,6 @@ public class TooltipClientHandlers {
 
         @Override
         protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
-            // 在本帧计算平滑偏移之前应用中键跳转 / Apply the middle-click jump before this frame computes smooth offsets.
-            double jump = ruleJump.takeJump();
-            if (!Double.isNaN(jump)) {
-                scrollOffset = jump;
-                scrollState.snap(scrollOffset, maxScroll);
-            }
             KineticTheme.canvasBackground(g, this.width(), this.height());
             KineticTheme.panel(g, startX - 2, listStartY - 2, listW + 4, listH + 4);
             g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.drag_hint"), startX, listStartY - 30, 0xFFFFFF, true);
@@ -853,30 +837,17 @@ public class TooltipClientHandlers {
                 int rowShift = (int) Math.round(scrollPixelOffset());
                 g.scissor(startX - 1, listStartY, startX + listW + 1, listStartY + listH);
                 for (int i = 0; i < rules.size(); i++) {
-                    ruleJump.flash(g, i, startX - 1, listStartY + i * ROW_HEIGHT - rowShift - 2, listW + 2, 20);
+                    scroller.renderSelectionFlash(g, i, startX - 1, listStartY + i * ROW_HEIGHT - rowShift - 2, listW + 2, 20);
                 }
                 g.endScissor();
             }
 
-            if (maxScroll > 0) {
-                int barX = startX + listW + 8;
-                int thumbH = thumbHeight(listH, visibleRows, rules.size(), 20);
-                ruleJump.track(g, mx, my, barX, listStartY, 4, listH, 20,
-                        scrollState.update(scrollOffset, maxScroll, isDraggingScrollbar), maxScroll,
-                        rules.size(), visibleRows, isDraggingScrollbar);
-                renderRawScrollbar(
-                        g, mx, my, barX, listStartY, 4, listH, thumbH, maxScroll,
-                        scrollState.update(scrollOffset, maxScroll, isDraggingScrollbar),
-                        isDraggingScrollbar
-                );
-            }
+            scroller.render(g, mx, my, startX + listW + 8, listStartY, 4, listH, 20);
 
             if (draggingIndex != -1) {
                 hoverTargetIndex = -1;
                 if (my >= listStartY && my <= listStartY + listH) {
-                    double smoothScroll = scrollState.update(
-                            scrollOffset, maxScroll, isDraggingScrollbar
-                    );
+                    double smoothScroll = scroller.smoothOffset();
                     int start = (int) Math.floor(smoothScroll + 1.0E-6D);
                     int shift = (int) Math.round((smoothScroll - start) * ROW_HEIGHT);
                     int hoverRow = (my - listStartY + shift) / ROW_HEIGHT;
@@ -893,9 +864,7 @@ public class TooltipClientHandlers {
                 }
 
                 if (hoverTargetIndex != -1 && hoverTargetIndex <= rules.size()) {
-                    double smoothScroll = scrollState.update(
-                            scrollOffset, maxScroll, isDraggingScrollbar
-                    );
+                    double smoothScroll = scroller.smoothOffset();
                     int start = (int) Math.floor(smoothScroll + 1.0E-6D);
                     int shift = (int) Math.round((smoothScroll - start) * ROW_HEIGHT);
                     int lineY = listStartY + (hoverTargetIndex - start) * ROW_HEIGHT - shift;
@@ -949,9 +918,7 @@ public class TooltipClientHandlers {
             }
             if (KineticClientRuntime.controlModifierDown() && input.isLeft()) {
                 if (mx >= startX && mx <= startX + listW && my >= listStartY && my <= listStartY + listH) {
-                    double smoothScroll = scrollState.update(
-                            scrollOffset, maxScroll, isDraggingScrollbar
-                    );
+                    double smoothScroll = scroller.smoothOffset();
                     int start = (int) Math.floor(smoothScroll + 1.0E-6D);
                     int shift = (int) Math.round((smoothScroll - start) * ROW_HEIGHT);
                     int clickedRow = start
@@ -979,8 +946,7 @@ public class TooltipClientHandlers {
                 });
                 return true;
             }
-            if (maxScroll > 0 && mx >= startX + listW + 8 && mx <= startX + listW + 12 && my >= listStartY && my <= listStartY + listH) {
-                isDraggingScrollbar = true;
+            if (scroller.beginDrag(mx, my, input.button(), startX + listW + 8, listStartY, 4, listH, 20)) {
                 return true;
             }
             return false;
@@ -1001,7 +967,7 @@ public class TooltipClientHandlers {
                 hoverTargetIndex = -1;
                 return true;
             }
-            isDraggingScrollbar = false;
+            scroller.release(input.button());
             return false;
         }
 
@@ -1011,10 +977,7 @@ public class TooltipClientHandlers {
             if (draggingIndex != -1) {
                 return true;
             }
-            if (isDraggingScrollbar) {
-                int thumbH = thumbHeight(listH, visibleRows, rules.size(), 20);
-                scrollOffset = offsetFromPointer(my, listStartY, listH, thumbH, maxScroll);
-                scrollState.snap(scrollOffset, maxScroll);
+            if (scroller.drag(my, listStartY, listH, 20)) {
                 updateWidgetPositions();
                 return true;
             }
@@ -1023,50 +986,12 @@ public class TooltipClientHandlers {
 
         @Override
         protected boolean onMouseScroll(ScrollInput input) {
-            if (maxScroll > 0) {
-                scrollOffset = scrollState.wheel(
-                        scrollOffset,
-                        input.deltaY(),
-                        1.0D,
-                        maxScroll
-                );
+            if (scroller.canScroll()) {
+                scroller.scroll(input.deltaY());
                 updateWidgetPositions();
                 return true;
             }
             return false;
-        }
-
-        // 原 KineticScroll 裸滚动条状态工具的等价实现（核心 v2 未公开）/ Equivalent of the old raw KineticScroll state helpers (not exposed by core v2).
-        private static int thumbHeight(int trackHeight, int visibleItems, int totalItems, int minHeight) {
-            if (trackHeight <= 0) return 0;
-            if (totalItems <= 0) return trackHeight;
-            int minimum = Math.min(trackHeight, Math.max(1, minHeight));
-            int calculated = (int) ((double) Math.max(0, visibleItems) / totalItems * trackHeight);
-            return Math.min(trackHeight, Math.max(minimum, calculated));
-        }
-
-        private static double offsetFromPointer(double pointerY, int trackY, int trackHeight, int thumbHeight, int maxOffset) {
-            if (!Double.isFinite(pointerY) || trackHeight <= 0 || maxOffset <= 0) return 0D;
-            double relativeY = pointerY - trackY - thumbHeight / 2.0D;
-            double scrollableHeight = (double) trackHeight - thumbHeight;
-            if (scrollableHeight <= 0D) return 0D;
-            return Math.max(0D, Math.min(maxOffset, (relativeY / scrollableHeight) * maxOffset));
-        }
-
-        private static void renderRawScrollbar(KineticGraphics g, int mouseX, int mouseY, int x, int y, int width, int height,
-                                               int thumbHeight, int maxOffset, double offset, boolean dragging) {
-            if (maxOffset <= 0 || height <= 0 || width <= 0) return;
-            int thumbH = Math.max(1, Math.min(height, thumbHeight));
-            double safeOffset = Math.max(0D, Math.min(maxOffset, offset));
-            int thumbY = y + (int) Math.round(safeOffset / maxOffset * (height - thumbH));
-            int visualWidth = Math.min(4, Math.max(1, width));
-            int visualX = x + Math.max(0, width - visualWidth);
-            boolean hovered = mouseX >= visualX && mouseX <= visualX + visualWidth
-                    && mouseY >= thumbY && mouseY <= thumbY + thumbH;
-            KineticTheme.Palette theme = KineticTheme.current();
-            g.fill(visualX, y, visualX + visualWidth, y + height, theme.scrollTrack());
-            g.fill(visualX, thumbY, visualX + visualWidth, thumbY + thumbH,
-                    dragging || hovered ? theme.scrollThumbHover() : theme.scrollThumb());
         }
 
         private void handleSuccessfulSave() {

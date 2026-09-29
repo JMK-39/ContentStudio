@@ -1,7 +1,7 @@
 package dev.xyat.contentstudio.loot.client.gui;
 
-import dev.xyat.contentstudio.client.gui.FractionalScrollJump;
 
+import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.client.gui.input.KeyInput;
 import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
@@ -11,7 +11,6 @@ import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
-import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollAnimator;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
@@ -32,7 +31,6 @@ import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -127,14 +125,10 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     private String pendingPickedItemStackId = null;
     private ItemStack pendingPickedItemStack = ItemStack.EMPTY;
     private JsonObject pendingPickedTargetEntry = null;
-    protected double targetScroll = 0D;
-    protected int maxTargetScroll = 0;
-    protected double dropScroll = 0D;
-    protected int maxDropScroll = 0;
-    protected boolean draggingTargetScroll = false;
-    private boolean draggingDropScroll = false;
-    protected final KineticScrollAnimator targetScrollState = new KineticScrollAnimator();
-    protected final KineticScrollAnimator dropScrollState = new KineticScrollAnimator();
+    protected final KineticScrollController targetScroller = new KineticScrollController()
+            .bindSelection(this::selectedTargetIndex, index -> targetUnitOf(index) - targetVisibleRows() / 2);
+    private final KineticScrollController dropScroller = new KineticScrollController()
+            .bindSelection(() -> selectedDrop == null ? -1 : dropVisuals.indexOf(selectedDrop), index -> index - visibleDropRows() / 2);
     private KineticButton addPoolHeaderButton;
     private KineticButton[] groupArrowButtons;
     private KineticButton[] groupAddButtons;
@@ -145,19 +139,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     private final List<GroupRow> groupedRows = new ArrayList<>();
     private final List<GroupRow> visibleGroupRows = new ArrayList<>();
     private final Set<Integer> expandedPools = new HashSet<>();
-    private double groupScroll = 0D;
-    private int maxGroupScroll = 0;
-    private boolean draggingGroupScroll = false;
-    private final KineticScrollAnimator groupScrollState = new KineticScrollAnimator();
-    // 三个自绘滚动区域的中键跳转/提示/闪烁：左侧跳回选中表，掉落列表跳回选中掉落，分组列表无选中概念、跳回最近点击的行
-    // Middle-click jump/hint/flash for the three hand-drawn scroll areas: the left list jumps back to the selected
-    // table, the drop list to the selected drop, and the grouped list (no selection) to the last clicked row.
-    private final FractionalScrollJump targetJump = new FractionalScrollJump(
-            this::selectedTargetIndex, index -> targetUnitOf(index) - targetVisibleRows() / 2);
-    private final FractionalScrollJump dropJump = new FractionalScrollJump(
-            () -> selectedDrop == null ? -1 : dropVisuals.indexOf(selectedDrop), index -> index - visibleDropRows() / 2);
-    private final FractionalScrollJump groupJump = new FractionalScrollJump(
-            this::lastClickedGroupRowIndex, index -> index - Math.max(1, visibleGroupRows.size()) / 2);
+    private final KineticScrollController groupScroller = new KineticScrollController()
+            .bindSelection(this::lastClickedGroupRowIndex, index -> index - Math.max(1, visibleGroupRows.size()) / 2);
     private int lastClickedGroupPool = -1;
     private DropVisual lastClickedGroupVisual;
     private final Map<TableDraftKey, String> pendingTableDrafts = new LinkedHashMap<>();
@@ -561,7 +544,6 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     private void updateSearch(String query, boolean resetScroll) {
-        double oldScroll = targetScroll;
         String clean = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         if (clean.isEmpty()) {
             displayEntries = new ArrayList<>(allEntries);
@@ -569,8 +551,10 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             displayEntries = allEntries.stream().filter(entry -> KineticSearch.match(searchText(entry), clean)).collect(Collectors.toList());
         }
         displayEntries = sortedEntries(displayEntries);
-        targetScroll = resetScroll ? 0D : oldScroll;
         updateTargetScrollLimit();
+        if (resetScroll) {
+            targetScroller.scrollTo(0);
+        }
     }
 
     private String searchText(LootEntryInfo entry) {
@@ -603,9 +587,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     private void updateTargetScrollLimit() {
-        int rows = targetTotalRows();
-        maxTargetScroll = Math.max(0, rows - targetVisibleRows());
-        targetScroll = Math.max(0D, Math.min(targetScroll, maxTargetScroll));
+        targetScroller.update(targetTotalRows(), targetVisibleRows());
     }
 
     protected abstract int targetVisibleRows();
@@ -613,11 +595,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     protected abstract int targetTotalRows();
 
     protected final double smoothTargetScroll() {
-        return targetScrollState.update(
-                targetScroll,
-                maxTargetScroll,
-                draggingTargetScroll
-        );
+        return targetScroller.smoothOffset();
     }
 
     protected abstract int targetStartIndex();
@@ -639,7 +617,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     /** 子类在绘制每个目标条目后调用 / Subclasses call this after drawing each target entry. */
     protected final void flashTarget(KineticGraphics g, int index, int x, int y, int width, int height) {
-        targetJump.flash(g, index, x, y, width, height);
+        targetScroller.renderSelectionFlash(g, index, x, y, width, height);
     }
 
     private int lastClickedGroupRowIndex() {
@@ -649,29 +627,6 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             if (row.poolIndex == lastClickedGroupPool && row.visual == lastClickedGroupVisual) return i;
         }
         return -1;
-    }
-
-    /**
-     * 在本帧计算平滑偏移之前应用中键跳转（与标准控制器一样立即到位）；子类可追加自己的区域。
-     * Applies middle-click jumps before this frame computes smooth offsets (immediate, like the standard controller);
-     * subclasses may add their own areas.
-     */
-    protected void applyScrollJumps() {
-        double jump = targetJump.takeJump();
-        if (!Double.isNaN(jump)) {
-            targetScroll = jump;
-            targetScrollState.snap(targetScroll, maxTargetScroll);
-        }
-        jump = dropJump.takeJump();
-        if (!Double.isNaN(jump)) {
-            dropScroll = jump;
-            dropScrollState.snap(dropScroll, maxDropScroll);
-        }
-        jump = groupJump.takeJump();
-        if (!Double.isNaN(jump)) {
-            groupScroll = jump;
-            groupScrollState.snap(groupScroll, maxGroupScroll);
-        }
     }
 
     protected abstract int targetVisibleEntryCount();
@@ -684,33 +639,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         return LEFT_Y;
     }
 
-    protected int targetScrollbarThumbHeight() {
-        return LootScrollbars.thumbHeight(targetAreaHeight(), targetVisibleRows(), targetTotalRows(), 24);
-    }
-
     protected void renderTargetScrollbar(KineticGraphics g, int mx, int my) {
-        if (maxTargetScroll <= 0) {
-            return;
-        }
-        int x = TARGET_SCROLLBAR_X;
-        int y = targetAreaY() + 1;
-        int width = TARGET_SCROLLBAR_WIDTH;
-        int height = targetAreaHeight() - 2;
-        int thumbHeight = Math.min(height, targetScrollbarThumbHeight());
-        double smoothTarget = smoothTargetScroll();
-        targetJump.track(g, mx, my, x, y, width, height, 24, smoothTarget, maxTargetScroll,
-                targetTotalRows(), targetVisibleRows(), draggingTargetScroll);
-        LootScrollbars.renderThemed(g, mx,
-                my,
-                x,
-                y,
-                width,
-                height,
-                thumbHeight,
-                maxTargetScroll,
-                smoothTarget,
-                draggingTargetScroll
-        );
+        targetScroller.render(g, mx, my, TARGET_SCROLLBAR_X, targetAreaY() + 1, TARGET_SCROLLBAR_WIDTH, targetAreaHeight() - 2, 24);
     }
 
     protected String lootTableType() {
@@ -854,12 +784,11 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         appendModeBackupRoot = null;
         expandedPools.clear();
         expandedPools.add(0);
-        groupScroll = 0D;
+        groupScroller.scrollTo(0);
         onTargetSelected();
         detailLoading = !isSpecialPanelActive();
         dropVisuals.clear();
-        dropScroll = 0D;
-        maxDropScroll = 0;
+        dropScroller.update(0, visibleDropRows());
         refreshGroupedLayout();
         clearEditFields();
         requestSelectedDetail();
@@ -1013,8 +942,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         buildDropVisuals();
         dropVisuals.sort(Comparator.comparingInt(visual -> visual.loadError ? 0 : 1));
         onVisualDataRebuilt();
-        dropScroll = 0D;
-        maxDropScroll = Math.max(0, dropVisuals.size() - visibleDropRows());
+        dropScroller.update(dropVisuals.size(), visibleDropRows());
+        dropScroller.scrollTo(0);
         selectedDrop = null;
         clearEditFields();
         if (usesGroupedLayout()) {
@@ -1125,29 +1054,21 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         int weight = readInt(entry.get("weight"));
         visual.chance = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.chance",
                         numberComponent(formatChance(weight, context.totalWeight, entry)),
-                        numberComponent(context.rolls))
-                .withStyle(ChatFormatting.GREEN);
+                        numberComponent(context.rolls));
         visual.probability = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.probability_only",
-                        numberComponent(formatChance(weight, context.totalWeight, entry)))
-                .withStyle(ChatFormatting.GREEN);
+                        numberComponent(formatChance(weight, context.totalWeight, entry)));
         List<Component> allFunctions = new ArrayList<>(context.functions);
         allFunctions.addAll(functions);
-        visual.count = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.count", numberComponent(countText(allFunctions)))
-                .withStyle(ChatFormatting.GREEN);
-        visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.pool", numberComponent(context.poolIndex))
-                .withStyle(ChatFormatting.GRAY));
-        visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.weight",
-                        numberComponent(weight), numberComponent(Math.max(context.totalWeight, weight)))
-                .withStyle(ChatFormatting.GRAY));
+        visual.count = KineticI18n.translatable("gui.contentstudio.loot.loots.drop.count", numberComponent(countText(allFunctions)));
+        visual.details.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.pool", numberComponent(context.poolIndex))));
+        visual.details.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.weight",
+                        numberComponent(weight), numberComponent(Math.max(context.totalWeight, weight)))));
         if (depth > 0) {
-            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.nested", numberComponent(depth))
-                    .withStyle(ChatFormatting.LIGHT_PURPLE));
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.nested", numberComponent(depth)));
         }
-        visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(context.rolls))
-                .withStyle(ChatFormatting.GRAY));
+        visual.details.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(context.rolls))));
         if (!context.bonusRolls.equals("-")) {
-            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(context.bonusRolls))
-                    .withStyle(ChatFormatting.LIGHT_PURPLE));
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(context.bonusRolls)));
         }
         visual.details.addAll(context.conditions);
         visual.details.addAll(conditions);
@@ -1157,7 +1078,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.load_error_replaced"));
         }
         if (showMissingPlayerKillHint() && lacksKilledByPlayer(context.conditions, conditions)) {
-            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.condition.no_player_kill").withStyle(ChatFormatting.RED));
+            visual.details.add(KineticI18n.translatable("gui.contentstudio.loot.loots.condition.no_player_kill"));
         }
         return visual;
     }
@@ -1199,18 +1120,16 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     private Component displayNameForEntry(String type, String name, ItemStack stack) {
         if (type.endsWith("empty")) {
-            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.empty").withStyle(ChatFormatting.RED);
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.empty");
         }
         if (type.endsWith("loot_table")) {
-            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.sub_table", idComponent(blankToDash(name)))
-                    .withStyle(ChatFormatting.GOLD);
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.sub_table", idComponent(blankToDash(name)));
         }
         if (type.endsWith("tag")) {
-            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.tag", idComponent(blankToDash(name)))
-                    .withStyle(ChatFormatting.GOLD);
+            return KineticI18n.translatable("gui.contentstudio.loot.loots.drop.tag", idComponent(blankToDash(name)));
         }
         if (!stack.isEmpty()) {
-            return stack.getHoverName().copy().withStyle(ChatFormatting.GOLD);
+            return KineticI18n.styled("gui.contentstudio.loot.style.name", stack.getHoverName());
         }
         return nameComponent(blankToDash(name));
     }
@@ -2207,8 +2126,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                 }
             }
         }
-        maxGroupScroll = calculateMaxGroupScroll();
-        groupScroll = Math.max(0D, Math.min(groupScroll, maxGroupScroll));
+        groupScroller.updateRange(calculateMaxGroupScroll(), groupedRows.size(), Math.max(1, visibleGroupRows.size()));
         updateVisibleGroupedRows();
     }
 
@@ -2247,8 +2165,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                 hideGroupSlot(i);
             }
         }
-        double visualScroll = groupScrollState.update(groupScroll, maxGroupScroll, draggingGroupScroll);
-        int firstIndex = Math.max(0, Math.min((int) Math.floor(visualScroll + 1.0E-6D), maxGroupScroll));
+        double visualScroll = groupScroller.smoothOffset();
+        int firstIndex = Math.max(0, Math.min((int) Math.floor(visualScroll + 1.0E-6D), groupScroller.maxOffset()));
         double fraction = Math.max(0D, visualScroll - firstIndex);
         int top = GROUP_Y + 6;
         int bottom = GROUP_Y + GROUP_H - 6;
@@ -2265,6 +2183,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             }
             y += row.height();
         }
+        groupScroller.updateRange(groupScroller.maxOffset(), groupedRows.size(), Math.max(1, visibleGroupRows.size()));
         if (groupArrowButtons == null) {
             return;
         }
@@ -2467,13 +2386,13 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     List<Component> groupedPoolTooltip(int poolIndex) {
         List<Component> tooltip = new ArrayList<>();
         JsonObject pool = groupedPool(poolIndex);
-        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.number", numberComponent(poolIndex + 1)).withStyle(ChatFormatting.GOLD));
-        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(readRollsForEditor(pool))).withStyle(ChatFormatting.GRAY));
+        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.number", numberComponent(poolIndex + 1)));
+        tooltip.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.rolls", numberComponent(readRollsForEditor(pool)))));
         String bonusRolls = readNumberRange(pool.get("bonus_rolls"));
         if (!bonusRolls.equals("-")) {
-            tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(bonusRolls)).withStyle(ChatFormatting.LIGHT_PURPLE));
+            tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.drop.bonus_rolls", numberComponent(bonusRolls)));
         }
-        tooltip.add(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.entry_count", numberComponent(pool.getAsJsonArray("entries").size())).withStyle(ChatFormatting.GRAY));
+        tooltip.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.entry_count", numberComponent(pool.getAsJsonArray("entries").size()))));
         appendReadableConditions(tooltip, pool.get("conditions"));
         appendReadableFunctions(tooltip, pool.get("functions"));
         return tooltip;
@@ -2531,7 +2450,6 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     @Override
     protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
-        applyScrollJumps();
         KineticTheme.panel(g, 0, 0, V_WIDTH, V_HEIGHT);
         drawPanel(g, LEFT_X - 2, RIGHT_Y - 2, TARGET_WIDTH + 14, RIGHT_H + 4);
         drawPanel(g, RIGHT_X - 2, RIGHT_Y - 2, RIGHT_W + 4, RIGHT_H + 4);
@@ -2644,7 +2562,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (hovered) {
             if (!stack.isEmpty()) {
                 deferredTooltip = List.of(
-                        stack.getHoverName().copy().withStyle(ChatFormatting.GOLD),
+                        KineticI18n.styled("gui.contentstudio.loot.style.name", stack.getHoverName()),
                         idComponent(itemBox == null ? "" : itemBox.textValue())
                 );
             } else {
@@ -2698,27 +2616,16 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
                     renderGroupedPoolRow(g, row, mx, my);
-                    groupJump.flash(g, groupedRows.indexOf(row), RIGHT_X + 8, row.y, RIGHT_W - 22, GROUP_POOL_H - GROUP_ROW_GAP);
+                    groupScroller.renderSelectionFlash(g, groupedRows.indexOf(row), RIGHT_X + 8, row.y, RIGHT_W - 22, GROUP_POOL_H - GROUP_ROW_GAP);
                 } else {
                     renderGroupedEntryRow(g, row, mx, my);
-                    groupJump.flash(g, groupedRows.indexOf(row), RIGHT_X + 10, row.y, RIGHT_W - 24, GROUP_ENTRY_H - GROUP_ROW_GAP);
+                    groupScroller.renderSelectionFlash(g, groupedRows.indexOf(row), RIGHT_X + 10, row.y, RIGHT_W - 24, GROUP_ENTRY_H - GROUP_ROW_GAP);
                 }
             }
         } finally {
             g.endScissor();
         }
-        if (maxGroupScroll > 0) {
-            int trackH = GROUP_H - 12;
-            int thumbH = LootScrollbars.thumbHeight(trackH,
-                    Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-            groupJump.track(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH, 18,
-                    groupScrollState.update(groupScroll, maxGroupScroll, draggingGroupScroll), maxGroupScroll,
-                    groupedRows.size(), Math.max(1, visibleGroupRows.size()), draggingGroupScroll);
-            LootScrollbars.renderState(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, trackH,
-                    thumbH, maxGroupScroll,
-                    groupScrollState.update(groupScroll, maxGroupScroll, draggingGroupScroll),
-                    draggingGroupScroll);
-        }
+        groupScroller.render(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, GROUP_H - 12, 18);
     }
 
     private void renderGroupedRowBackgrounds(KineticGraphics g, int mx, int my) {
@@ -2759,11 +2666,10 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         for (DropVisual visual : dropVisuals) {
             if (visual.poolIndex == row.poolIndex + 1) entryCount++;
         }
-        Component line = KineticI18n.translatable("gui.contentstudio.loot.loots.pool.header",
+        Component line = KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.header",
                         numberComponent(row.poolIndex + 1),
                         numberComponent(readRollsForEditor(pool)),
-                        numberComponent(entryCount))
-                .withStyle(ChatFormatting.GRAY);
+                        numberComponent(entryCount)));
         g.scissor(RIGHT_X + 34,
                 row.y + 1,
                 RIGHT_X + RIGHT_W - 146,
@@ -2857,11 +2763,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         int startY = dropListStartY();
         int listH = dropListHeight();
         int visible = visibleDropRows();
-        double smoothDropScroll = dropScrollState.update(
-                dropScroll,
-                maxDropScroll,
-                draggingDropScroll
-        );
+        double smoothDropScroll = dropScroller.smoothOffset();
         int smoothDropRow = (int) Math.floor(smoothDropScroll + 1.0E-6D);
         int dropShift = (int) Math.round(
                 (smoothDropScroll - smoothDropRow) * DROP_ROW_H
@@ -2914,21 +2816,10 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             if (hover) {
                 deferredTooltip = buildDropTooltip(visual);
             }
-            dropJump.flash(g, i, RIGHT_X + 10, rowY, RIGHT_W - 26, DROP_ROW_H - 4);
+            dropScroller.renderSelectionFlash(g, i, RIGHT_X + 10, rowY, RIGHT_W - 26, DROP_ROW_H - 4);
         }
         g.endScissor();
-        if (maxDropScroll > 0) {
-            int thumbH = LootScrollbars.thumbHeight(listH, visible, dropVisuals.size(), 18);
-            dropJump.track(g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2, 18,
-                    dropScrollState.update(dropScroll, maxDropScroll, draggingDropScroll), maxDropScroll,
-                    dropVisuals.size(), visible, draggingDropScroll);
-            LootScrollbars.renderState(
-                    g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2,
-                    thumbH, maxDropScroll,
-                    dropScrollState.update(dropScroll, maxDropScroll, draggingDropScroll),
-                    draggingDropScroll
-            );
-        }
+        dropScroller.render(g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2, 18);
     }
 
     private void renderDropIcon(KineticGraphics g, DropVisual visual, int rowY, boolean hovered) {
@@ -3015,27 +2906,27 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     protected MutableComponent nameComponent(String text) {
-        return Component.literal(text == null ? "" : text).withStyle(ChatFormatting.GOLD);
+        return KineticI18n.styled("gui.contentstudio.loot.style.name", text == null ? "" : text);
     }
 
     protected MutableComponent idComponent(String text) {
-        return Component.literal(text == null ? "" : text).withStyle(ChatFormatting.AQUA);
+        return KineticI18n.styled("gui.contentstudio.loot.style.id", text == null ? "" : text);
     }
 
     protected MutableComponent numberComponent(Object value) {
-        return Component.literal(String.valueOf(value)).withStyle(ChatFormatting.YELLOW);
+        return KineticI18n.styled("gui.contentstudio.loot.style.number", value);
     }
 
     private MutableComponent valueComponent(String value) {
-        return Component.literal(value == null ? "" : value).withStyle(ChatFormatting.LIGHT_PURPLE);
+        return KineticI18n.styled("gui.contentstudio.loot.style.value", value == null ? "" : value);
     }
 
     private MutableComponent conditionLine(String key, Object... args) {
-        return KineticI18n.translatable(key, args).withStyle(ChatFormatting.AQUA);
+        return KineticI18n.styled("gui.contentstudio.loot.style.condition", KineticI18n.translatable(key, args));
     }
 
     private MutableComponent functionLine(String key, Object... args) {
-        return KineticI18n.translatable(key, args).withStyle(ChatFormatting.LIGHT_PURPLE);
+        return KineticI18n.styled("gui.contentstudio.loot.style.function", KineticI18n.translatable(key, args));
     }
 
     private void drawFittedComponent(KineticGraphics g, Component text, int x, int y, int maxWidth) {
@@ -3098,24 +2989,14 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                 selectEntry(targetEntry);
                 return true;
             }
-            if (maxTargetScroll > 0 && mx >= TARGET_SCROLLBAR_X && mx <= TARGET_SCROLLBAR_X + TARGET_SCROLLBAR_WIDTH && my >= targetAreaY() + 1 && my <= targetAreaY() + targetAreaHeight() - 1) {
-                draggingTargetScroll = true;
-                targetScroll = LootScrollbars.offsetFromPointer(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
-                targetScrollState.snap(targetScroll, maxTargetScroll);
+            if (targetScroller.beginDrag(mx, my, input.button(), TARGET_SCROLLBAR_X, targetAreaY() + 1, TARGET_SCROLLBAR_WIDTH, targetAreaHeight() - 2, 24)) {
                 return true;
             }
             if (isSpecialPanelActive()) {
                 return handleSpecialPanelClick(mx, my, btn);
             }
             if (usesGroupedLayout()) {
-                if (maxGroupScroll > 0 && mx >= GROUP_SCROLLBAR_X && mx <= GROUP_SCROLLBAR_X + 6
-                        && my >= GROUP_Y + 6 && my <= GROUP_Y + GROUP_H - 6) {
-                    draggingGroupScroll = true;
-                    int trackH = GROUP_H - 12;
-                    int thumbH = LootScrollbars.thumbHeight(trackH,
-                            Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-                    groupScroll = LootScrollbars.offsetFromPointer(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
-                    groupScrollState.snap(groupScroll, maxGroupScroll);
+                if (groupScroller.beginDrag(mx, my, input.button(), GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, GROUP_H - 12, 18, 2)) {
                     updateVisibleGroupedRows();
                     return true;
                 }
@@ -3129,19 +3010,11 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             }
             int dropStartY = dropListStartY();
             int dropListH = dropListHeight();
-            if (maxDropScroll > 0 && mx >= DROP_SCROLLBAR_X && mx <= DROP_SCROLLBAR_X + 4 && my >= dropStartY + 1 && my <= dropStartY + dropListH - 1) {
-                draggingDropScroll = true;
-                int thumbH = LootScrollbars.thumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
-                dropScroll = LootScrollbars.offsetFromPointer(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
-                dropScrollState.snap(dropScroll, maxDropScroll);
+            if (dropScroller.beginDrag(mx, my, input.button(), DROP_SCROLLBAR_X, dropStartY + 1, 4, dropListH - 2, 18)) {
                 return true;
             }
             int visible = visibleDropRows();
-            double smoothDropScroll = dropScrollState.update(
-                    dropScroll,
-                    maxDropScroll,
-                    draggingDropScroll
-            );
+            double smoothDropScroll = dropScroller.smoothOffset();
             int smoothDropRow = (int) Math.floor(smoothDropScroll + 1.0E-6D);
             int dropShift = (int) Math.round(
                     (smoothDropScroll - smoothDropRow) * DROP_ROW_H
@@ -3169,28 +3042,16 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         int btn = input.rawButton();
         double dx = input.deltaX();
         double dy = input.deltaY();
-        if (draggingTargetScroll) {
-            targetScroll = LootScrollbars.offsetFromPointer(my, targetAreaY() + 1, targetAreaHeight() - 2, targetScrollbarThumbHeight(), maxTargetScroll);
-            targetScrollState.snap(targetScroll, maxTargetScroll);
+        if (targetScroller.drag(my, targetAreaY() + 1, targetAreaHeight() - 2, 24)) {
             return true;
         }
         if (isSpecialPanelActive() && handleSpecialPanelDragged(mx, my, btn, dx, dy)) {
             return true;
         }
-        if (draggingDropScroll) {
-            int dropStartY = dropListStartY();
-            int dropListH = dropListHeight();
-            int thumbH = LootScrollbars.thumbHeight(dropListH, visibleDropRows(), dropVisuals.size(), 24);
-            dropScroll = LootScrollbars.offsetFromPointer(my, dropStartY + 1, dropListH - 2, thumbH, maxDropScroll);
-            dropScrollState.snap(dropScroll, maxDropScroll);
+        if (dropScroller.drag(my, dropListStartY() + 1, dropListHeight() - 2, 18)) {
             return true;
         }
-        if (draggingGroupScroll) {
-            int trackH = GROUP_H - 12;
-            int thumbH = LootScrollbars.thumbHeight(trackH,
-                    Math.max(1, visibleGroupRows.size()), groupedRows.size(), 18);
-            groupScroll = LootScrollbars.offsetFromPointer(my, GROUP_Y + 6, trackH, thumbH, maxGroupScroll);
-            groupScrollState.snap(groupScroll, maxGroupScroll);
+        if (groupScroller.drag(my, GROUP_Y + 6, GROUP_H - 12, 18)) {
             updateVisibleGroupedRows();
             return true;
         }
@@ -3202,9 +3063,9 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         double mx = input.x();
         double my = input.y();
         int btn = input.rawButton();
-        draggingTargetScroll = false;
-        draggingDropScroll = false;
-        draggingGroupScroll = false;
+        targetScroller.release(input.button());
+        dropScroller.release(input.button());
+        groupScroller.release(input.button());
         if (isSpecialPanelActive()) {
             handleSpecialPanelReleased(mx, my, btn);
         }
@@ -3217,27 +3078,21 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         double my = input.y();
         double delta = input.deltaY();
         updateTargetScrollLimit();
-        if (mx >= LEFT_X && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && maxTargetScroll > 0) {
-            targetScroll = targetScrollState.wheel(
-                    targetScroll, delta, 1.0D, maxTargetScroll
-            );
+        if (mx >= LEFT_X && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && targetScroller.canScroll()) {
+            targetScroller.scroll(delta);
             return true;
         }
         if (isSpecialPanelActive() && handleSpecialPanelScrolled(mx, my, delta)) {
             return true;
         }
         if (!isSpecialPanelActive() && usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W
-                && my >= GROUP_Y && my <= GROUP_Y + GROUP_H && maxGroupScroll > 0) {
-            groupScroll = groupScrollState.wheel(
-                    groupScroll, delta, 1.0D, maxGroupScroll
-            );
+                && my >= GROUP_Y && my <= GROUP_Y + GROUP_H && groupScroller.canScroll()) {
+            groupScroller.scroll(delta);
             updateVisibleGroupedRows();
             return true;
         }
-        if (!usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W && my >= DROP_Y && my <= DROP_Y + DROP_H && maxDropScroll > 0) {
-            dropScroll = dropScrollState.wheel(
-                    dropScroll, delta, 1.0D, maxDropScroll
-            );
+        if (!usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W && my >= DROP_Y && my <= DROP_Y + DROP_H && dropScroller.canScroll()) {
+            dropScroller.scroll(delta);
             return true;
         }
         return false;

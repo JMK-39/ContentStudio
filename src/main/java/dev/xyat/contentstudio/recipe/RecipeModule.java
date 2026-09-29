@@ -5,7 +5,7 @@ import dev.xyat.contentstudio.recipe.client.RecipeEditorSetup;
 import dev.xyat.contentstudio.recipe.config.RecipeConfigGui;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
 import dev.xyat.kineticcore.api.config.server.KTServerConfigApi;
-import dev.xyat.kineticcore.api.runtime.KineticEnvironment;
+import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import org.slf4j.Logger;
 
 public final class RecipeModule {
@@ -18,7 +18,7 @@ public final class RecipeModule {
         RecipeRegistry.register();
         RecipeMemoryManager.register();
         RecipeNetwork.register();
-        KineticEnvironment.runOnClient(() -> () -> {
+        KineticPlatform.runOnClient(() -> () -> {
             RecipeEditorSetup.register();
             RecipeConfigGui.load();
         });
