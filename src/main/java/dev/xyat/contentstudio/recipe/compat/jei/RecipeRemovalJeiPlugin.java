@@ -3,6 +3,8 @@ package dev.xyat.contentstudio.recipe.compat.jei;
 import javax.annotation.Nonnull;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphicsInterop;
 import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.contentstudio.recipe.client.RecipeJeiBridge;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
@@ -14,7 +16,6 @@ import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.runtime.IJeiRuntime;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
@@ -91,8 +92,8 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
         private LayoutPreview { layout.setPosition(0, 0); }
         @Override public int width() { return layout.getRect().getWidth(); }
         @Override public int height() { return layout.getRect().getHeight(); }
-        @Override public void draw(GuiGraphics graphics, int mouseX, int mouseY) { layout.drawRecipe(graphics, mouseX, mouseY); }
-        @Override public void drawOverlays(GuiGraphics graphics, int mouseX, int mouseY) { layout.drawOverlays(graphics, mouseX, mouseY); }
+        @Override public void draw(KineticGraphics graphics, int mouseX, int mouseY) { layout.drawRecipe(KineticGraphicsInterop.unwrap(graphics), mouseX, mouseY); }
+        @Override public void drawOverlays(KineticGraphics graphics, int mouseX, int mouseY) { layout.drawOverlays(KineticGraphicsInterop.unwrap(graphics), mouseX, mouseY); }
         @Override public void tick() { layout.tick(); }
     }
 }

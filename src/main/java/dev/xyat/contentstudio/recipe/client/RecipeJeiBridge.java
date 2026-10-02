@@ -3,7 +3,7 @@ package dev.xyat.contentstudio.recipe.client;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
-import net.minecraft.client.gui.GuiGraphics;
+import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
@@ -42,8 +42,8 @@ public final class RecipeJeiBridge {
     public interface Preview {
         int width();
         int height();
-        void draw(GuiGraphics graphics, int mouseX, int mouseY);
-        void drawOverlays(GuiGraphics graphics, int mouseX, int mouseY);
+        void draw(KineticGraphics graphics, int mouseX, int mouseY);
+        void drawOverlays(KineticGraphics graphics, int mouseX, int mouseY);
         void tick();
     }
 

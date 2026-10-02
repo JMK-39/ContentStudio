@@ -4,7 +4,6 @@ import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
-import dev.xyat.kineticcore.api.client.gui.render.KineticGraphicsInterop;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
@@ -127,11 +126,9 @@ final class RecipeRemovalPreviewPage extends KineticPage {
             graphics.translate(previewX, previewY);
             graphics.scale(previewScale, previewScale);
             int x = (int) ((mouseX - previewX) / previewScale), y = (int) ((mouseY - previewY) / previewScale);
-            // JEI 的 IRecipeLayoutDrawable 需要原版 GuiGraphics：通过核心的第三方 API 桥接取回（与 push/translate 共用同一上下文）。
-            // JEI's IRecipeLayoutDrawable needs a vanilla GuiGraphics: obtained through the core's third-party bridge
-            // (same context as the push/translate above).
-            var vanilla = KineticGraphicsInterop.unwrap(graphics);
-            if (overlays) preview.drawOverlays(vanilla, x, y); else preview.draw(vanilla, x, y);
+            // 原版上下文只在 JEI 适配器内解包，页面始终使用 KineticGraphics。
+            // The JEI adapter unwraps the native context; pages always use KineticGraphics.
+            if (overlays) preview.drawOverlays(graphics, x, y); else preview.draw(graphics, x, y);
         } catch (RuntimeException ignored) {
             markError();
         } finally { graphics.pop(); }
