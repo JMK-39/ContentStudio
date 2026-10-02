@@ -128,12 +128,12 @@ public final class RecipeMemoryManager {
 
         List<Recipe<?>> baseline = new ArrayList<>(recipeManager.getRecipes());
         for (Recipe<?> recipe : baseline) {
-            if (recipe == null || recipe.getId() == null) {
+            if (recipe == null) {
                 skippedBaseline++;
             }
         }
         for (Recipe<?> recipe : baseline) {
-            if (recipe != null && recipe.getId() != null) recipes.put(recipe.getId(), recipe);
+            if (recipe != null) recipes.put(recipe.getId(), recipe);
         }
         recipes.putAll(configuredRecipes);
 
@@ -249,12 +249,7 @@ public final class RecipeMemoryManager {
         return new RemovalCandidate(recipe.getId(), type, output, tags);
     }
 
-    private static final class DatapackRecipeReloadListener implements ResourceManagerReloadListener {
-        private final RecipeManager recipeManager;
-
-        private DatapackRecipeReloadListener(RecipeManager recipeManager) {
-            this.recipeManager = recipeManager;
-        }
+    private record DatapackRecipeReloadListener(RecipeManager recipeManager) implements ResourceManagerReloadListener {
 
         @Override
         public void onResourceManagerReload(@Nonnull ResourceManager resourceManager) {
@@ -362,7 +357,7 @@ public final class RecipeMemoryManager {
 
         if (stack.getTag() != null && stack.getTag().contains("kt_tag")) {
             String raw = stack.getTag().getString("kt_tag");
-            if (!raw.startsWith("#") || raw.length() <= 1) {
+            if (!raw.startsWith("#") || raw.length() == 1) {
                 throw new IllegalArgumentException("item tag must start with #");
             }
             raw = raw.substring(1);

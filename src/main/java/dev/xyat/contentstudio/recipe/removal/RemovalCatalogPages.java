@@ -29,7 +29,7 @@ public final class RemovalCatalogPages {
             current.add(candidate);
             bytes += cost;
         }
-        if (!current.isEmpty() || groups.isEmpty()) groups.add(List.copyOf(current));
+        groups.add(List.copyOf(current));
         int total = groups.size();
         List<Page> pages = new ArrayList<>(total);
         for (int index = 0; index < total; index++) pages.add(new Page(index, total, version, groups.get(index)));

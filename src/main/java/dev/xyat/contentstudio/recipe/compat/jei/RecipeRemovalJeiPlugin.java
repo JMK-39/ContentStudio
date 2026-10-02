@@ -25,6 +25,7 @@ import java.util.List;
 @JeiPlugin
 public final class RecipeRemovalJeiPlugin implements IModPlugin {
     @Override
+    @Nonnull
     public ResourceLocation getPluginUid() {
         return KineticResourceIds.of("contentstudio", "recipe_removal");
     }

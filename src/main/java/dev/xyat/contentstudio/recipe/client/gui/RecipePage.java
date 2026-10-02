@@ -271,6 +271,8 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
         double mouseX = input.x();
         double mouseY = input.y();
         Slot hoveredSlot = hoveredSlot();
+        boolean editableSlot = hoveredSlot != null && (hoveredSlot.container == menu().inputContainer
+                || hoveredSlot.container == menu().outputContainer);
         if (countInput != null) {
             if (countInput.contains(mouseX, mouseY)) {
                 focus(countInput);
@@ -283,8 +285,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
                 && hoveredSlot != null
                 && isInvalidPlaceholder(hoveredSlot.getItem())
                 && menu().getCarried().isEmpty()) {
-            if (hoveredSlot.container == menu().inputContainer
-                    || hoveredSlot.container == menu().outputContainer) {
+            if (editableSlot) {
                 int slotIdx = hoveredSlot.getContainerSlot();
                 Container container = hoveredSlot.container;
                 boolean isInput = container == menu().inputContainer;
@@ -295,7 +296,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 
         // Shift+左键有物品：直接召唤全屏统一 NBT 编辑器
         if (input.isLeft() && KineticClientRuntime.shiftModifierDown() && hoveredSlot != null && hoveredSlot.hasItem() && menu().getCarried().isEmpty()) {
-            if (hoveredSlot.container == menu().inputContainer || hoveredSlot.container == menu().outputContainer) {
+            if (editableSlot) {
                 int slotIdx = hoveredSlot.getContainerSlot();
                 Container container = hoveredSlot.container;
                 ItemStack stack = hoveredSlot.getItem();
@@ -321,7 +322,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 
         // 左键空槽：打开物品搜索（输入槽支持返回#tag，输出槽只返回物品）
         if (input.isLeft() && hoveredSlot != null && !hoveredSlot.hasItem() && menu().getCarried().isEmpty()) {
-            if (hoveredSlot.container == menu().inputContainer || hoveredSlot.container == menu().outputContainer) {
+            if (editableSlot) {
                 int slotIdx = hoveredSlot.getContainerSlot();
                 Container container = hoveredSlot.container;
                 boolean isInput = hoveredSlot.container == menu().inputContainer;

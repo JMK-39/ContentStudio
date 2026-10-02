@@ -15,6 +15,7 @@ import dev.xyat.contentstudio.recipe.UniversalRecipeMenu;
 import dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
 import dev.xyat.contentstudio.recipe.removal.RemovalCandidate;
+import dev.xyat.contentstudio.recipe.removal.OriginalRecipeCatalog;
 import dev.xyat.contentstudio.recipe.removal.RemovalCatalogPages;
 import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import dev.xyat.contentstudio.recipe.removal.RemovalMode;
@@ -470,7 +471,7 @@ public final class RecipeNetwork {
             }
             try {
                 List<RemovalEntry> rules = RemovalStateCodec.decodeRules(pending.assembler.finish());
-                if (rules.stream().anyMatch(rule -> !isValidRemovalEntry(rule))) {
+                if (rules.stream().anyMatch(RecipeNetwork::isInvalidRemovalEntry)) {
                     throw new IllegalArgumentException("Invalid removal scope");
                 }
                 RecipeRemovalManager.saveDraftAndApply(player, packet.requestId, rules);
@@ -553,7 +554,7 @@ public final class RecipeNetwork {
         public static void handle(RequestRuleImpactPagePacket packet, ServerPacketContext context) {
             ServerPlayer player = context.sender();
             if (!player.hasPermissions(2) || packet.page < 0 || packet.page > 100_000
-                    || !isValidRemovalEntry(new RemovalEntry(packet.mode, packet.value, ""))) return;
+                    || isInvalidRemovalEntry(new RemovalEntry(packet.mode, packet.value, ""))) return;
             long version = RecipeMemoryManager.catalogVersion(player.server.getRecipeManager());
             if (packet.expectedVersion != 0L && packet.expectedVersion != version) {
                 CHANNEL.sendToPlayer(player, new RuleImpactPagePacket(packet.requestId, packet.mode,
@@ -562,7 +563,7 @@ public final class RecipeNetwork {
             }
             RemovalEntry scope = new RemovalEntry(packet.mode, packet.value, "");
             List<RemovalCandidate> candidates = RecipeMemoryManager.originalCatalog(player.server.getRecipeManager())
-                    .entries().values().stream().map(entry -> entry.candidate())
+                    .entries().values().stream().map(OriginalRecipeCatalog.Entry::candidate)
                     .filter(candidate -> RemovalRuleEvaluator.matchesScope(scope, candidate)).toList();
             List<RemovalCatalogPages.Page> pages;
             try {
@@ -639,7 +640,7 @@ public final class RecipeNetwork {
     }
 
     private static List<Integer> readIntList(NetworkBuffer buffer) {
-        int size = readBoundedSize(buffer, 64);
+        int size = readBoundedSize(buffer);
         List<Integer> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             list.add(buffer.readInt());
@@ -665,7 +666,7 @@ public final class RecipeNetwork {
         for (RecipeSummary recipe : recipes) {
             int cost;
             try {
-                cost = NetworkBuffers.encode(buffer -> recipe.encode(buffer)).length + 16;
+                cost = NetworkBuffers.encode(recipe::encode).length + 16;
             } catch (RuntimeException exception) {
                 dataError = true;
                 continue;
@@ -722,7 +723,7 @@ public final class RecipeNetwork {
     }
 
     private static List<ItemStack> readItemList(NetworkBuffer buffer) {
-        int size = readBoundedSize(buffer, 64);
+        int size = readBoundedSize(buffer);
         List<ItemStack> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             list.add(buffer.readItemStack());
@@ -751,9 +752,9 @@ public final class RecipeNetwork {
         return list;
     }
 
-    private static int readBoundedSize(NetworkBuffer buffer, int maximum) {
+    private static int readBoundedSize(NetworkBuffer buffer) {
         int size = buffer.readInt();
-        if (size < 0 || size > maximum) {
+        if (size < 0 || size > 64) {
             throw new IllegalArgumentException("invalid list size");
         }
         return size;
@@ -827,25 +828,17 @@ public final class RecipeNetwork {
                 && stack.getTag().getBoolean("contentstudio_invalid_placeholder");
     }
 
-    private static boolean isValidRemovalEntry(RemovalEntry entry) {
+    private static boolean isInvalidRemovalEntry(RemovalEntry entry) {
         if (entry == null || entry.mode() == null || entry.value() == null || entry.value().isBlank()) {
-            return false;
+            return true;
         }
         String value = entry.value().trim();
         return switch (entry.mode()) {
             case MOD -> {
                 ResourceLocation probe = KineticResourceIds.tryParse(value + ":entry");
-                yield probe != null && probe.getNamespace().equals(value);
+                yield probe == null || !probe.getNamespace().equals(value);
             }
-            case OUTPUT -> {
-                ResourceLocation id = KineticResourceIds.tryParse(value);
-                yield id != null;
-            }
-            case TYPE -> {
-                ResourceLocation id = KineticResourceIds.tryParse(value);
-                yield id != null;
-            }
-            case RECIPE_ID, TAG -> KineticResourceIds.tryParse(value) != null;
+            case OUTPUT, TYPE, RECIPE_ID, TAG -> KineticResourceIds.tryParse(value) == null;
         };
     }
 

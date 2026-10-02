@@ -4,7 +4,6 @@ import com.mojang.logging.LogUtils;
 import dev.xyat.contentstudio.recipe.RecipeConfigStore;
 import dev.xyat.contentstudio.recipe.RecipeMemoryManager;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 

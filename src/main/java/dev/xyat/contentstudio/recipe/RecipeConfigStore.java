@@ -255,8 +255,8 @@ public final class RecipeConfigStore {
                 }
                 record.editorType = getString(object, "editor_type", "CRAFTING");
                 RecipeRegistry.EditorType editorType = RecipeRegistry.EditorType.valueOf(record.editorType);
-                record.isShapeless = getBoolean(object, "shapeless", false);
-                record.outputUseNbt = getBoolean(object, "output_use_nbt", false);
+                record.isShapeless = getBoolean(object, "shapeless");
+                record.outputUseNbt = getBoolean(object, "output_use_nbt");
                 record.comment = getString(object, "comment", "");
 
                 if (!object.has("output") || !object.get("output").isJsonObject()) {
@@ -314,8 +314,8 @@ public final class RecipeConfigStore {
         record.invalidReason = safeMessage(error);
         record.uuid = readValidUuid(object);
         record.editorType = readEditorTypeLenient(object);
-        record.isShapeless = getBooleanLenient(object, "shapeless", false);
-        record.outputUseNbt = getBooleanLenient(object, "output_use_nbt", false);
+        record.isShapeless = getBooleanLenient(object, "shapeless");
+        record.outputUseNbt = getBooleanLenient(object, "output_use_nbt");
         record.comment = getStringLenient(object, "comment", "");
 
         JsonObject outputObject = object.has("output") && object.get("output").isJsonObject()
@@ -333,7 +333,7 @@ public final class RecipeConfigStore {
 
         for (int i = 0; i < required; i++) {
             if (i >= inputs.size()) {
-                record.inputs.add(requiredSlotPlaceholder(type, i));
+                record.inputs.add(requiredSlotPlaceholder(type));
                 record.inputModes.add(0);
                 continue;
             }
@@ -346,7 +346,7 @@ public final class RecipeConfigStore {
             JsonObject inputObject = inputElement.getAsJsonObject();
             record.inputs.add(readStackLenient(inputObject, true, true));
             int mode = inputObject.has("mode") && inputObject.get("mode").isJsonPrimitive()
-                    ? getIntLenient(inputObject, "mode", 0)
+                    ? readInputModeLenient(inputObject)
                     : 0;
             record.inputModes.add(mode >= 0 && mode <= 2 ? mode : 0);
         }
@@ -381,7 +381,7 @@ public final class RecipeConfigStore {
         };
     }
 
-    private static ItemStack requiredSlotPlaceholder(RecipeRegistry.EditorType type, int index) {
+    private static ItemStack requiredSlotPlaceholder(RecipeRegistry.EditorType type) {
         if (type == RecipeRegistry.EditorType.CRAFTING) {
             return ItemStack.EMPTY;
         }
@@ -455,19 +455,19 @@ public final class RecipeConfigStore {
         }
     }
 
-    private static boolean getBooleanLenient(JsonObject object, String key, boolean fallback) {
+    private static boolean getBooleanLenient(JsonObject object, String key) {
         try {
-            return object.has(key) ? object.get(key).getAsBoolean() : fallback;
+            return object.has(key) && object.get(key).getAsBoolean();
         } catch (Exception ignored) {
-            return fallback;
+            return false;
         }
     }
 
-    private static int getIntLenient(JsonObject object, String key, int fallback) {
+    private static int readInputModeLenient(JsonObject object) {
         try {
-            return object.has(key) ? object.get(key).getAsInt() : fallback;
+            return object.has("mode") ? object.get("mode").getAsInt() : 0;
         } catch (Exception ignored) {
-            return fallback;
+            return 0;
         }
     }
 
@@ -505,7 +505,7 @@ public final class RecipeConfigStore {
         CompoundTag tag = stack.getTag();
         if (tag != null && tag.contains("kt_tag")) {
             String tagId = tag.getString("kt_tag");
-            if (!tagId.startsWith("#") || tagId.length() <= 1) {
+            if (!tagId.startsWith("#") || tagId.length() == 1) {
                 throw new IllegalArgumentException("item tag must start with #");
             }
             parseResourceLocation(tagId.substring(1), "item tag");
@@ -528,7 +528,7 @@ public final class RecipeConfigStore {
     }
 
     private static ItemStack readStack(JsonObject object, boolean allowEmpty, boolean allowTag) {
-        if (getBoolean(object, "empty", false)) {
+        if (getBoolean(object, "empty")) {
             if (!allowEmpty) {
                 throw new IllegalArgumentException("required stack is explicitly empty");
             }
@@ -540,7 +540,7 @@ public final class RecipeConfigStore {
                 throw new IllegalArgumentException("output cannot be an item tag");
             }
             String rawTag = object.get("tag").getAsString();
-            if (!rawTag.startsWith("#") || rawTag.length() <= 1) {
+            if (!rawTag.startsWith("#") || rawTag.length() == 1) {
                 throw new IllegalArgumentException("item tag must start with #");
             }
             ResourceLocation tagId = parseResourceLocation(rawTag.substring(1), "item tag");
@@ -665,7 +665,7 @@ public final class RecipeConfigStore {
         return object.has(key) ? object.get(key).getAsString() : fallback;
     }
 
-    private static boolean getBoolean(JsonObject object, String key, boolean fallback) {
-        return object.has(key) ? object.get(key).getAsBoolean() : fallback;
+    private static boolean getBoolean(JsonObject object, String key) {
+        return object.has(key) && object.get(key).getAsBoolean();
     }
 }

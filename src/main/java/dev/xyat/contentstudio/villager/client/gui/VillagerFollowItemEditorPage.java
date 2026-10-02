@@ -12,8 +12,6 @@ import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
-import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
@@ -208,7 +206,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         int column = localX / CELL_SIZE;
         int row = localY / CELL_SIZE;
         if (column >= COLUMNS || row > ROWS_VISIBLE) return -1;
-        if (localX % CELL_SIZE >= SLOT_SIZE || localY % CELL_SIZE >= SLOT_SIZE) return -1;
+        if (localX % CELL_SIZE == SLOT_SIZE || localY % CELL_SIZE == SLOT_SIZE) return -1;
         int index = (scroll.smoothIndexOffset() + row) * COLUMNS + column;
         return index >= 0 && index < items.size() ? index : -1;
     }
@@ -265,11 +263,8 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         double mouseX = input.x();
         double mouseY = input.y();
         double delta = input.deltaY();
-        if (KineticTheme.hovering(mouseX, mouseY, GRID_X, GRID_Y, GRID_WIDTH + 12, GRID_HEIGHT)
-                && scroll.scroll(delta)) {
-            return true;
-        }
-        return false;
+        return KineticTheme.hovering(mouseX, mouseY, GRID_X, GRID_Y, GRID_WIDTH + 12, GRID_HEIGHT)
+                && scroll.scroll(delta);
     }
 
     @Override

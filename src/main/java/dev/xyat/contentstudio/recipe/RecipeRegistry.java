@@ -6,7 +6,6 @@ import dev.xyat.kineticcore.api.registry.KineticMenuTypes;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.registry.KineticRegistryHandle;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 

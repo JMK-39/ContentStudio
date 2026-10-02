@@ -53,6 +53,7 @@ public final class LootEvents {
 
     private static final class LootOverrideReloadListener extends SimplePreparableReloadListener<Object> {
         @Override
+        @Nonnull
         protected Object prepare(@Nonnull ResourceManager resourceManager, @Nonnull ProfilerFiller profiler) {
             return new Object();
         }

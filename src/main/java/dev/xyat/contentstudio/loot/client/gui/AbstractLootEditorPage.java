@@ -15,12 +15,10 @@ import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -981,8 +979,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (!currentRoot.has("pools") || !currentRoot.get("pools").isJsonArray()) {
             currentRoot.add("pools", new JsonArray());
         }
-        JsonArray pools = currentRoot.getAsJsonArray("pools");
-        return pools;
+        return currentRoot.getAsJsonArray("pools");
     }
 
     protected JsonObject poolForNewDrop() {
@@ -1168,7 +1165,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         requirePlayerKill = false;
         enableLooting = false;
         enableFireSmelt = false;
-        if (killedButton != null) killedButton.setValue(requirePlayerKill);
+        if (killedButton != null) killedButton.setValue(false);
         if (lootingButton != null) lootingButton.setValue(enableLooting);
         if (fireButton != null) fireButton.setValue(enableFireSmelt);
         selectedDropEditorSnapshot = "";
@@ -1274,9 +1271,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         }
 
         TableDraftKey key = draftKey(selectedEntry);
-        if (key != null) {
-            pendingTableResets.remove(key);
-        }
+        pendingTableResets.remove(key);
 
         if (!overrideMode) {
             if (currentRoot == null) {

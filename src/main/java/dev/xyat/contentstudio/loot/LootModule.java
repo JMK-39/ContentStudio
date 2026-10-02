@@ -12,6 +12,10 @@ public final class LootModule {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public LootModule() {
+        install();
+    }
+
+    public static void install() {
         KTServerConfigApi.registerActionPage("contentstudio:loots");
         LootNetwork.register();
         KineticPlatform.runOnClient(() -> LootConfigGui::load);

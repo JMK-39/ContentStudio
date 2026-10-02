@@ -10,7 +10,6 @@ import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
@@ -222,25 +221,17 @@ public class RecipeTagSelectionPage extends KineticPage {
     @Override
     protected boolean onMouseDrag(MouseDragInput input) {
         double mouseY = input.y();
-        if (listScroll.drag(
+        return listScroll.drag(
                 mouseY,
                 listY,
                 listH,
                 20
-        )) {
-            return true;
-        }
-
-        return false;
+        );
     }
 
     @Override
     protected boolean onMouseRelease(MouseInput input) {
-        if (listScroll.release(input.button())) {
-            return true;
-        }
-
-        return false;
+        return listScroll.release(input.button());
     }
 
     @Override

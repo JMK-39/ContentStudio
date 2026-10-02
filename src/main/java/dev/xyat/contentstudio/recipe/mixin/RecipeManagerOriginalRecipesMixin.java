@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Map;
 
-@Mixin(value = RecipeManager.class, priority = 1000)
+@Mixin(RecipeManager.class)
 public abstract class RecipeManagerOriginalRecipesMixin {
     @Shadow @Final private ICondition.IContext context;
 

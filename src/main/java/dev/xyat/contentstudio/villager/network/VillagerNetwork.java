@@ -13,7 +13,6 @@ import dev.xyat.kineticcore.api.network.NetworkVersionPolicy;
 import dev.xyat.kineticcore.api.network.PacketChannel;
 import dev.xyat.kineticcore.api.network.PacketRegistrations;
 import dev.xyat.kineticcore.api.network.ServerPacketContext;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.lang.reflect.Type;
@@ -226,7 +225,6 @@ public final class VillagerNetwork {
                     VillagerConfig.save();
                     success = true;
                 } catch (Throwable ignored) {
-                    success = false;
                 }
             }
             CHANNEL.sendToPlayer(sender, new FollowItemSaveResultPacket(success));

@@ -16,6 +16,10 @@ public final class VillagerModule {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public VillagerModule() {
+        install();
+    }
+
+    public static void install() {
         VillagerConfig.load();
         KTServerConfigApi.register(KTServerConfigSpec.builder(VillagerConfigGui.PAGE_ID)
                 .doubleValue(

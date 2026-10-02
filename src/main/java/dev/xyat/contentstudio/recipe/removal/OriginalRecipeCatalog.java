@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 
 /** A snapshot of datapack recipes before script listeners add or replace recipes. */
 public final class OriginalRecipeCatalog {
@@ -18,14 +19,14 @@ public final class OriginalRecipeCatalog {
 
     public record InspectedRecipe(RemovalCandidate candidate, Optional<Recipe<?>> recipe) {
         public InspectedRecipe {
-            recipe = recipe == null ? Optional.empty() : recipe;
+            recipe = Objects.requireNonNullElse(recipe, Optional.empty());
         }
     }
 
     public record Entry(RemovalCandidate candidate, Optional<Recipe<?>> recipe,
                         List<RemovalEntry> blockingRules) {
         public Entry {
-            recipe = recipe == null ? Optional.empty() : recipe;
+            recipe = Objects.requireNonNullElse(recipe, Optional.empty());
             blockingRules = List.copyOf(blockingRules);
         }
 

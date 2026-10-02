@@ -10,7 +10,6 @@ import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 import dev.xyat.kineticcore.api.client.search.KineticSuggestion;
 
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
@@ -19,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 
 /** Browse the selected item's real recipe types with an icon and recipe count. */
@@ -48,7 +48,7 @@ final class RecipeTypeFilterPage extends KineticPage {
     private int selectedRowIndex() {
         for (int i = 0; i < visible.size(); i++) {
             ResourceLocation type = visible.get(i).type();
-            if (type == null ? selected == null : type.equals(selected)) return i;
+            if (Objects.equals(type, selected)) return i;
         }
         return -1;
     }
@@ -120,7 +120,7 @@ final class RecipeTypeFilterPage extends KineticPage {
         double y = input.y();
         double delta = input.deltaY();
         return x >= 16 && x < 634 && y >= 68 && y < 308
-                ? scroll.scroll(delta) : false;
+                && scroll.scroll(delta);
     }
 
     @Override protected boolean onMouseDrag(MouseDragInput input) {

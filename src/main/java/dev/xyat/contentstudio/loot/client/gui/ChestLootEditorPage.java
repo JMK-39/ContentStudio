@@ -5,11 +5,9 @@ import dev.xyat.kineticcore.api.client.gui.input.MouseButton;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.client.gui.text.KineticText;
-import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
@@ -30,6 +28,7 @@ import net.minecraft.world.item.Items;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class ChestLootEditorPage extends AbstractLootEditorPage {
     private static final int ROW_HEIGHT = 24;
@@ -554,9 +553,9 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         }
         int col = gridX / REMOVE_PITCH;
         int row = gridY / REMOVE_PITCH;
-        if (col < 0 || col >= REMOVE_COLS || row < 0 || row >= REMOVE_ROWS
-                || gridX % REMOVE_PITCH >= REMOVE_CELL
-                || gridY % REMOVE_PITCH >= REMOVE_CELL) {
+        if (col >= REMOVE_COLS || row >= REMOVE_ROWS
+                || gridX % REMOVE_PITCH == REMOVE_CELL
+                || gridY % REMOVE_PITCH == REMOVE_CELL) {
             return false;
         }
         double smoothRemoveScroll = globalRemoveScroller.smoothOffset();
@@ -624,10 +623,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         if (globalRemoveScroller.drag(my, SPECIAL_Y + 2, SPECIAL_H - 4, 18)) {
             return true;
         }
-        if (globalExcludeScroller.drag(my, SPECIAL_Y + 20, SPECIAL_H - 22, 18)) {
-            return true;
-        }
-        return false;
+        return globalExcludeScroller.drag(my, SPECIAL_Y + 20, SPECIAL_H - 22, 18);
     }
 
     @Override
@@ -747,7 +743,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         int editingIndex = globalRemoveSelectedIndex;
         GlobalRemoveRule original = globalRemoveRules.get(editingIndex);
         KineticSelectors.openNbtEditor(original.nbt(), value -> {
-            if (editingIndex < 0 || editingIndex >= globalRemoveRules.size()) {
+            if (editingIndex >= globalRemoveRules.size()) {
                 return;
             }
             GlobalRemoveRule current = globalRemoveRules.get(editingIndex);
@@ -928,11 +924,11 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
             if (hover) {
                 if (excluded) {
-                    deferredTooltip = List.<Component>of(
+                    deferredTooltip = Stream.<Component>of(
                             name.equals(id) ? idComponent(id) : nameComponent(name),
                             name.equals(id) ? Component.empty() : idComponent(id),
                             KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.marked")
-                    ).stream().filter(component -> !component.getString().isEmpty()).toList();
+                    ).filter(component -> !component.getString().isEmpty()).toList();
                 } else {
                     deferredTooltip = name.equals(id)
                             ? List.of(idComponent(id))

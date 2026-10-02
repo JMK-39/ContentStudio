@@ -8,7 +8,6 @@ import dev.xyat.kineticcore.api.client.gui.render.KineticGraphicsInterop;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.contentstudio.recipe.client.RecipeJeiBridge;
 import net.minecraft.network.chat.Component;
@@ -76,10 +75,9 @@ final class RecipeRemovalPreviewPage extends KineticPage {
     }
 
     private void openViewer(RecipeJeiBridge.Viewer viewer) {
-        if (!RecipeJeiBridge.show(viewer, entry.recipe().output(), entry)) {
-            parent.markRecipeError();
-            parent.showToast(RecipeRemovalPage.tr("viewer_failed", viewer.displayName()));
-        }
+        if (RecipeJeiBridge.show(viewer, entry.recipe().output(), entry)) return;
+        parent.markRecipeError();
+        parent.showToast(RecipeRemovalPage.tr("viewer_failed", viewer.displayName()));
     }
 
     private void refreshAction() {

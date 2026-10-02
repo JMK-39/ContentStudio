@@ -11,13 +11,11 @@ import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 
 import com.google.gson.JsonObject;
-import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;

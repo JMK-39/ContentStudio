@@ -13,7 +13,6 @@ import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.state.EditedEntryTracker;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 import dev.xyat.kineticcore.api.client.search.KineticSuggestion;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
@@ -35,6 +34,7 @@ import dev.xyat.contentstudio.recipe.removal.RemovalRuleEvaluator;
 import dev.xyat.contentstudio.recipe.removal.RecipeViewerCategoryFilter;
 import dev.xyat.contentstudio.recipe.removal.SimpleRemovalActions;
 import net.minecraft.network.chat.Component;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -125,8 +125,8 @@ public class RecipeRemovalPage extends KineticPage {
             refreshItems(); filterRecipes();
         });
         saveButton = button("save", "save_hint", 442, 8, 60, this::save);
-        viewerAllButton = button("viewer_all", 564, 8, 60, () -> openViewerMenu(564, 30, null));
-        button("back", 366, 334, 60, this::close);
+        viewerAllButton = button("viewer_all", 564, 8, () -> openViewerMenu(564, 30, null));
+        button("back", 366, 334, this::close);
         copyButton = button("copy", "context.copy_hint", 432, 334, 60, () -> {
             String value = selectedValue();
             if (value != null) { KineticClientRuntime.setClipboard(value); showToast(tr("copied")); }
@@ -138,8 +138,8 @@ public class RecipeRemovalPage extends KineticPage {
         filterRecipes();
     }
 
-    private KineticButton button(String key, int x, int y, int width, Runnable action) {
-        return button(key, null, x, y, width, action);
+    private KineticButton button(String key, int x, int y, Runnable action) {
+        return button(key, null, x, y, 60, action);
     }
 
     private KineticButton button(String key, String tooltipKey, int x, int y, int width, Runnable action) {
@@ -560,10 +560,9 @@ public class RecipeRemovalPage extends KineticPage {
 
     private void openViewer(RecipeJeiBridge.Viewer viewer, RecipeJeiBridge.Entry entry) {
         ItemStack output = entry == null ? selectedItem : entry.recipe().output();
-        if (!RecipeJeiBridge.show(viewer, output, entry)) {
-            if (!selectedItem.isEmpty()) errors.add(selectedItem.getItem());
-            showToast(tr("viewer_failed", viewer.displayName()));
-        }
+        if (RecipeJeiBridge.show(viewer, output, entry)) return;
+        if (!selectedItem.isEmpty()) errors.add(selectedItem.getItem());
+        showToast(tr("viewer_failed", viewer.displayName()));
     }
 
     private List<KineticSuggestion> recipeDictionary() {
@@ -665,7 +664,8 @@ public class RecipeRemovalPage extends KineticPage {
         clearFocus();
         boolean canToggle = canToggle(entry);
         boolean hasType = originalRows.candidateFor(entry) != null;
-        boolean hasId = entry.recipe().id() != null;
+        ResourceLocation recipeId = entry.recipe().id();
+        boolean hasId = recipeId != null;
         openContextMenu(x, y, List.of(
                 KineticOverlays.MenuItem.create(
                         tr("open_viewer"), Component.empty(), tr("context.open_viewer_recipe_hint"), null,
@@ -679,7 +679,7 @@ public class RecipeRemovalPage extends KineticPage {
                         hasType, KineticOverlays.MenuItemStyle.NORMAL),
                 KineticOverlays.MenuItem.create(
                         tr("copy"), Component.empty(), tr("context.copy_hint"), null,
-                        () -> KineticClientRuntime.setClipboard(entry.recipe().id().toString()), hasId, KineticOverlays.MenuItemStyle.NORMAL)));
+                        () -> { if (recipeId != null) KineticClientRuntime.setClipboard(recipeId.toString()); }, hasId, KineticOverlays.MenuItemStyle.NORMAL)));
     }
 
     @Override protected void onTick() {
@@ -802,7 +802,8 @@ public class RecipeRemovalPage extends KineticPage {
     }
 
     private void drawItem(KineticGraphics g, ItemStack stack, int x, int y) {
-        if (stack.hasTag() && stack.getTag().getBoolean("contentstudio_invalid_placeholder")) errors.add(stack.getItem());
+        CompoundTag tag = stack.getTag();
+        if (tag != null && tag.getBoolean("contentstudio_invalid_placeholder")) errors.add(stack.getItem());
         try { g.item(stack, x, y); }
         catch (RuntimeException exception) {
             errors.add(stack.getItem()); g.text("!", x + 5, y + 4, KineticTheme.current().danger(), false);
@@ -924,8 +925,7 @@ public class RecipeRemovalPage extends KineticPage {
     }
 
     @Override protected boolean onMouseRelease(MouseInput input) {
-        boolean handled = itemScroll.release(input.button()) | recipeScroll.release(input.button());
-        return handled;
+        return itemScroll.release(input.button()) | recipeScroll.release(input.button());
     }
 
 }

@@ -13,6 +13,10 @@ public final class RecipeModule {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public RecipeModule() {
+        install();
+    }
+
+    public static void install() {
         RecipeConfigStore.ensureDatapackFile();
         KTServerConfigApi.registerActionPage("contentstudio:recipehud");
         RecipeRegistry.register();

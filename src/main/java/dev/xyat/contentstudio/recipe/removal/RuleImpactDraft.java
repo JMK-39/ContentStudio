@@ -56,7 +56,7 @@ public final class RuleImpactDraft {
             if (Objects.equals(outputId, candidate.outputItemId())) group.add(candidate.id());
         }
         if (group.isEmpty()) return;
-        if (group.stream().allMatch(selected::contains)) selected.removeAll(group);
+        if (selected.containsAll(group)) group.forEach(selected::remove);
         else selected.addAll(group);
     }
 

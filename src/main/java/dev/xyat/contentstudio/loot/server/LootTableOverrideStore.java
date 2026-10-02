@@ -17,9 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootDataId;
 import net.minecraft.world.level.storage.loot.LootDataManager;
@@ -72,18 +70,14 @@ public class LootTableOverrideStore {
         List<LootEntryInfo> result = new ArrayList<>();
 
         if (mode == LootEntryInfo.MODE_ENTITY) {
-            KineticRegistries.entityTypes().entries().entrySet().forEach(entry -> {
-                ResourceLocation targetId = entry.getKey();
-                EntityType<?> type = entry.getValue();
+            KineticRegistries.entityTypes().entries().forEach((targetId, type) -> {
                 ResourceLocation lootTable = type.getDefaultLootTable();
                 if (isValidLootTable(lootTable)) {
                     result.add(new LootEntryInfo(mode, targetId.toString(), lootTable.toString(), hasOverride(lootTable)));
                 }
             });
         } else if (mode == LootEntryInfo.MODE_BLOCK) {
-            KineticRegistries.blocks().entries().entrySet().forEach(entry -> {
-                ResourceLocation targetId = entry.getKey();
-                Block block = entry.getValue();
+            KineticRegistries.blocks().entries().forEach((targetId, block) -> {
                 ResourceLocation lootTable = block.getLootTable();
                 if (isValidLootTable(lootTable)) {
                     result.add(new LootEntryInfo(mode, targetId.toString(), lootTable.toString(), hasOverride(lootTable)));
@@ -175,14 +169,14 @@ public class LootTableOverrideStore {
 
     public static String readResourceJson(MinecraftServer server, ResourceLocation lootTableId) {
         if (server == null) {
-            return createEmptyTableJson("minecraft:generic");
+            return createEmptyTableJson();
         }
 
         ResourceLocation resourceId = lootTableResourceId(lootTableId);
         Optional<Resource> resource = server.getResourceManager().getResource(resourceId);
         if (resource.isEmpty()) {
             LOGGER.warn("{} 原始战利品资源不存在 lootTable={} resource={}", LOG_PREFIX, lootTableId, resourceId);
-            return createEmptyTableJson("minecraft:generic");
+            return createEmptyTableJson();
         }
 
         try (Reader reader = resource.get().openAsReader()) {
@@ -190,7 +184,7 @@ public class LootTableOverrideStore {
             return GSON.toJson(element);
         } catch (Exception e) {
             LOGGER.error("{} 读取原始战利品失败 lootTable={} reason={}", LOG_PREFIX, lootTableId, exceptionMessage(e), e);
-            return createEmptyTableJson("minecraft:generic");
+            return createEmptyTableJson();
         }
     }
 
@@ -335,7 +329,7 @@ public class LootTableOverrideStore {
         JsonObject object = working.getAsJsonObject();
         if (isContainerLootTable(lootTableId, object) && shouldApplyGlobalChestRules(lootTableId)) {
             JsonArray globalPools = globalAppendPools();
-            if (globalPools.size() > 0) {
+            if (!globalPools.isEmpty()) {
                 if (!changed) {
                     object = object.deepCopy();
                     working = object;
@@ -448,23 +442,7 @@ public class LootTableOverrideStore {
 
     public static GlobalRemoveResult saveGlobalRemovedItems(MinecraftServer server, List<GlobalRemoveRule> rules) {
         try {
-            LinkedHashSet<GlobalRemoveRule> validated = new LinkedHashSet<>();
-            for (GlobalRemoveRule rule : rules == null ? List.<GlobalRemoveRule>of() : rules) {
-                if (rule != null && rule.isValid()) {
-                    validated.add(new GlobalRemoveRule(rule.itemId(), rule.mode(), rule.nbt()));
-                }
-            }
-
-            JsonArray array = new JsonArray();
-            for (GlobalRemoveRule rule : validated) {
-                JsonObject object = new JsonObject();
-                object.addProperty("item", rule.itemId());
-                object.addProperty("mode", rule.mode().id());
-                if (!rule.nbt().isBlank()) {
-                    object.addProperty("nbt", rule.nbt());
-                }
-                array.add(object);
-            }
+            JsonArray array = globalRemoveRulesJson(rules);
             JsonObject previousRoot = editableStorageRoot().deepCopy();
             JsonObject root = previousRoot.deepCopy();
             root.add("global_chest_remove", array);
@@ -474,6 +452,27 @@ public class LootTableOverrideStore {
             LOGGER.error("{} 保存全局箱子删除失败 reason={}", LOG_PREFIX, exceptionMessage(e), e);
             return new GlobalRemoveResult(false, "msg.contentstudio.loot.loots.global_remove.save_failed", getGlobalRemovedRules());
         }
+    }
+
+    private static JsonArray globalRemoveRulesJson(List<GlobalRemoveRule> rules) {
+        LinkedHashSet<GlobalRemoveRule> validated = new LinkedHashSet<>();
+        for (GlobalRemoveRule rule : rules == null ? List.<GlobalRemoveRule>of() : rules) {
+            if (rule != null && rule.isValid()) {
+                validated.add(new GlobalRemoveRule(rule.itemId(), rule.mode(), rule.nbt()));
+            }
+        }
+
+        JsonArray array = new JsonArray();
+        for (GlobalRemoveRule rule : validated) {
+            JsonObject object = new JsonObject();
+            object.addProperty("item", rule.itemId());
+            object.addProperty("mode", rule.mode().id());
+            if (!rule.nbt().isBlank()) {
+                object.addProperty("nbt", rule.nbt());
+            }
+            array.add(object);
+        }
+        return array;
     }
 
     public static List<String> getGlobalExcludedLootTables() {
@@ -675,7 +674,7 @@ public class LootTableOverrideStore {
         }
         LootDataManagerAccessor accessor = (LootDataManagerAccessor) manager;
         Map<LootDataId<?>, Object> updated = new HashMap<>();
-        accessor.contentstudio_loots$getElements().forEach((key, value) -> updated.put(key, value));
+        updated.putAll(accessor.contentstudio_loots$getElements());
         replacements.forEach((lootTableId, table) ->
                 updated.put(new LootDataId<>(LootDataType.TABLE, lootTableId), table));
         accessor.contentstudio_loots$setElements(Map.copyOf(updated));
@@ -711,10 +710,8 @@ public class LootTableOverrideStore {
                 continue;
             }
             LootTable table = server.getLootData().getLootTable(tableId);
-            if (table != null) {
-                targets.add(table);
-                targetIds.add(tableId);
-            }
+            targets.add(table);
+            targetIds.add(tableId);
         }
         globalRemovalTargetTables = Collections.unmodifiableSet(targets);
         globalRemovalTargetTableIds = targetIds.isEmpty()
@@ -866,7 +863,7 @@ public class LootTableOverrideStore {
     }
 
     private static boolean hasGlobalChestAppend() {
-        return globalAppendPools().size() > 0;
+        return !globalAppendPools().isEmpty();
     }
 
     private static boolean hasGlobalRemovedItems() {
@@ -1098,8 +1095,8 @@ public class LootTableOverrideStore {
         return object;
     }
 
-    private static String createEmptyTableJson(String type) {
-        return GSON.toJson(createEmptyTable(type));
+    private static String createEmptyTableJson() {
+        return GSON.toJson(createEmptyTable("minecraft:generic"));
     }
 
     private static String stringValue(JsonElement element) {

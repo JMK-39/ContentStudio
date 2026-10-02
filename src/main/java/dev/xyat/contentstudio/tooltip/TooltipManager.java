@@ -82,11 +82,7 @@ public final class TooltipManager {
     }
 
     public static boolean isValidData(Map<String, List<TooltipRule>> data) {
-        if (!hasValidStructure(data)) return false;
-        for (String itemId : data.keySet()) {
-            if (isInvalidItemId(itemId)) return false;
-        }
-        return true;
+        return hasValidStructure(data) && data.keySet().stream().noneMatch(TooltipManager::isInvalidItemId);
     }
 
     public static boolean hasValidStructure(Map<String, List<TooltipRule>> data) {

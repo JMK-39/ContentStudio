@@ -6,8 +6,6 @@ import dev.xyat.kineticcore.api.client.gui.page.KineticContainerPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
-import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.contentstudio.recipe.RecipeMenu;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;

@@ -10,7 +10,6 @@ import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 import dev.xyat.kineticcore.api.client.search.KineticSuggestion;
 
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
@@ -21,7 +20,6 @@ import dev.xyat.contentstudio.recipe.removal.RemovalImpactFlow;
 import dev.xyat.contentstudio.recipe.removal.RuleImpactDraft;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
-import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -307,7 +305,7 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
         double y = input.y();
         double delta = input.deltaY();
         return x >= 16 && x < 634 && y >= ROW_TOP && y < ROW_BOTTOM
-                ? scroll.scroll(delta) : false;
+                && scroll.scroll(delta);
     }
 
     @Override protected boolean onMouseDrag(MouseDragInput input) {

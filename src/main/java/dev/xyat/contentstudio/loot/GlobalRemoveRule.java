@@ -158,8 +158,7 @@ public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
                 return false;
             }
             Set<Integer> used = new HashSet<>();
-            for (int expectedIndex = 0; expectedIndex < expectedList.size(); expectedIndex++) {
-                Tag expectedChild = expectedList.get(expectedIndex);
+            for (Tag expectedChild : expectedList) {
                 boolean found = false;
                 for (int actualIndex = 0; actualIndex < actualList.size(); actualIndex++) {
                     if (used.contains(actualIndex)) {

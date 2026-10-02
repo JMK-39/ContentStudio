@@ -11,9 +11,9 @@ public final class ContentStudio {
     public static final String MODID = "contentstudio";
 
     public ContentStudio() {
-        new RecipeModule();
-        new LootModule();
-        new VillagerModule();
-        new TooltipModule();
+        RecipeModule.install();
+        LootModule.install();
+        VillagerModule.install();
+        TooltipModule.install();
     }
 }

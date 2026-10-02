@@ -14,6 +14,10 @@ public final class TooltipModule {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public TooltipModule() {
+        install();
+    }
+
+    public static void install() {
         TooltipManager.load();
         KTServerConfigApi.registerActionPage(TooltipConfigGui.PAGE_ID);
         TooltipNetwork.register();

@@ -15,10 +15,8 @@ import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.ui.NumberType;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 import dev.xyat.kineticcore.api.client.search.KineticSuggestion;
 
-import dev.xyat.kineticcore.api.client.input.KineticMouseButtons;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
@@ -148,7 +146,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     private int leftX;
     private int leftY;
     private int leftW;
-    private int leftH;
+    private int leftPanelHeight;
     private int listX;
     private int listY;
     private int listW;
@@ -156,7 +154,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     private int rightX;
     private int rightY;
     private int rightW;
-    private int rightH;
+    private int rightPanelHeight;
     private final KineticScrollController listScroll =
             new KineticScrollController();
 
@@ -444,17 +442,17 @@ public class VillagerTradeEditorPage extends KineticPage {
         this.leftX = rootX + 8;
         this.leftY = rootY + 36;
         this.leftW = 230;
-        this.leftH = rootH - 44;
+        this.leftPanelHeight = rootH - 44;
 
         this.listX = leftX + 6;
         this.listY = leftY + 32;
         this.listW = leftW - 12;
-        this.listH = leftH - 38;
+        this.listH = leftPanelHeight - 38;
 
         this.rightX = leftX + leftW + 8;
         this.rightY = leftY;
         this.rightW = rootX + rootW - rightX - 8;
-        this.rightH = leftH;
+        this.rightPanelHeight = leftPanelHeight;
     }
 
     private void addLevelExpandButtons() {
@@ -468,9 +466,8 @@ public class VillagerTradeEditorPage extends KineticPage {
                         toggleLevelExpanded(targetLevel);
                         refreshEntries();
                     }).build();
-            KineticControl control = button;
-            control.setControlVisible(false);
-            control.setEnabled(false);
+            button.setControlVisible(false);
+            button.setEnabled(false);
             levelExpandButtons.add(button);
         }
     }
@@ -685,8 +682,8 @@ public class VillagerTradeEditorPage extends KineticPage {
     protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
         updateLevelExpandButtons();
         KineticTheme.panel(g, rootX, rootY, rootW, rootH);
-        KineticTheme.panelAlt(g, leftX, leftY, leftW, leftH);
-        KineticTheme.panelAlt(g, rightX, rightY, rightW, rightH);
+        KineticTheme.panelAlt(g, leftX, leftY, leftW, leftPanelHeight);
+        KineticTheme.panelAlt(g, rightX, rightY, rightW, rightPanelHeight);
         if (!selectedOwner.isEmpty() && editorActive && !levelSettingsActive) {
             renderTradeSlotPanels(g);
         }
@@ -758,11 +755,10 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     private void updateLevelExpandButtons() {
         for (KineticButton button : levelExpandButtons) {
-            KineticControl control = button;
-            control.setControlVisible(false);
-            control.setEnabled(false);
-            control.moveControlX(-10000);
-            control.moveControlY(-10000);
+            button.setControlVisible(false);
+            button.setEnabled(false);
+            button.moveControlX(-10000);
+            button.moveControlY(-10000);
         }
         if (selectedOwner.isEmpty() || !tradeSearchText().isEmpty()) {
             return;
@@ -782,9 +778,8 @@ public class VillagerTradeEditorPage extends KineticPage {
                     button.moveControlX(listX + 8);
                     button.moveControlY(y + 4);
                     button.setText(levelExpandText(entry.level()));
-                    KineticControl control = button;
-                    control.setControlVisible(true);
-                    control.setEnabled(true);
+                    button.setControlVisible(true);
+                    button.setEnabled(true);
                 }
             }
             y += h;
@@ -793,8 +788,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     private KineticButton hoveredLevelExpandButton(double mx, double my) {
         for (KineticButton button : levelExpandButtons) {
-            KineticControl control = button;
-            if (control.controlVisible() && control.contains(mx, my)) {
+            if (button.controlVisible() && button.contains(mx, my)) {
                 return button;
             }
         }
@@ -1232,18 +1226,12 @@ public class VillagerTradeEditorPage extends KineticPage {
         if (handleListClick(mx, my, input)) {
             return true;
         }
-        if (input.isLeft() && handleSlotClick(mx, my)) {
-            return true;
-        }
-        return false;
+        return input.isLeft() && handleSlotClick(mx, my);
     }
 
     @Override
     protected boolean onMouseRelease(MouseInput input) {
-        boolean handled =
-                listScroll.release(input.button());
-
-        return handled;
+        return listScroll.release(input.button());
     }
 
     @Override
@@ -1291,8 +1279,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             }
             return true;
         }
-        if (professionBox != null
-                && isFocused(professionBox)
+        if (isFocused(professionBox)
                 && (input.is(KineticKeyBindings.Key.ENTER)
                 || input.is(KineticKeyBindings.Key.KP_ENTER))) {
             syncSelectedOwnerFromBox();
@@ -2176,19 +2163,19 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private boolean hasInvalidNbt() {
-        return !validNbt(buyANbt) || !validNbt(buyBNbt) || !validNbt(sellNbt);
+        return isInvalidNbt(buyANbt) || isInvalidNbt(buyBNbt) || isInvalidNbt(sellNbt);
     }
 
-    private boolean validNbt(String nbt) {
+    private boolean isInvalidNbt(String nbt) {
         String text = nbt == null ? "" : nbt.trim();
         if (text.isEmpty() || text.equals("{}")) {
-            return true;
+            return false;
         }
         try {
             TagParser.parseTag(text);
-            return true;
-        } catch (Exception ignored) {
             return false;
+        } catch (Exception ignored) {
+            return true;
         }
     }
 
@@ -2721,26 +2708,18 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         @Override
         protected boolean onMouseRelease(MouseInput input) {
-            if (listScroll.release(input.button())) {
-                return true;
-            }
-
-            return false;
+            return listScroll.release(input.button());
         }
 
         @Override
         protected boolean onMouseDrag(MouseDragInput input) {
         double my = input.y();
-            if (listScroll.drag(
+            return listScroll.drag(
                     my,
                     listY + 4,
                     listH - 8,
                     24
-            )) {
-                return true;
-            }
-
-            return false;
+            );
         }
 
         @Override
@@ -2757,9 +2736,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                         getVisibleRows()
                 );
 
-                if (listScroll.scroll(delta)) {
-                    return true;
-                }
+                return listScroll.scroll(delta);
             }
 
             return false;

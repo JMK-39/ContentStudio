@@ -59,12 +59,11 @@ public abstract class LootTableMixin {
     ) {
         Objects.requireNonNull(context);
         LootTable table = (LootTable) (Object) this;
-        if (!LootTableOverrideStore.shouldFilterGlobalRemoval(table)) {
-            return;
-        }
-        ObjectArrayList<ItemStack> items = cir.getReturnValue();
-        if (items != null && !items.isEmpty()) {
-            items.removeIf(LootTableOverrideStore::isGloballyRemoved);
+        if (LootTableOverrideStore.shouldFilterGlobalRemoval(table)) {
+            ObjectArrayList<ItemStack> items = cir.getReturnValue();
+            if (items != null && !items.isEmpty()) {
+                items.removeIf(LootTableOverrideStore::isGloballyRemoved);
+            }
         }
     }
 
@@ -79,12 +78,11 @@ public abstract class LootTableMixin {
     ) {
         Objects.requireNonNull(params);
         LootTable table = (LootTable) (Object) this;
-        if (!LootTableOverrideStore.shouldFilterGlobalRemoval(table)) {
-            return;
-        }
-        ObjectArrayList<ItemStack> items = cir.getReturnValue();
-        if (items != null && !items.isEmpty()) {
-            items.removeIf(LootTableOverrideStore::isGloballyRemoved);
+        if (LootTableOverrideStore.shouldFilterGlobalRemoval(table)) {
+            ObjectArrayList<ItemStack> items = cir.getReturnValue();
+            if (items != null && !items.isEmpty()) {
+                items.removeIf(LootTableOverrideStore::isGloballyRemoved);
+            }
         }
     }
 

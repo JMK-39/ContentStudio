@@ -13,7 +13,6 @@ import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
-import dev.xyat.kineticcore.api.client.gui.widget.list.*;
 
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
@@ -52,7 +51,6 @@ public class RecipePreviewPage extends KineticPage {
     private final KineticScrollController gridScroll =
             new KineticScrollController();
 
-    private boolean compactToolbar;
     private KineticButton saveButton;
     private final List<RecipeRecord> displayRecords = new ArrayList<>();
     private final Set<RecipeKey> pendingDeletes = new LinkedHashSet<>();
@@ -163,8 +161,6 @@ public class RecipePreviewPage extends KineticPage {
 
         int sidePadding = 12;
 
-        compactToolbar = false;
-
         int buttonY = 5;
         int backWidth = 60;
         int saveWidth = 60;
@@ -198,52 +194,33 @@ public class RecipePreviewPage extends KineticPage {
         int searchX;
         int searchWidth;
 
-        if (compactToolbar) {
-            searchY = 31;
-            searchX = sidePadding;
-            searchWidth =
-                    Math.max(
-                            80,
-                            width()
-                                    - sidePadding * 2
-                    );
-            gridY = 59;
-        } else {
-            searchY = 5;
+        searchY = 5;
 
-            int searchAreaStart =
-                    sidePadding
-                            + backWidth
-                            + toolbarGap;
+        int searchAreaStart =
+                sidePadding
+                        + backWidth
+                        + toolbarGap;
 
-            int searchAreaEnd =
-                    saveX
-                            - toolbarGap;
+        int searchAreaEnd =
+                saveX
+                        - toolbarGap;
 
-            int availableSearchWidth =
-                    Math.max(
-                            100,
-                            searchAreaEnd - searchAreaStart
-                    );
+        int availableSearchWidth =
+                Math.max(
+                        100,
+                        searchAreaEnd - searchAreaStart
+                );
 
-            searchWidth =
-                    Math.max(
-                            100,
-                            Math.min(
-                                    320,
-                                    availableSearchWidth
-                            )
-                    );
+        searchWidth = Math.min(320, availableSearchWidth);
 
-            searchX =
-                    searchAreaStart
-                            + Math.max(
-                                    0,
-                                    (availableSearchWidth - searchWidth) / 2
-                            );
+        searchX =
+                searchAreaStart
+                        + Math.max(
+                                0,
+                                (availableSearchWidth - searchWidth) / 2
+                        );
 
-            gridY = 35;
-        }
+        gridY = 35;
 
         searchBox = ui().textField(searchX, searchY, searchWidth).placeholder(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.search_hint")).build();
 
@@ -649,8 +626,8 @@ public class RecipePreviewPage extends KineticPage {
 
         if (column < 0 || column >= safeColumns()
                 || row < 0 || row > safeVisibleRows()
-                || relativeX % CELL_SIZE >= SLOT_SIZE
-                || relativeY % CELL_SIZE >= SLOT_SIZE) {
+                || relativeX % CELL_SIZE == SLOT_SIZE
+                || relativeY % CELL_SIZE == SLOT_SIZE) {
             return -1;
         }
 
@@ -768,25 +745,17 @@ public class RecipePreviewPage extends KineticPage {
     @Override
     protected boolean onMouseDrag(MouseDragInput input) {
         double mouseY = input.y();
-        if (gridScroll.drag(
+        return gridScroll.drag(
                 mouseY,
                 gridY,
                 gridH,
                 20
-        )) {
-            return true;
-        }
-
-        return false;
+        );
     }
 
     @Override
     protected boolean onMouseRelease(MouseInput input) {
-        if (gridScroll.release(input.button())) {
-            return true;
-        }
-
-        return false;
+        return gridScroll.release(input.button());
     }
 
     @Override

@@ -552,7 +552,7 @@ public class VillagerConfig {
         if (isInvalidItemId(parts.get(8), false) || strictInt(parts.get(9), 1, 64) == null || isInvalidNbt(parts.get(10))) return false;
         if (strictInt(parts.get(11), 0, 999999) == null) return false;
         if (strictInt(parts.get(12), 0, 999999) == null) return false;
-        if (strictFloat(parts.get(13), 0.0F, 1000.0F) == null) return false;
+        if (strictFloat(parts.get(13)) == null) return false;
         if (strictInt(parts.get(14), -999999, 999999) == null) return false;
         if (strictInt(parts.get(15), -999999, 999999) == null) return false;
         if (isNotStrictBoolean(parts.get(16))) return false;
@@ -599,11 +599,11 @@ public class VillagerConfig {
         }
     }
 
-    private static Float strictFloat(String value, float min, float max) {
+    private static Float strictFloat(String value) {
         if (value == null) return null;
         try {
             float parsed = Float.parseFloat(value.trim());
-            return Float.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+            return Float.isFinite(parsed) && parsed >= 0.0f && parsed <= 1000.0f ? parsed : null;
         } catch (Exception exception) {
             return null;
         }

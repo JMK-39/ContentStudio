@@ -166,7 +166,7 @@ public final class RecipeJeiBridge {
             }
 
             Object result = addRecipesFor.invoke(builder, argument);
-            if (result != null && builderClass.isInstance(result)) builder = result;
+            if (builderClass.isInstance(result)) builder = result;
             builderClass.getMethod("open").invoke(builder);
             return true;
         } catch (ReflectiveOperationException | RuntimeException ignored) {

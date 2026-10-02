@@ -143,9 +143,7 @@ public final class RecipeNetworkClient {
         KineticPage current = KineticGui.currentPage();
         if (current instanceof RecipePreviewPage preview) {
             preview.refreshFromServer();
-        } else if (current instanceof RecipePage) {
-            return;
-        } else {
+        } else if (!(current instanceof RecipePage)) {
             KineticGui.openChild(new RecipePreviewPage());
         }
     }
