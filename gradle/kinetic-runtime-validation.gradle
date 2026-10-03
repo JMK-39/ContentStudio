@@ -1,0 +1,19 @@
+if (project.property('loader') == 'neoforge') {
+    def metadata = layout.buildDirectory.dir('runtime-validation')
+    def writeMetadata = tasks.register('writeRuntimeValidationMetadata') {
+        outputs.dir metadata
+        doLast {
+            File target = new File(metadata.get().asFile, 'META-INF/neoforge.mods.toml')
+            target.parentFile.mkdirs()
+            target.setText('modLoader="javafml"\nloaderVersion="[1,)"\nlicense="LGPLv3"\n[[mods]]\nmodId="contentstudio_validation"\nversion="1.0.0"\ndisplayName="ContentStudio runtime validation"\n', 'UTF-8')
+        }
+    }
+    tasks.register('runtimeValidationJar', Jar) {
+        dependsOn 'testClasses', writeMetadata
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/*.class' }
+        from({ configurations.testRuntimeClasspath.files.findAll { it.name.startsWith('junit-') || it.name.startsWith('opentest4j-') || it.name.startsWith('apiguardian-') }.collect { zipTree(it) } }) { exclude 'META-INF/**', 'module-info.class' }
+        from metadata
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        archiveFileName = 'contentstudio-validation.jar'
+    }
+}

@@ -1684,9 +1684,13 @@ public class VillagerTradeEditorPage extends KineticPage {
                 .append(hoverName).append(' ')
                 .append(KineticSearch.pinyin(hoverName)).append(' ')
                 .append(stack.getCount()).append(' ');
+//? if >=1.21 {
+/*        text.append(dev.xyat.contentstudio.item.ItemData.format(stack)).append(' ');
+*///?} else {
         if (stack.getTag() != null && !stack.getTag().isEmpty()) {
             text.append(stack.getTag()).append(' ');
         }
+//?}
     }
 
     private void restoreSelectedKey(String keepKey) {
@@ -2379,6 +2383,17 @@ public class VillagerTradeEditorPage extends KineticPage {
         syncFieldValues();
         String initial = slot == 0 ? buyANbt : slot == 1 ? buyBNbt : sellNbt;
         {
+//? if >=1.21 {
+/*            dev.xyat.contentstudio.item.ItemData.edit(slot == 0 ? buyAId : slot == 1 ? buyBId : sellId, initial, value -> {
+                if (slot == 0) {
+                    buyANbt = value;
+                } else if (slot == 1) {
+                    buyBNbt = value;
+                } else {
+                    sellNbt = value;
+                }
+            });
+*///?} else {
             KineticSelectors.openNbtEditor(initial, value -> {
                 if (slot == 0) {
                     buyANbt = value;
@@ -2388,9 +2403,18 @@ public class VillagerTradeEditorPage extends KineticPage {
                     sellNbt = value;
                 }
             });
+//?}
         }
     }
 
+//? if >=1.21 {
+/*    private ItemStack createStack(String itemId, int count, String nbt) {
+        String id=VillagerConfig.clean(itemId);
+        if(id.isEmpty() || id.equals("minecraft:air") || id.equals("air") || count<=0) return ItemStack.EMPTY;
+        try { return dev.xyat.contentstudio.item.ItemData.compile(id,nbt).copyWithCount(VillagerConfig.clampInt(count,1,64)); }
+        catch(RuntimeException invalid) { return ItemStack.EMPTY; }
+    }
+*///?} else {
     private ItemStack createStack(String itemId, int count, String nbt) {
         String id = VillagerConfig.clean(itemId);
         if (id.isEmpty() || id.equals("minecraft:air") || id.equals("air") || count <= 0) {
@@ -2415,6 +2439,9 @@ public class VillagerTradeEditorPage extends KineticPage {
         }
         return stack;
     }
+
+
+//?}
 
     private void updateBoolButtons() {
         if (rewardButton != null) {

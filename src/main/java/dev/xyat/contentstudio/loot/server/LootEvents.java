@@ -25,6 +25,9 @@ public final class LootEvents {
             return;
         }
 
+//? if >=1.21 {
+/*
+*///?} else {
         KineticLootEvents.onTableLoad(KineticEventPriority.NORMAL, context -> {
             if (LootTableOverrideStore.isLoadEventBypass()) {
                 return;
@@ -39,9 +42,17 @@ public final class LootEvents {
             }
         });
 
+
+//?}
         KineticResourceEvents.onAddReloadListener(KineticEventPriority.NORMAL, context -> {
             LootTableOverrideStore.invalidateLootReferenceCache();
+//? if >=1.21 {
+/*            context.addListener(new LootOverrideReloadListener(context.serverResources().fullRegistries(),
+                    context.serverResources().getRegistryLookup()));
+*///?} else {
             context.addListener(RELOAD_LISTENER);
+//?}
+
         });
 
         KineticServerEvents.onAboutToStart(
@@ -51,6 +62,26 @@ public final class LootEvents {
         registered = true;
     }
 
+//? if >=1.21 {
+/*    private static final class LootOverrideReloadListener extends SimplePreparableReloadListener<Object> {
+        private final net.minecraft.server.ReloadableServerRegistries.Holder registries;
+        private final net.minecraft.core.HolderLookup.Provider lookup;
+        private LootOverrideReloadListener() { this.registries = null; this.lookup = null; }
+        private LootOverrideReloadListener(net.minecraft.server.ReloadableServerRegistries.Holder registries,
+                net.minecraft.core.HolderLookup.Provider lookup) {
+            this.registries = registries;
+            this.lookup = lookup;
+        }
+        @Override
+        @Nonnull
+        protected Object prepare(@Nonnull ResourceManager resources, @Nonnull ProfilerFiller profiler) { return new Object(); }
+        @Override
+        protected void apply(@Nonnull Object prepared, @Nonnull ResourceManager resources, @Nonnull ProfilerFiller profiler) {
+            if (registries != null) LootTableOverrideStore.applyAll(registries, lookup, resources);
+        }
+    }
+
+*///?} else {
     private static final class LootOverrideReloadListener extends SimplePreparableReloadListener<Object> {
         @Override
         @Nonnull
@@ -66,4 +97,6 @@ public final class LootEvents {
             }
         }
     }
+
+//?}
 }

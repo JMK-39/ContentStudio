@@ -1,3 +1,77 @@
+//? if >=1.21 {
+/*package dev.xyat.contentstudio.loot;
+
+import dev.xyat.contentstudio.item.ItemData;
+import dev.xyat.kineticcore.api.resource.KineticResourceIds;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import java.util.Locale;
+
+/^** Native component patch rules. Counts and implicit item defaults are ignored. *^/
+public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
+    // Java names remain shared with the Forge UI/network. Persisted names and text
+    // refer exclusively to native components in this version.
+    public enum MatchMode {
+        ITEM("item"), NBT_PRESENT("components_present"),
+        NBT_FUZZY("components_fuzzy"), NBT_EXACT("components_exact");
+        private final String id;
+        MatchMode(String id) { this.id = id; }
+        public String id() { return id; }
+        public static MatchMode fromId(String value) {
+            if (value == null || value.isBlank()) return ITEM;
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
+            for (MatchMode mode : values()) if (mode.id.equals(normalized)) return mode;
+            throw new IllegalArgumentException("Unknown component rule mode: " + value);
+        }
+    }
+    public GlobalRemoveRule {
+        itemId = itemId == null ? "" : itemId.trim();
+        mode = mode == null ? MatchMode.ITEM : mode;
+        nbt = nbt == null ? "" : nbt.trim();
+        if ("[]".equals(nbt)) nbt = "";
+    }
+    public static GlobalRemoveRule item(String itemId) { return new GlobalRemoveRule(itemId, MatchMode.ITEM, ""); }
+    public static GlobalRemoveRule fromStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return item("");
+        ResourceLocation id = KineticRegistries.items().id(stack.getItem());
+        String text = ItemData.format(stack);
+        return new GlobalRemoveRule(id == null ? "" : id.toString(),
+                stack.getComponentsPatch().isEmpty() ? MatchMode.ITEM : MatchMode.NBT_EXACT, text);
+    }
+    public GlobalRemoveRule withMode(MatchMode mode) { return new GlobalRemoveRule(itemId, mode, nbt); }
+    public GlobalRemoveRule withNbt(String components) { return new GlobalRemoveRule(itemId, mode, components); }
+    public ResourceLocation itemResourceLocation() { return KineticResourceIds.tryParse(itemId); }
+    public boolean hasConfiguredNbt() { return !nbt.isBlank(); }
+    private DataComponentPatch configuredPatch() {
+        return ItemData.compile(itemId, nbt).getComponentsPatch();
+    }
+    public boolean matches(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        ResourceLocation expectedId = itemResourceLocation();
+        if (expectedId == null || !expectedId.equals(KineticRegistries.items().id(stack.getItem()))) return false;
+        try {
+            // Validate even ITEM/PRESENT rules so legacy NBT cannot silently pass.
+            DataComponentPatch expected = configuredPatch();
+            DataComponentPatch actual = stack.getComponentsPatch();
+            return switch (mode) {
+                case ITEM -> true;
+                case NBT_PRESENT -> !actual.isEmpty();
+                case NBT_FUZZY -> expected.isEmpty() ? !actual.isEmpty()
+                        : actual.entrySet().containsAll(expected.entrySet());
+                case NBT_EXACT -> actual.equals(expected);
+            };
+        } catch (RuntimeException invalidComponents) { return false; }
+    }
+    public boolean isValid() {
+        ResourceLocation id = itemResourceLocation();
+        if (id == null || !KineticRegistries.items().contains(id)) return false;
+        return ItemData.validConstraint(itemId, nbt);
+    }
+}
+
+*///?} else {
 package dev.xyat.contentstudio.loot;
 
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
@@ -187,3 +261,5 @@ public record GlobalRemoveRule(String itemId, MatchMode mode, String nbt) {
         return "{}".equals(trimmed) ? "" : trimmed;
     }
 }
+
+//?}

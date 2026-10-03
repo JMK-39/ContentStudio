@@ -1916,7 +1916,12 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             lines.add(functionLine("gui.contentstudio.loot.loots.function.set_name"));
         } else if (function.endsWith("set_lore")) {
             lines.add(functionLine("gui.contentstudio.loot.loots.function.set_lore"));
+//? if >=1.21 {
+/*        } else if (function.endsWith("enchanted_count_increase")) {
+*///?} else {
         } else if (function.endsWith("looting_enchant")) {
+//?}
+
             lines.add(functionLine("gui.contentstudio.loot.loots.function.looting", numberComponent(readNumberRange(object.get("count")))));
         } else if (function.endsWith("apply_bonus")) {
             lines.add(functionLine("gui.contentstudio.loot.loots.function.apply_bonus",
@@ -1925,9 +1930,19 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             lines.add(functionLine("gui.contentstudio.loot.loots.function.furnace_smelt"));
         } else if (function.endsWith("explosion_decay")) {
             lines.add(functionLine("gui.contentstudio.loot.loots.function.explosion_decay"));
+//? if >=1.21 {
+/*        } else if (function.endsWith("set_components")) {
+*///?} else {
         } else if (function.endsWith("set_nbt")) {
+//?}
+
             lines.add(functionLine("gui.contentstudio.loot.loots.function.set_nbt"));
+//? if >=1.21 {
+/*        } else if (function.endsWith("copy_name") || function.endsWith("copy_custom_data") || function.endsWith("copy_components") || function.endsWith("copy_state")) {
+*///?} else {
         } else if (function.endsWith("copy_name") || function.endsWith("copy_nbt") || function.endsWith("copy_state")) {
+//?}
+
             lines.add(functionLine("gui.contentstudio.loot.loots.function.copy_data", idComponent(function)));
         } else if (function.endsWith("enchant_randomly")) {
             lines.add(functionLine("gui.contentstudio.loot.loots.function.enchant_randomly"));

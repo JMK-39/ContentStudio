@@ -123,11 +123,19 @@ public class VillagerConfig {
           Modes: add, replace_level, replace_all, disable_level.""");
 
         configData.set("villager.trade_offers", villagerTradeOffers);
+//? if >=1.21 {
+/*        configData.setComment("villager.trade_offers", """
+          具体自定义交易列表。格式：
+          职业ID|等级|买入A物品|买入A数量|买入A_数据组件|买入B物品|买入B数量|买入B_数据组件|卖出物品|卖出数量|卖出数据组件|最大交易次数|村民经验|价格倍率|需求值|特殊价格|是否给玩家经验|当前已使用次数|是否允许补货|权重
+          Custom trade offer list. Format:
+          profession_id|level|buy_a_item|buy_a_count|buy_a_components|buy_b_item|buy_b_count|buy_b_components|sell_item|sell_count|sell_components|max_uses|villager_xp|price_multiplier|demand|special_price|reward_player_xp|uses|allow_restock|weight.""");
+*///?} else {
         configData.setComment("villager.trade_offers", """
           具体自定义交易列表。格式：
           职业ID|等级|买入A物品|买入A数量|买入A_NBT|买入B物品|买入B数量|买入B_NBT|卖出物品|卖出数量|卖出NBT|最大交易次数|村民经验|价格倍率|需求值|特殊价格|是否给玩家经验|当前已使用次数|是否允许补货|权重
           Custom trade offer list. Format:
           profession_id|level|buy_a_item|buy_a_count|buy_a_nbt|buy_b_item|buy_b_count|buy_b_nbt|sell_item|sell_count|sell_nbt|max_uses|villager_xp|price_multiplier|demand|special_price|reward_player_xp|uses|allow_restock|weight.""");
+//?}
 
         configData.set("villager.default_trade_overrides", villagerDefaultTradeOverrides);
         configData.setComment("villager.default_trade_overrides", """
@@ -537,6 +545,31 @@ public class VillagerConfig {
         return strictInt(parts.get(4), 0, 999999) != null;
     }
 
+//? if >=1.21 {
+/*    private static boolean isValidTradeOfferLine(String line) {
+        List<String> parts = splitConfigLine(line);
+        if ((parts.size() != 19 && parts.size() != 20) || isInvalidProfession(parts.get(0))) return false;
+        Integer level = strictInt(parts.get(1), 1, 5);
+        if (level == null || level != clampTradeLevel(parts.get(0), level)) return false;
+        if (isInvalidItemId(parts.get(2), false) || strictInt(parts.get(3), 1, 64) == null || isInvalidComponents(parts.get(2), parts.get(4), true)) return false;
+
+        Integer buyBCount = strictInt(parts.get(6), 0, 64);
+        if (buyBCount == null || isInvalidComponents(buyBCount == 0 ? "minecraft:air" : parts.get(5), parts.get(7), true)) return false;
+        if (buyBCount > 0 && isInvalidItemId(parts.get(5), false)) return false;
+        if (buyBCount == 0 && isInvalidItemId(parts.get(5), true)) return false;
+
+        if (isInvalidItemId(parts.get(8), false) || strictInt(parts.get(9), 1, 64) == null || isInvalidComponents(parts.get(8), parts.get(10), false)) return false;
+        if (strictInt(parts.get(11), 0, 999999) == null) return false;
+        if (strictInt(parts.get(12), 0, 999999) == null) return false;
+        if (strictFloat(parts.get(13)) == null) return false;
+        if (strictInt(parts.get(14), -999999, 999999) == null) return false;
+        if (strictInt(parts.get(15), -999999, 999999) == null) return false;
+        if (isNotStrictBoolean(parts.get(16))) return false;
+        if (strictInt(parts.get(17), 0, 999999) == null) return false;
+        if (isNotStrictBoolean(parts.get(18))) return false;
+        return parts.size() == 19 || strictInt(parts.get(19), 0, 999999) != null;
+    }
+*///?} else {
     private static boolean isValidTradeOfferLine(String line) {
         List<String> parts = splitConfigLine(line);
         if ((parts.size() != 19 && parts.size() != 20) || isInvalidProfession(parts.get(0))) return false;
@@ -560,6 +593,7 @@ public class VillagerConfig {
         if (isNotStrictBoolean(parts.get(18))) return false;
         return parts.size() == 19 || strictInt(parts.get(19), 0, 999999) != null;
     }
+//?}
 
     private static boolean isInvalidProfession(String value) {
         String profession = clean(value);
@@ -577,6 +611,19 @@ public class VillagerConfig {
         return item == null || item == Items.AIR;
     }
 
+//? if >=1.21 {
+/*    private static boolean isInvalidComponents(String itemId, String value, boolean payment) {
+        String data = value == null ? "" : value.trim();
+        if (data.length() > 32767) return true;
+        if (itemId.isBlank() || itemId.equals("air") || itemId.equals("minecraft:air")) return !(data.isEmpty() || data.equals("[]"));
+        if (!dev.xyat.contentstudio.item.ItemData.validConstraint(itemId, data)) return true;
+        if (payment && dev.xyat.contentstudio.item.ItemData.hasWorldContext()) {
+            try { return dev.xyat.contentstudio.villager.util.TradeItemData.cost(dev.xyat.contentstudio.item.ItemData.compile(itemId, data)) == null; }
+            catch (RuntimeException invalid) { return true; }
+        }
+        return false;
+    }
+*///?} else {
     private static boolean isInvalidNbt(String value) {
         String nbt = value == null ? "" : value.trim();
         if (nbt.length() > 32767) return true;
@@ -588,6 +635,9 @@ public class VillagerConfig {
             return true;
         }
     }
+
+
+//?}
 
     private static Integer strictInt(String value, int min, int max) {
         if (value == null) return null;
@@ -623,6 +673,17 @@ public class VillagerConfig {
         return id == null ? "minecraft:air" : id.toString();
     }
 
+//? if >=1.21 {
+/*    public static String stackNbt(ItemStack stack) {
+        return stack==null || stack.isEmpty() ? "" : dev.xyat.contentstudio.item.ItemData.format(stack);
+    }
+    private static ItemStack createStack(String itemId, int count, String nbt) {
+        String id=clean(itemId);
+        if (id.isEmpty() || id.equals("minecraft:air") || id.equals("air") || count <= 0) return ItemStack.EMPTY;
+        try { return dev.xyat.contentstudio.item.ItemData.compile(id, nbt).copyWithCount(clampInt(count,1,64)); }
+        catch (RuntimeException invalid) { return ItemStack.EMPTY; }
+    }
+*///?} else {
     public static String stackNbt(ItemStack stack) {
         if (stack == null || stack.isEmpty() || stack.getTag() == null || stack.getTag().isEmpty()) {
             return "";
@@ -658,6 +719,9 @@ public class VillagerConfig {
         }
         return stack;
     }
+
+
+//?}
 
     public static List<String> splitConfigLine(String line) {
         List<String> parts = new ArrayList<>();
@@ -911,6 +975,25 @@ public class VillagerConfig {
                 return null;
             }
 
+//? if >=1.21 {
+/*            CompoundTag tag = new CompoundTag();
+            var ops = dev.xyat.contentstudio.item.ItemData.registries().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+            var costA=dev.xyat.contentstudio.villager.util.TradeItemData.cost(buyA);
+            var costB=buyB.isEmpty() ? null : dev.xyat.contentstudio.villager.util.TradeItemData.cost(buyB);
+            if (costA == null || (!buyB.isEmpty() && costB == null)) return null;
+            tag.put("buy", net.minecraft.world.item.trading.ItemCost.CODEC.encodeStart(ops, costA).getOrThrow());
+            if(costB != null) tag.put("buyB", net.minecraft.world.item.trading.ItemCost.CODEC.encodeStart(ops,costB).getOrThrow());
+            tag.put("sell", ItemStack.CODEC.encodeStart(ops,sell).getOrThrow());
+            tag.putInt("uses",Math.min(uses,maxUses));
+            tag.putInt("maxUses",maxUses);
+            tag.putBoolean("rewardExp",rewardExp);
+            tag.putInt("xp",xp);
+            tag.putFloat("priceMultiplier",priceMultiplier);
+            tag.putInt("specialPrice",specialPrice);
+            tag.putInt("demand",demand);
+            MerchantOffer offer=MerchantOffer.CODEC.parse(ops,tag).getOrThrow();
+
+*///?} else {
             CompoundTag tag = new CompoundTag();
             tag.put("buy", buyA.save(new CompoundTag()));
             if (!buyB.isEmpty()) {
@@ -928,6 +1011,8 @@ public class VillagerConfig {
             tag.putBoolean("contentstudioNoRestock", !allowRestock);
 
             MerchantOffer offer = new MerchantOffer(tag);
+
+//?}
             applyOfferMeta(offer);
             return offer;
         }

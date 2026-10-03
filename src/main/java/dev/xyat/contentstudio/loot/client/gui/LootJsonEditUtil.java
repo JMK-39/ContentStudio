@@ -3,8 +3,15 @@ package dev.xyat.contentstudio.loot.client.gui;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+import net.minecraft.core.component.DataComponentPatch;
+import com.mojang.serialization.JsonOps;
+*///?} else {
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
+//?}
+
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -14,13 +21,23 @@ import java.util.Set;
 final class LootJsonEditUtil {
     private static final Set<String> EDITED_FUNCTIONS = Set.of(
             "set_count",
+//? if >=1.21 {
+/*            "enchanted_count_increase",
+*///?} else {
             "looting_enchant",
+//?}
+
             "set_damage",
             "furnace_smelt",
             "enchant_randomly",
             "enchant_with_levels",
             "explosion_decay",
+//? if >=1.21 {
+/*            "set_components"
+*///?} else {
             "set_nbt"
+//?}
+
     );
 
     record Range(double min, double max) {
@@ -134,15 +151,36 @@ final class LootJsonEditUtil {
     }
 
     static Range looting(JsonObject entry) {
+//? if >=1.21 {
+/*        JsonObject function = findFunction(entry, "enchanted_count_increase");
+*///?} else {
         JsonObject function = findFunction(entry, "looting_enchant");
+//?}
+
         return function == null ? new Range(0, 0) : range(function.get("count"), 0);
     }
 
     static void setLooting(JsonObject entry, boolean enabled, int min, int max) {
+//? if >=1.21 {
+/*        setFunctionEnabled(entry, "enchanted_count_increase", enabled);
+*///?} else {
         setFunctionEnabled(entry, "looting_enchant", enabled);
+//?}
+
+//? if >=1.21 {
+/*        JsonObject function = findFunction(entry, "enchanted_count_increase");
+*///?} else {
         JsonObject function = findFunction(entry, "looting_enchant");
+//?}
+
         if (function != null) {
+//? if >=1.21 {
+/*            function.add("count", rangeValue(min, max));
+            function.addProperty("enchantment", "minecraft:looting");
+*///?} else {
             function.add("count", rangeValue(min, max));
+//?}
+
         }
     }
 
@@ -163,6 +201,64 @@ final class LootJsonEditUtil {
         return findFunction(entry, suffix) != null;
     }
 
+//? if >=1.21 {
+/*    static void setItemNbt(JsonObject entry, ItemStack stack) {
+        DataComponentPatch patch = stack == null || stack.isEmpty() ? DataComponentPatch.EMPTY : stack.getComponentsPatch();
+        setItemComponents(entry, patch);
+    }
+
+    private static void setItemComponents(JsonObject entry, DataComponentPatch patch) {
+        JsonArray current = array(entry, "functions");
+        JsonArray updated = new JsonArray();
+        if (!patch.isEmpty()) {
+            JsonObject function = new JsonObject();
+            function.addProperty("function", "minecraft:set_components");
+            function.add("components", ItemData.COMPONENT_PATCH_CODEC.encodeStart(
+                    ItemData.registries().createSerializationContext(JsonOps.INSTANCE), patch).getOrThrow());
+            updated.add(function);
+        }
+        for (JsonElement element : current) {
+            if (element.isJsonObject() && string(element.getAsJsonObject().get("function")).endsWith("set_components")) continue;
+            updated.add(element);
+        }
+        putOrRemove(entry, "functions", updated);
+    }
+
+    static String itemNbt(JsonObject entry) {
+        JsonObject function = findFunction(entry, "set_components");
+        if (function == null) return "";
+        ItemStack stack = ItemData.compile(string(entry.get("name")), "");
+        stack.applyComponentsAndValidate(componentPatch(function));
+        return ItemData.format(stack);
+    }
+
+    static ItemStack setSelectedItemComponents(JsonObject entry, String itemId, String components) {
+        ItemStack stack = ItemData.compile(itemId,components);
+        entry.addProperty("name",itemId);
+        setItemComponents(entry,stack.getComponentsPatch());
+        return stack;
+    }
+
+    static void setItemNbt(JsonObject entry, String components) {
+        ItemStack stack = ItemData.compile(string(entry.get("name")), components);
+        setItemComponents(entry, stack.getComponentsPatch());
+    }
+
+    static void applyItemNbt(JsonObject entry, ItemStack stack) {
+        if (entry == null || stack == null || stack.isEmpty()) return;
+        JsonObject function = findFunction(entry, "set_components");
+        if (function == null) return;
+        try { stack.applyComponentsAndValidate(componentPatch(function)); }
+        catch (RuntimeException invalidComponents) { }
+    }
+
+    private static DataComponentPatch componentPatch(JsonObject function) {
+        return ItemData.COMPONENT_PATCH_CODEC.parse(ItemData.registries().createSerializationContext(JsonOps.INSTANCE),
+                function.get("components")).getOrThrow();
+    }
+
+
+*///?} else {
     static void setItemNbt(JsonObject entry, ItemStack stack) {
         JsonArray current = array(entry, "functions");
         JsonArray updated = new JsonArray();
@@ -231,6 +327,8 @@ final class LootJsonEditUtil {
         }
     }
 
+
+//?}
     static void setFunctionEnabled(JsonObject entry, String suffix, boolean enabled) {
         JsonArray functions = array(entry, "functions");
         if (!enabled) {

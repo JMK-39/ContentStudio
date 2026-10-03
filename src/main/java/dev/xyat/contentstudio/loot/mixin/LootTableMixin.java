@@ -90,10 +90,20 @@ public abstract class LootTableMixin {
             method = "getAvailableSlots(Lnet/minecraft/world/Container;Lnet/minecraft/util/RandomSource;)Ljava/util/List;",
             at = @At(
                     value = "INVOKE",
+//? if >=1.21 {
+/*                    target = "Lnet/minecraft/Util;shuffle(Ljava/util/List;Lnet/minecraft/util/RandomSource;)V"
+*///?} else {
                     target = "Lnet/minecraft/Util;shuffle(Lit/unimi/dsi/fastutil/objects/ObjectArrayList;Lnet/minecraft/util/RandomSource;)V"
+//?}
+
             )
     )
+//? if >=1.21 {
+/*    private void contentstudio_loots$skipAvailableSlotShuffle(java.util.List<Integer> slots, RandomSource random) {
+*///?} else {
     private void contentstudio_loots$skipAvailableSlotShuffle(ObjectArrayList<Integer> slots, RandomSource random) {
+//?}
+
         Objects.requireNonNull(slots);
         Objects.requireNonNull(random);
     }
@@ -102,10 +112,20 @@ public abstract class LootTableMixin {
             method = "shuffleAndSplitItems(Lit/unimi/dsi/fastutil/objects/ObjectArrayList;ILnet/minecraft/util/RandomSource;)V",
             at = @At(
                     value = "INVOKE",
+//? if >=1.21 {
+/*                    target = "Lnet/minecraft/Util;shuffle(Ljava/util/List;Lnet/minecraft/util/RandomSource;)V"
+*///?} else {
                     target = "Lnet/minecraft/Util;shuffle(Lit/unimi/dsi/fastutil/objects/ObjectArrayList;Lnet/minecraft/util/RandomSource;)V"
+//?}
+
             )
     )
+//? if >=1.21 {
+/*    private void contentstudio_loots$skipFinalLootShuffle(java.util.List<ItemStack> items, RandomSource random) {
+*///?} else {
     private void contentstudio_loots$skipFinalLootShuffle(ObjectArrayList<ItemStack> items, RandomSource random) {
+//?}
+
         Objects.requireNonNull(items);
         Objects.requireNonNull(random);
     }

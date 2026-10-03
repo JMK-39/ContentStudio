@@ -35,6 +35,10 @@ import dev.xyat.contentstudio.recipe.removal.RecipeViewerCategoryFilter;
 import dev.xyat.contentstudio.recipe.removal.SimpleRemovalActions;
 import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+*///?}
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -237,7 +241,12 @@ public class RecipeRemovalPage extends KineticPage {
         }
         for (var recipe : level.getRecipeManager().getRecipes()) {
             try {
+//? if >=1.21 {
+/*
+                if (!recipe.value().getResultItem(level.registryAccess()).is(selectedItem.getItem())) continue;
+*///?} else {
                 if (!recipe.getResultItem(level.registryAccess()).is(selectedItem.getItem())) continue;
+//?}
                 RecipeSummary summary = RecipeSummary.of(recipe, level.registryAccess());
                 var original = originals.get(summary.id());
                 if (original != null && RemovalDisplayState.of(originalRows.candidateFor(original), savedRemovals)
@@ -802,7 +811,12 @@ public class RecipeRemovalPage extends KineticPage {
     }
 
     private void drawItem(KineticGraphics g, ItemStack stack, int x, int y) {
+//? if >=1.21 {
+/*
+        CompoundTag tag = ItemData.customData(stack);
+*///?} else {
         CompoundTag tag = stack.getTag();
+//?}
         if (tag != null && tag.getBoolean("contentstudio_invalid_placeholder")) errors.add(stack.getItem());
         try { g.item(stack, x, y); }
         catch (RuntimeException exception) {

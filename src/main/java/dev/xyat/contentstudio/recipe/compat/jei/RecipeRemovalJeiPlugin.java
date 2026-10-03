@@ -19,6 +19,10 @@ import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
+//? if >=1.21 {
+/*import net.minecraft.world.item.crafting.RecipeHolder;
+*///?}
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +72,12 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
                         .limitFocus(focus).get().forEach(recipe -> {
                             try {
                                 ResourceLocation id = category.getRegistryName(recipe);
+//? if >=1.21 {
+/*
+                                if (id == null && recipe instanceof RecipeHolder<?> vanilla) id = vanilla.id();
+*///?} else {
                                 if (id == null && recipe instanceof Recipe<?> vanilla) id = vanilla.getId();
+//?}
                                 var level = KineticClientRuntime.currentLevel();
                                 var registered = level == null || id == null ? null
                                         : level.getRecipeManager().byKey(id).orElse(null);

@@ -32,6 +32,10 @@ import dev.xyat.kineticcore.api.network.PacketRegistrations;
 import dev.xyat.kineticcore.api.network.ServerPacketContext;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import net.minecraft.nbt.CompoundTag;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+*///?}
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -152,7 +156,12 @@ public final class RecipeNetwork {
             boolean dataError = false;
             for (var recipe : RecipeMemoryManager.recipeCatalog(player.server.getRecipeManager())) {
                 try {
+//? if >=1.21 {
+/*
+                    if (recipe.value().getResultItem(player.level().registryAccess()).is(packet.item.getItem())) {
+*///?} else {
                     if (recipe.getResultItem(player.level().registryAccess()).is(packet.item.getItem())) {
+//?}
                         try {
                             recipes.add(RecipeSummary.of(recipe, player.level().registryAccess()));
                         } catch (RuntimeException exception) {
@@ -824,8 +833,13 @@ public final class RecipeNetwork {
     private static boolean isInvalidPlaceholder(ItemStack stack) {
         return stack != null
                 && !stack.isEmpty()
+//? if >=1.21 {
+/*
+                && ItemData.customData(stack).getBoolean("contentstudio_invalid_placeholder");
+*///?} else {
                 && stack.getTag() != null
                 && stack.getTag().getBoolean("contentstudio_invalid_placeholder");
+//?}
     }
 
     private static boolean isInvalidRemovalEntry(RemovalEntry entry) {

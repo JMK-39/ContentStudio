@@ -20,7 +20,13 @@ import dev.xyat.contentstudio.loot.LootEntryInfo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+//? if >=1.21 {
+/*import net.minecraft.world.item.ItemStack;
+import dev.xyat.contentstudio.item.ItemData;
+*///?} else {
 import net.minecraft.world.item.ItemStack;
+//?}
+
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
@@ -110,7 +116,12 @@ final class LootEntryEditPage extends KineticPage {
         this.explosionDecay = LootJsonEditUtil.hasFunction(workingEntry, "explosion_decay");
         this.killedByPlayer = LootJsonEditUtil.killedByPlayer(workingEntry);
         this.requiresFire = LootJsonEditUtil.requiresFire(workingEntry);
+//? if >=1.21 {
+/*        this.looting = LootJsonEditUtil.hasFunction(workingEntry, "enchanted_count_increase");
+*///?} else {
         this.looting = LootJsonEditUtil.hasFunction(workingEntry, "looting_enchant");
+//?}
+
 }
 
     @Override
@@ -309,18 +320,33 @@ final class LootEntryEditPage extends KineticPage {
             return;
         }
         captureDraft();
+//? if >=1.21 {
+/*        ItemData.edit(selectedItemId, currentItemNbt(), value -> {
+*///?} else {
         KineticSelectors.openNbtEditor(currentItemNbt(), value -> {
+//?}
+
+//? if >=1.21 {
+/*            selectedItemStack = LootJsonEditUtil.setSelectedItemComponents(workingEntry, selectedItemId, value);
+            itemSelectionChanged = true;
+*///?} else {
             LootJsonEditUtil.setItemNbt(workingEntry, value);
             selectedItemStack = ItemStack.EMPTY;
+//?}
         });
     }
 
     private String currentItemNbt() {
         if (itemSelectionChanged && selectedItemStack != null && !selectedItemStack.isEmpty()) {
+//? if >=1.21 {
+/*            return ItemData.format(selectedItemStack);
+*///?} else {
             if (selectedItemStack.getTag() == null || selectedItemStack.getTag().isEmpty()) {
                 return "";
             }
             return selectedItemStack.getTag().toString();
+//?}
+
         }
         return LootJsonEditUtil.itemNbt(workingEntry);
     }

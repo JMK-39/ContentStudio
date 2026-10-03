@@ -10,10 +10,20 @@ import net.minecraftforge.fml.common.Mod;
 public final class ContentStudio {
     public static final String MODID = "contentstudio";
 
+//? if >=1.21 {
+/*    public ContentStudio(net.neoforged.bus.api.IEventBus modBus) {
+        dev.xyat.contentstudio.recipe.ComponentRecipeIngredients.register(modBus);
+        RecipeModule.install();
+        LootModule.install();
+        VillagerModule.install();
+        TooltipModule.install();
+    }
+*///?} else {
     public ContentStudio() {
         RecipeModule.install();
         LootModule.install();
         VillagerModule.install();
         TooltipModule.install();
     }
+//?}
 }

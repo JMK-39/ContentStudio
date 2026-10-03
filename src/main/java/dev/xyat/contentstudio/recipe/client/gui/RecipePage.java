@@ -21,6 +21,10 @@ import dev.xyat.contentstudio.recipe.network.RecipeNetwork;
 import dev.xyat.contentstudio.recipe.network.RecipeNetwork.RecipeChangePacket;
 import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+*///?}
+
 import net.minecraft.world.Container;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -126,12 +130,22 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 
     private static CompoundTag saveStack(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return new CompoundTag();
+//? if >=1.21 {
+/*
+        return ItemData.save(stack);
+*///?} else {
         return stack.save(new CompoundTag());
+//?}
     }
 
     private static ItemStack loadStack(CompoundTag tag) {
         if (tag == null || tag.isEmpty()) return ItemStack.EMPTY;
+//? if >=1.21 {
+/*
+        return ItemData.load(tag.copy());
+*///?} else {
         return ItemStack.of(tag.copy());
+//?}
     }
 
     private void rebuildEditorWidgets() {
@@ -227,8 +241,14 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             if (!allowTag) return;
             String tagId = "#" + selection.value();
             ItemStack dummy = new ItemStack(Items.PAPER);
+//? if >=1.21 {
+/*
+            ItemData.updateCustomData(dummy, tag -> tag.putString("kt_tag", tagId));
+            dummy.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.tag_item.colored", Component.literal(tagId)));
+*///?} else {
             dummy.getOrCreateTag().putString("kt_tag", tagId);
             dummy.setHoverName(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.tag_item.colored", Component.literal(tagId)));
+//?}
             container.setItem(slotIdx, dummy);
             return;
         }
@@ -240,8 +260,13 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
     private boolean isInvalidPlaceholder(ItemStack stack) {
         return stack != null
                 && !stack.isEmpty()
+//? if >=1.21 {
+/*
+                && ItemData.customData(stack).getBoolean("contentstudio_invalid_placeholder");
+*///?} else {
                 && stack.getTag() != null
                 && stack.getTag().getBoolean("contentstudio_invalid_placeholder");
+//?}
     }
 
     private boolean containsInvalidPlaceholder() {
@@ -300,6 +325,22 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
                 int slotIdx = hoveredSlot.getContainerSlot();
                 Container container = hoveredSlot.container;
                 ItemStack stack = hoveredSlot.getItem();
+//? if >=1.21 {
+/*
+                String components = ItemData.format(stack);
+                String itemId = dev.xyat.kineticcore.api.registry.KineticRegistries.items().id(stack.getItem()).toString();
+                if (isAttached()) {
+                    ItemData.edit(itemId, components, saved -> {
+                        try {
+                            ItemStack updated = ItemData.compile(itemId, saved);
+                            updated.setCount(stack.getCount());
+                            container.setItem(slotIdx, updated);
+                            showToast("msg.contentstudio.recipe.saved");
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    });
+                }
+*///?} else {
                 String initNbt = (stack.hasTag() && stack.getTag() != null) ? stack.getTag().toString() : "";
 
                 if (isAttached()) {
@@ -316,6 +357,8 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
                         }
                     });
                 }
+
+//?}
                 return true;
             }
         }
@@ -337,7 +380,12 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             if (hoveredSlot.container == menu().inputContainer) {
                 int slotIdx = hoveredSlot.getContainerSlot();
                 ItemStack stack = hoveredSlot.getItem();
+//? if >=1.21 {
+/*
+                if (ItemData.customData(stack).contains("kt_tag")) return true;
+*///?} else {
                 if (stack.getTag() != null && stack.hasTag() && stack.getTag().contains("kt_tag")) return true;
+//?}
                 inputNbtModes[slotIdx] = (inputNbtModes[slotIdx] + 1) % 3;
                 return true;
             } else if (hoveredSlot.container == menu().outputContainer) {
@@ -353,7 +401,12 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
     // Former getTooltipFromContainerItem override: only used by this page's own tooltip; the first line is the item's
     // vanilla tooltip first line (its name).
     private List<Component> editorSlotTooltip(ItemStack stack, Slot hoveredSlot) {
+//? if >=1.21 {
+/*
+        List<Component> original = stack.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.of(KineticClientRuntime.currentLevel()), KineticClientRuntime.localPlayer(), TooltipFlag.NORMAL);
+*///?} else {
         List<Component> original = stack.getTooltipLines(KineticClientRuntime.localPlayer(), TooltipFlag.NORMAL);
+//?}
         if (isInvalidPlaceholder(stack)) {
             List<Component> invalidTooltip = new ArrayList<>();
             invalidTooltip.add(stack.getHoverName());
@@ -367,7 +420,12 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             if (!original.isEmpty()) cleaned.add(original.get(0));
             cleaned.add(Component.empty());
             if (hoveredSlot.container == menu().inputContainer) {
+//? if >=1.21 {
+/*
+                if (ItemData.customData(stack).contains("kt_tag")) {
+*///?} else {
                 if (stack.getTag() != null && stack.hasTag() && stack.getTag().contains("kt_tag")) {
+//?}
                     cleaned.add(stack.getHoverName());
                     cleaned.add(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.lclick_remove.tag.colored"));
                     return cleaned;

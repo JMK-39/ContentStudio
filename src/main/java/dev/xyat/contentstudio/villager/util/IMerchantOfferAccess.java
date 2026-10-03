@@ -7,4 +7,7 @@ public interface IMerchantOfferAccess {
 
     void contentstudio_villager$setRestockDisabled(boolean disabled);
 
+//? if >=1.21 {
+/*    boolean contentstudio_villager$isRestockDisabled();
+*///?}
 }

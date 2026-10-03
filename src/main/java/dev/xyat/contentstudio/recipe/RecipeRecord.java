@@ -3,6 +3,10 @@ package dev.xyat.contentstudio.recipe;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.ItemStack;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+*///?}
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -37,7 +41,12 @@ public class RecipeRecord {
         tag.putBoolean("isShapeless", isShapeless);
         tag.putBoolean("outputUseNbt", outputUseNbt);
         ItemStack safeOutput = output == null ? ItemStack.EMPTY : output;
+//? if >=1.21 {
+/*
+        tag.put("output", ItemData.save(safeOutput));
+*///?} else {
         tag.put("output", safeOutput.save(new CompoundTag()));
+//?}
         tag.putString("comment", comment != null ? comment : "");
         tag.putBoolean("invalidConfig", invalidConfig);
         tag.putInt("configIndex", configIndex);
@@ -48,7 +57,12 @@ public class RecipeRecord {
             CompoundTag slotTag = new CompoundTag();
             ItemStack input = inputs.get(i) == null ? ItemStack.EMPTY : inputs.get(i);
             int mode = i < inputModes.size() ? inputModes.get(i) : 0;
+//? if >=1.21 {
+/*
+            slotTag.put("item", ItemData.save(input));
+*///?} else {
             slotTag.put("item", input.save(new CompoundTag()));
+//?}
             slotTag.putInt("mode", mode);
             inputsList.add(slotTag);
         }
@@ -62,7 +76,12 @@ public class RecipeRecord {
         record.editorType = tag.getString("editorType");
         record.isShapeless = tag.getBoolean("isShapeless");
         record.outputUseNbt = tag.getBoolean("outputUseNbt");
+//? if >=1.21 {
+/*
+        record.output = ItemData.load(tag.getCompound("output"));
+*///?} else {
         record.output = ItemStack.of(tag.getCompound("output"));
+//?}
         record.comment = tag.getString("comment");
         record.invalidConfig = tag.getBoolean("invalidConfig");
         record.configIndex = tag.contains("configIndex") ? tag.getInt("configIndex") : -1;
@@ -71,7 +90,12 @@ public class RecipeRecord {
         ListTag inputsList = tag.getList("inputs", 10);
         for (int i = 0; i < inputsList.size(); i++) {
             CompoundTag slotTag = inputsList.getCompound(i);
+//? if >=1.21 {
+/*
+            record.inputs.add(ItemData.load(slotTag.getCompound("item")));
+*///?} else {
             record.inputs.add(ItemStack.of(slotTag.getCompound("item")));
+//?}
             record.inputModes.add(slotTag.getInt("mode"));
         }
         return record;

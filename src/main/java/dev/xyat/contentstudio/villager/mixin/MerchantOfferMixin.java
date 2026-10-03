@@ -19,6 +19,7 @@ public abstract class MerchantOfferMixin implements IMerchantOfferAccess {
     @Unique
     private boolean contentstudio_villager$restockDisabled = false;
 
+//? if <1.21 {
     @Inject(method = "<init>(Lnet/minecraft/nbt/CompoundTag;)V", at = @At("RETURN"))
     private void contentstudio_villager$readCustomData(CompoundTag tag, CallbackInfo ci) {
         if (tag.contains("contentstudioTradeId", Tag.TAG_STRING)) {
@@ -39,6 +40,25 @@ public abstract class MerchantOfferMixin implements IMerchantOfferAccess {
             tag.putBoolean("contentstudioNoRestock", true);
         }
     }
+
+//?}
+
+//? if >=1.21 {
+/*    @org.spongepowered.asm.mixin.Shadow @org.spongepowered.asm.mixin.Final @org.spongepowered.asm.mixin.Mutable
+    public static com.mojang.serialization.Codec<MerchantOffer> CODEC;
+
+    @Inject(method = "<clinit>", at = @At("RETURN"))
+    private static void contentstudio_villager$extendCodec(CallbackInfo ci) {
+        CODEC = dev.xyat.contentstudio.villager.util.TradeOfferCodecs.wrap(CODEC);
+    }
+
+    @Inject(method = "copy", at = @At("RETURN"))
+    private void contentstudio_villager$copyMeta(CallbackInfoReturnable<MerchantOffer> cir) {
+        IMerchantOfferAccess copy = (IMerchantOfferAccess) cir.getReturnValue();
+        copy.contentstudio_villager$setCustomTradeId(this.contentstudio_villager$customTradeId);
+        copy.contentstudio_villager$setRestockDisabled(this.contentstudio_villager$restockDisabled);
+    }
+*///?}
 
     @Inject(method = "resetUses", at = @At("HEAD"), cancellable = true)
     private void contentstudio_villager$cancelRestock(CallbackInfo ci) {
@@ -62,4 +82,8 @@ public abstract class MerchantOfferMixin implements IMerchantOfferAccess {
         this.contentstudio_villager$restockDisabled = disabled;
     }
 
+//? if >=1.21 {
+/*    @Override
+    public boolean contentstudio_villager$isRestockDisabled() { return this.contentstudio_villager$restockDisabled; }
+*///?}
 }

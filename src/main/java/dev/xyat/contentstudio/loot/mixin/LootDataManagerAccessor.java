@@ -1,3 +1,6 @@
+//? if >=1.21 {
+/*
+*///?} else {
 package dev.xyat.contentstudio.loot.mixin;
 
 import net.minecraft.world.level.storage.loot.LootDataId;
@@ -15,3 +18,5 @@ public interface LootDataManagerAccessor {
     @Accessor("elements")
     void contentstudio_loots$setElements(Map<LootDataId<?>, ?> elements);
 }
+
+//?}

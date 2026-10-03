@@ -12,15 +12,32 @@ import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.GlobalRemoveRule;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.loot.mixin.LootRegistryAccessor;
+import dev.xyat.contentstudio.loot.mixin.LootHolderAccessor;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import com.mojang.serialization.JsonOps;
+import dev.xyat.contentstudio.item.ItemData;
+*///?} else {
 import dev.xyat.contentstudio.loot.mixin.LootDataManagerAccessor;
+//?}
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+//? if >=1.21 {
+/*import net.minecraft.server.ReloadableServerRegistries;
+*///?} else {
 import net.minecraft.world.level.storage.loot.LootDataId;
 import net.minecraft.world.level.storage.loot.LootDataManager;
+//?}
+
 import net.minecraft.world.level.storage.loot.LootDataType;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -71,14 +88,24 @@ public class LootTableOverrideStore {
 
         if (mode == LootEntryInfo.MODE_ENTITY) {
             KineticRegistries.entityTypes().entries().forEach((targetId, type) -> {
-                ResourceLocation lootTable = type.getDefaultLootTable();
+                //? if >=1.21 {
+/*ResourceLocation lootTable = type.getDefaultLootTable().location();
+*///?} else {
+ResourceLocation lootTable = type.getDefaultLootTable();
+//?}
+
                 if (isValidLootTable(lootTable)) {
                     result.add(new LootEntryInfo(mode, targetId.toString(), lootTable.toString(), hasOverride(lootTable)));
                 }
             });
         } else if (mode == LootEntryInfo.MODE_BLOCK) {
             KineticRegistries.blocks().entries().forEach((targetId, block) -> {
-                ResourceLocation lootTable = block.getLootTable();
+                //? if >=1.21 {
+/*ResourceLocation lootTable = block.getLootTable().location();
+*///?} else {
+ResourceLocation lootTable = block.getLootTable();
+//?}
+
                 if (isValidLootTable(lootTable)) {
                     result.add(new LootEntryInfo(mode, targetId.toString(), lootTable.toString(), hasOverride(lootTable)));
                 }
@@ -131,7 +158,12 @@ public class LootTableOverrideStore {
         }
 
         server.getResourceManager().listResources(
+//? if >=1.21 {
+/*                "loot_table",
+*///?} else {
                 "loot_tables",
+//?}
+
                 id -> id.getPath().endsWith(".json")
         ).forEach((resourceId, resource) -> {
             ResourceLocation lootTableId = lootTableIdFromResource(resourceId);
@@ -267,6 +299,32 @@ public class LootTableOverrideStore {
         applyAll(server, server.getResourceManager());
     }
 
+//? if >=1.21 {
+/*    public static void applyAll(MinecraftServer server, ResourceManager resourceManager) {
+        if (server == null || resourceManager == null) return;
+        applyAll(server.reloadableRegistries(), server.reloadableRegistries().get(), resourceManager);
+    }
+
+    public static void applyAll(ReloadableServerRegistries.Holder registries,
+            net.minecraft.core.HolderLookup.Provider lookup, ResourceManager resources) {
+        if (resources == null || !hasAnyOverrides()) return;
+        Map<ResourceLocation, LootTable> replacements = new HashMap<>();
+        boolean applyGlobalChest = hasGlobalChestAppend() || hasGlobalRemovedItems();
+        for (ResourceLocation id : registries.getKeys(Registries.LOOT_TABLE)) {
+            boolean directOverride = hasOverride(id);
+            if (!directOverride && !applyGlobalChest) continue;
+            JsonElement raw = readResourceElement(resources, id);
+            JsonElement transformed = transformLootTableJson(resources, id, raw);
+            if (directOverride || isContainerLootTable(id, transformed)) {
+                replacements.put(id, deserializeLootTable(lookup, id, transformed));
+            }
+        }
+        replaceLootTables(registries, replacements);
+        refreshGlobalRemovalTargetTables(registries, resources);
+    }
+
+
+*///?} else {
     public static void applyAll(MinecraftServer server, ResourceManager resourceManager) {
         if (server == null || resourceManager == null || !hasAnyOverrides()) {
             return;
@@ -274,7 +332,12 @@ public class LootTableOverrideStore {
 
         Map<ResourceLocation, LootTable> replacements = new HashMap<>();
         boolean applyGlobalChest = hasGlobalChestAppend() || hasGlobalRemovedItems();
+//? if >=1.21 {
+/*        for (ResourceLocation tableId : server.reloadableRegistries().getKeys(Registries.LOOT_TABLE)) {
+*///?} else {
         for (ResourceLocation tableId : server.getLootData().getKeys(LootDataType.TABLE)) {
+//?}
+
             boolean directOverride = hasOverride(tableId);
             if (!directOverride && !applyGlobalChest) {
                 continue;
@@ -286,10 +349,17 @@ public class LootTableOverrideStore {
                 replacements.put(tableId, deserializeLootTable(resourceManager, tableId, transformed));
             }
         }
+//? if >=1.21 {
+/*        replaceLootTables(server.reloadableRegistries(), replacements);
+*///?} else {
         replaceLootTables(server.getLootData(), replacements);
+//?}
+
         refreshGlobalRemovalTargetTables(server);
     }
 
+
+//?}
     public static boolean hasOverride(ResourceLocation lootTableId) {
         if (GLOBAL_CHEST_APPEND.equals(lootTableId)) {
             return hasGlobalChestAppend();
@@ -310,7 +380,12 @@ public class LootTableOverrideStore {
             throw new IllegalArgumentException("Not a JSON object");
         }
 
+//? if >=1.21 {
+/*        LootDataType.TABLE.codec().parse(server.reloadableRegistries().get().createSerializationContext(JsonOps.INSTANCE), element).getOrThrow();
+*///?} else {
         deserializeLootTable(server, lootTableId, element);
+//?}
+
         return element;
     }
 
@@ -468,7 +543,12 @@ public class LootTableOverrideStore {
             object.addProperty("item", rule.itemId());
             object.addProperty("mode", rule.mode().id());
             if (!rule.nbt().isBlank()) {
+//? if >=1.21 {
+/*                object.addProperty("components", rule.nbt());
+*///?} else {
                 object.addProperty("nbt", rule.nbt());
+//?}
+
             }
             array.add(object);
         }
@@ -540,7 +620,12 @@ public class LootTableOverrideStore {
         JsonElement raw = readResourceElement(server, lootTableId);
         JsonElement transformed = transformLootTableJson(server.getResourceManager(), lootTableId, raw);
         LootTable table = deserializeLootTable(server, lootTableId, transformed);
+//? if >=1.21 {
+/*        replaceLootTable(server.reloadableRegistries(), lootTableId, table);
+*///?} else {
         replaceLootTable(server.getLootData(), lootTableId, table);
+//?}
+
         refreshGlobalRemovalTargetTables(server);
     }
 
@@ -549,17 +634,62 @@ public class LootTableOverrideStore {
             return;
         }
         Map<ResourceLocation, LootTable> replacements = new HashMap<>();
+//? if >=1.21 {
+/*        for (ResourceLocation tableId : server.reloadableRegistries().getKeys(Registries.LOOT_TABLE)) {
+*///?} else {
         for (ResourceLocation tableId : server.getLootData().getKeys(LootDataType.TABLE)) {
+//?}
+
             JsonElement raw = readResourceElement(server, tableId);
             JsonElement transformed = transformLootTableJson(server.getResourceManager(), tableId, raw);
             if (isContainerLootTable(tableId, transformed)) {
                 replacements.put(tableId, deserializeLootTable(server, tableId, transformed));
             }
         }
+//? if >=1.21 {
+/*        replaceLootTables(server.reloadableRegistries(), replacements);
+*///?} else {
         replaceLootTables(server.getLootData(), replacements);
+//?}
+
         refreshGlobalRemovalTargetTables(server);
     }
 
+//? if >=1.21 {
+/*    private static LootTable deserializeLootTable(MinecraftServer server, ResourceLocation id, JsonElement json) {
+        return deserializeLootTable(server.reloadableRegistries().get(), id, json);
+    }
+    private static LootTable deserializeLootTable(ResourceManager resources, ResourceLocation id, JsonElement json) {
+        return deserializeLootTable(ItemData.registries(), id, json);
+    }
+    private static LootTable deserializeLootTable(net.minecraft.core.HolderLookup.Provider lookup, ResourceLocation id, JsonElement json) {
+        boolean previous = LOAD_EVENT_BYPASS.get();
+        LOAD_EVENT_BYPASS.set(true);
+        try {
+            var ops = lookup.createSerializationContext(JsonOps.INSTANCE);
+            JsonElement safe = sanitizeRuntimeLootTable(id, json);
+            try {
+                Optional<LootTable> parsed = LootDataType.TABLE.deserialize(id, ops, safe);
+                if (parsed.isPresent()) {
+                    if (parsed.get() == LootTable.EMPTY) {
+                        LootTable empty = LootTable.lootTable().build();
+                        empty.setLootTableId(id);
+                        empty.freeze();
+                        return empty;
+                    }
+                    return parsed.get();
+                }
+                LOGGER.error("{} Invalid loot table {}, using barrier fallback", LOG_PREFIX, id);
+            } catch (RuntimeException failure) {
+                LOGGER.error("{} Invalid loot table {}, using barrier fallback", LOG_PREFIX, id, failure);
+            }
+            return LootDataType.TABLE.deserialize(id, ops, createBarrierFallbackTable())
+                    .orElseThrow(() -> new IllegalStateException("Cannot create safe loot table: " + id));
+        } finally { LOAD_EVENT_BYPASS.set(previous); }
+    }
+
+
+*///?} else {
     private static LootTable deserializeLootTable(MinecraftServer server, ResourceLocation lootTableId, JsonElement json) {
         return deserializeLootTable(server.getResourceManager(), lootTableId, json);
     }
@@ -570,7 +700,12 @@ public class LootTableOverrideStore {
         try {
             JsonElement safeJson = sanitizeRuntimeLootTable(lootTableId, json);
             try {
+//? if >=1.21 {
+/*                Optional<LootTable> parsed = LootDataType.TABLE.deserialize(lootTableId, ItemData.registries().createSerializationContext(JsonOps.INSTANCE), safeJson);
+*///?} else {
                 Optional<LootTable> parsed = LootDataType.TABLE.deserialize(lootTableId, safeJson, resourceManager);
+//?}
+
                 if (parsed.isPresent()) {
                     return parsed.get();
                 }
@@ -579,13 +714,20 @@ public class LootTableOverrideStore {
                 LOGGER.error("{} 战利品表运行时解析异常，已使用屏障安全表 lootTable={} reason={}",
                         LOG_PREFIX, lootTableId, exceptionMessage(e), e);
             }
+//? if >=1.21 {
+/*            return LootDataType.TABLE.deserialize(lootTableId, ItemData.registries().createSerializationContext(JsonOps.INSTANCE), createBarrierFallbackTable())
+*///?} else {
             return LootDataType.TABLE.deserialize(lootTableId, createBarrierFallbackTable(), resourceManager)
+//?}
+
                     .orElseThrow(() -> new IllegalStateException("Cannot create safe loot table: " + lootTableId));
         } finally {
             LOAD_EVENT_BYPASS.set(previous);
         }
     }
 
+
+//?}
     private static JsonElement sanitizeRuntimeLootTable(ResourceLocation lootTableId, JsonElement json) {
         if (json == null || json.isJsonNull()) {
             LOGGER.error("{} 战利品表为空，已使用屏障安全表 lootTable={}", LOG_PREFIX, lootTableId);
@@ -664,6 +806,42 @@ public class LootTableOverrideStore {
         return root;
     }
 
+//? if >=1.21 {
+/*    private static void replaceLootTable(ReloadableServerRegistries.Holder manager, ResourceLocation id, LootTable table) {
+        replaceLootTables(manager, Map.of(id, table));
+    }
+
+    static void replaceLootTables(ReloadableServerRegistries.Holder manager, Map<ResourceLocation, LootTable> replacements) {
+        if (replacements.isEmpty()) return;
+        Registry<LootTable> registry = manager.get().registryOrThrow(Registries.LOOT_TABLE);
+        LootRegistryAccessor<LootTable> accessor = (LootRegistryAccessor<LootTable>) registry;
+        // Validate the whole batch before changing any holder or reverse index.
+        Set<LootTable> values = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (var entry : replacements.entrySet()) {
+            if (!values.add(entry.getValue())) throw new IllegalArgumentException("Duplicate replacement loot value");
+            var holder = registry.getHolder(entry.getKey()).orElseThrow(() ->
+                    new IllegalArgumentException("Unknown loot table: " + entry.getKey()));
+            var existing = accessor.contentstudio_loots$getByValue().get(entry.getValue());
+            if (existing != null && existing != holder) {
+                throw new IllegalArgumentException("Loot value already belongs to " + existing.key());
+            }
+        }
+        replacements.forEach((id, table) -> {
+            Holder.Reference<LootTable> holder = registry.getHolder(id).orElseThrow();
+            LootTable previous = holder.value();
+            int numericId = registry.getId(previous);
+            accessor.contentstudio_loots$getByValue().remove(previous);
+            accessor.contentstudio_loots$getToId().removeInt(previous);
+            ((LootHolderAccessor<LootTable>) (Object) holder).contentstudio_loots$bindValue(table);
+            accessor.contentstudio_loots$getByValue().put(table, holder);
+            accessor.contentstudio_loots$getToId().put(table, numericId);
+        });
+        // Existing holders remain in byId/byKey/byLocation and tags. Frozen state,
+        // registration info and registry lifecycle remain unchanged.
+    }
+
+
+*///?} else {
     private static void replaceLootTable(LootDataManager manager, ResourceLocation lootTableId, LootTable table) {
         replaceLootTables(manager, Map.of(lootTableId, table));
     }
@@ -680,6 +858,8 @@ public class LootTableOverrideStore {
         accessor.contentstudio_loots$setElements(Map.copyOf(updated));
     }
 
+
+//?}
     public static boolean shouldFilterGlobalRemoval(LootTable table) {
         if (table == null || globalRemovedRules().isEmpty()) {
             return false;
@@ -691,6 +871,32 @@ public class LootTableOverrideStore {
         return tableId != null && globalRemovalTargetTableIds.contains(tableId);
     }
 
+//? if >=1.21 {
+/*    private static void refreshGlobalRemovalTargetTables(MinecraftServer server) {
+        if (server == null) { globalRemovalTargetTables = Set.of(); globalRemovalTargetTableIds = Set.of(); return; }
+        refreshGlobalRemovalTargetTables(server.reloadableRegistries(), server.getResourceManager());
+    }
+
+    private static void refreshGlobalRemovalTargetTables(ReloadableServerRegistries.Holder registries, ResourceManager resources) {
+        if (globalRemovedRules().isEmpty()) {
+            globalRemovalTargetTables = Set.of(); globalRemovalTargetTableIds = Set.of(); return;
+        }
+        Set<LootTable> targets = Collections.newSetFromMap(new IdentityHashMap<>());
+        LinkedHashSet<ResourceLocation> ids = new LinkedHashSet<>();
+        for (ResourceLocation id : registries.getKeys(Registries.LOOT_TABLE)) {
+            if (!shouldApplyGlobalChestRules(id)) continue;
+            JsonElement raw = readResourceElement(resources, id);
+            JsonElement override = readOverrideElement(id);
+            if (!isContainerLootTable(id, override == null ? raw : override)) continue;
+            targets.add(registries.getLootTable(ResourceKey.create(Registries.LOOT_TABLE, id)));
+            ids.add(id);
+        }
+        globalRemovalTargetTables = Collections.unmodifiableSet(targets);
+        globalRemovalTargetTableIds = ids.isEmpty() ? Set.of() : Collections.unmodifiableSet(ids);
+    }
+
+
+*///?} else {
     private static void refreshGlobalRemovalTargetTables(MinecraftServer server) {
         if (server == null || globalRemovedRules().isEmpty()) {
             globalRemovalTargetTables = Set.of();
@@ -701,7 +907,12 @@ public class LootTableOverrideStore {
         Set<LootTable> targets = Collections.newSetFromMap(new IdentityHashMap<>());
         LinkedHashSet<ResourceLocation> targetIds = new LinkedHashSet<>();
         ResourceManager resourceManager = server.getResourceManager();
+//? if >=1.21 {
+/*        for (ResourceLocation tableId : server.reloadableRegistries().getKeys(Registries.LOOT_TABLE)) {
+*///?} else {
         for (ResourceLocation tableId : server.getLootData().getKeys(LootDataType.TABLE)) {
+//?}
+
             if (!shouldApplyGlobalChestRules(tableId)) {
                 continue;
             }
@@ -709,7 +920,12 @@ public class LootTableOverrideStore {
             if (!isContainerLootTable(tableId, raw)) {
                 continue;
             }
+//? if >=1.21 {
+/*            LootTable table = server.reloadableRegistries().getLootTable(ResourceKey.create(Registries.LOOT_TABLE, tableId));
+*///?} else {
             LootTable table = server.getLootData().getLootTable(tableId);
+//?}
+
             targets.add(table);
             targetIds.add(tableId);
         }
@@ -719,9 +935,16 @@ public class LootTableOverrideStore {
                 : Collections.unmodifiableSet(targetIds);
     }
 
+
+//?}
     private static ResourceLocation lootTableIdFromResource(ResourceLocation resourceId) {
         String path = resourceId.getPath();
+//? if >=1.21 {
+/*        String prefix = "loot_table/";
+*///?} else {
         String prefix = "loot_tables/";
+//?}
+
         String suffix = ".json";
         if (!path.startsWith(prefix) || !path.endsWith(suffix) || path.length() <= prefix.length() + suffix.length()) {
             return null;
@@ -730,7 +953,12 @@ public class LootTableOverrideStore {
     }
 
     private static ResourceLocation lootTableResourceId(ResourceLocation lootTableId) {
+//? if >=1.21 {
+/*        return KineticResourceIds.of(lootTableId.getNamespace(), "loot_table/" + lootTableId.getPath() + ".json");
+*///?} else {
         return KineticResourceIds.of(lootTableId.getNamespace(), "loot_tables/" + lootTableId.getPath() + ".json");
+//?}
+
     }
 
     private static boolean shouldApplyGlobalChestRules(ResourceLocation lootTableId) {
@@ -758,13 +986,23 @@ public class LootTableOverrideStore {
                 if (cached == null) {
                     LinkedHashSet<ResourceLocation> values = new LinkedHashSet<>();
                     KineticRegistries.entityTypes().values().forEach(type -> {
-                        ResourceLocation id = type.getDefaultLootTable();
+                        //? if >=1.21 {
+/*ResourceLocation id = type.getDefaultLootTable().location();
+*///?} else {
+ResourceLocation id = type.getDefaultLootTable();
+//?}
+
                         if (isValidLootTable(id)) {
                             values.add(id);
                         }
                     });
                     KineticRegistries.blocks().values().forEach(block -> {
-                        ResourceLocation id = block.getLootTable();
+                        //? if >=1.21 {
+/*ResourceLocation id = block.getLootTable().location();
+*///?} else {
+ResourceLocation id = block.getLootTable();
+//?}
+
                         if (isValidLootTable(id)) {
                             values.add(id);
                         }
@@ -940,7 +1178,15 @@ public class LootTableOverrideStore {
         JsonObject object = value.getAsJsonObject();
         String itemId = stringValue(object.get("item"));
         GlobalRemoveRule.MatchMode mode = GlobalRemoveRule.MatchMode.fromId(stringValue(object.get("mode")));
+//? if >=1.21 {
+/*        if (object.has("nbt") || stringValue(object.get("mode")).startsWith("nbt_")) {
+            throw new IllegalArgumentException("Legacy item NBT loot rules are unsupported; use components");
+        }
+        String nbt = stringValue(object.get("components"));
+*///?} else {
         String nbt = stringValue(object.get("nbt"));
+//?}
+
         return new GlobalRemoveRule(itemId, mode, nbt);
     }
 
@@ -1081,7 +1327,12 @@ public class LootTableOverrideStore {
     }
 
     private static boolean isValidLootTable(ResourceLocation id) {
+//? if >=1.21 {
+/*        return id != null && !BuiltInLootTables.EMPTY.location().equals(id);
+*///?} else {
         return id != null && !BuiltInLootTables.EMPTY.equals(id);
+//?}
+
     }
 
     private static JsonObject createEmptyChestTable() {

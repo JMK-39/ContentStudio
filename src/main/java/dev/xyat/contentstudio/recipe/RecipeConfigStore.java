@@ -14,6 +14,11 @@ import dev.xyat.contentstudio.recipe.removal.RemovalEntry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+import net.minecraft.core.component.DataComponents;
+*///?}
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -41,6 +46,32 @@ public final class RecipeConfigStore {
     public static final Path CONFIG_FILE = KineticPlatform.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json");
     public static final ResourceLocation DATAPACK_RESOURCE = KineticResourceIds.of("contentstudio", "recipe/recipe_bundle.json");
 
+//? if >=1.21 {
+/*
+    private static final ThreadLocal<net.minecraft.core.HolderLookup.Provider> STACK_REGISTRIES = new ThreadLocal<>();
+    private static final ThreadLocal<net.neoforged.neoforge.common.conditions.ICondition.IContext> STACK_CONDITIONS = new ThreadLocal<>();
+
+    public static synchronized Snapshot load(ResourceManager resources, net.minecraft.core.HolderLookup.Provider registries,
+                                              net.neoforged.neoforge.common.conditions.ICondition.IContext conditions) throws IOException {
+        var previousRegistries = STACK_REGISTRIES.get();
+        var previousConditions = STACK_CONDITIONS.get();
+        if (registries != null) STACK_REGISTRIES.set(registries);
+        if (conditions != null) STACK_CONDITIONS.set(conditions);
+        try {
+            return load(resources);
+        } finally {
+            if (previousRegistries == null) STACK_REGISTRIES.remove();
+            else STACK_REGISTRIES.set(previousRegistries);
+            if (previousConditions == null) STACK_CONDITIONS.remove();
+            else STACK_CONDITIONS.set(previousConditions);
+        }
+    }
+
+    private static ItemStack compileStack(String id, String components) {
+        var registries = STACK_REGISTRIES.get();
+        return registries == null ? ItemData.compile(id, components) : ItemData.compile(id, components, registries);
+    }
+*///?}
     private RecipeConfigStore() {
     }
 
@@ -398,6 +429,17 @@ public final class RecipeConfigStore {
 
     private static ItemStack invalidStack(String original) {
         ItemStack stack = new ItemStack(Items.BARRIER);
+//? if >=1.21 {
+/*
+        ItemData.updateCustomData(stack, tag -> {
+            tag.putBoolean("contentstudio_invalid_placeholder", true);
+            tag.putString("contentstudio_invalid_original", original == null ? "?" : original);
+        });
+        stack.set(DataComponents.CUSTOM_NAME, KineticI18n.translatable(
+                "gui.contentstudio.recipe.recipehud.invalid_item_placeholder",
+                original == null || original.isBlank() ? "?" : original
+        ));
+*///?} else {
         CompoundTag tag = stack.getOrCreateTag();
         tag.putBoolean("contentstudio_invalid_placeholder", true);
         tag.putString("contentstudio_invalid_original", original == null ? "?" : original);
@@ -405,6 +447,8 @@ public final class RecipeConfigStore {
                 "gui.contentstudio.recipe.recipehud.invalid_item_placeholder",
                 original == null || original.isBlank() ? "?" : original
         ));
+
+//?}
         return stack;
     }
 
@@ -502,7 +546,12 @@ public final class RecipeConfigStore {
             return object;
         }
 
+//? if >=1.21 {
+/*
+        CompoundTag tag = ItemData.customData(stack);
+*///?} else {
         CompoundTag tag = stack.getTag();
+//?}
         if (tag != null && tag.contains("kt_tag")) {
             String tagId = tag.getString("kt_tag");
             if (!tagId.startsWith("#") || tagId.length() == 1) {
@@ -521,13 +570,27 @@ public final class RecipeConfigStore {
 
         object.addProperty("item", id.toString());
         object.addProperty("count", stack.getCount());
+//? if >=1.21 {
+/*
+        String components = ItemData.format(stack);
+        if (!components.isBlank() && !components.equals("[]")) {
+            object.addProperty("components", components);
+        }
+*///?} else {
         if (tag != null && !tag.isEmpty()) {
             object.addProperty("nbt", tag.toString());
         }
+//?}
         return object;
     }
 
     private static ItemStack readStack(JsonObject object, boolean allowEmpty, boolean allowTag) {
+//? if >=1.21 {
+/*        if (object.has("nbt")) {
+            throw new IllegalArgumentException("legacy item nbt is unsupported; use components" );
+        }
+*///?}
+
         if (getBoolean(object, "empty")) {
             if (!allowEmpty) {
                 throw new IllegalArgumentException("required stack is explicitly empty");
@@ -545,13 +608,31 @@ public final class RecipeConfigStore {
             }
             ResourceLocation tagId = parseResourceLocation(rawTag.substring(1), "item tag");
             TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
+//? if >=1.21 {
+/*
+            var conditions = STACK_CONDITIONS.get();
+            boolean hasTag = conditions != null ? !conditions.getTag(tagKey).isEmpty()
+                    : ItemData.registries().lookupOrThrow(Registries.ITEM).get(tagKey)
+                            .map(tag -> tag.size() > 0).orElse(false);
+            if (!hasTag) {
+                throw new IllegalArgumentException("missing or empty item tag " + rawTag);
+            }
+*///?} else {
             Ingredient tagIngredient = Ingredient.of(tagKey);
             if (tagIngredient.getItems().length == 0) {
                 throw new IllegalArgumentException("missing or empty item tag " + rawTag);
             }
+//?}
+
             ItemStack tagStack = new ItemStack(Items.PAPER);
+//? if >=1.21 {
+/*
+            ItemData.updateCustomData(tagStack, tag -> tag.putString("kt_tag", rawTag));
+            tagStack.set(DataComponents.CUSTOM_NAME, Component.literal(rawTag));
+*///?} else {
             tagStack.getOrCreateTag().putString("kt_tag", rawTag);
             tagStack.setHoverName(Component.literal(rawTag));
+//?}
             return tagStack;
         }
 
@@ -568,6 +649,11 @@ public final class RecipeConfigStore {
             throw new IllegalArgumentException("missing registered item " + id);
         }
 
+//? if >=1.21 {
+/*
+        ItemStack stack = compileStack(id.toString(), object.has("components") ? object.get("components").getAsString() : "");
+        stack.setCount(Math.max(1, object.has("count") ? object.get("count").getAsInt() : 1));
+*///?} else {
         ItemStack stack = new ItemStack(item);
         stack.setCount(Math.max(1, object.has("count") ? object.get("count").getAsInt() : 1));
         if (object.has("nbt")) {
@@ -577,6 +663,8 @@ public final class RecipeConfigStore {
                 throw new IllegalArgumentException("invalid NBT for item " + id, e);
             }
         }
+
+//?}
         return stack;
     }
 

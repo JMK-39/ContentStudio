@@ -18,7 +18,12 @@ import dev.xyat.contentstudio.loot.GlobalRemoveRule;
 import dev.xyat.contentstudio.loot.LootEntryInfo;
 import dev.xyat.contentstudio.loot.network.LootNetwork;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+//? if >=1.21 {
+/*import dev.xyat.contentstudio.item.ItemData;
+*///?} else {
 import net.minecraft.nbt.TagParser;
+//?}
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -742,7 +747,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         }
         int editingIndex = globalRemoveSelectedIndex;
         GlobalRemoveRule original = globalRemoveRules.get(editingIndex);
+//? if >=1.21 {
+/*        ItemData.edit(original.itemId(), original.nbt(), value -> {
+*///?} else {
         KineticSelectors.openNbtEditor(original.nbt(), value -> {
+//?}
+
             if (editingIndex >= globalRemoveRules.size()) {
                 return;
             }
@@ -873,7 +883,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         ItemStack stack = item.getDefaultInstance();
         if (rule.hasConfiguredNbt()) {
             try {
+//? if >=1.21 {
+/*                stack = ItemData.compile(rule.itemId(), rule.nbt());
+*///?} else {
                 stack.setTag(TagParser.parseTag(rule.nbt()));
+//?}
+
             } catch (Exception ignored) {
                 return stack;
             }

@@ -1,6 +1,6 @@
 {
   "pack": {
     "description": "Content Studio resources",
-    "pack_format": 15
+    "pack_format": ${pack_format}${pack_supported_formats}
   }
 }
