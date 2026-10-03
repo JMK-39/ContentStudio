@@ -277,3 +277,6 @@ apply from: rootProject.file('gradle/kinetic-core-dependency.gradle')
 apply from: rootProject.file('gradle/kinetic-runtime-validation.gradle')
 
 tasks.named('test', Test).configure { exclude 'dev/xyat/contentstudiovalidation/**' }
+
+// English and Chinese must expose exactly the same authored translation keys.
+apply from: rootProject.file('gradle/kinetic-language-validation.gradle')
