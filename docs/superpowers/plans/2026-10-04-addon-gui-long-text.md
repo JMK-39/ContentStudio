@@ -44,3 +44,13 @@ ContentStudio validation limits: populated global-removal and exclusion rows wer
 Ruling (2026-10-04): proceed from ContentStudio to EntityControl, skipping AdventureSystems — the live handoff explicitly assigns AdventureSystems to Claude. Do not assume its current clean status means it is available.
 
 ContentStudio local commits: e111e99; paired Wiki requirements: 34c13dd. EntityControl began from clean 0e06026 on codex/multiversion-migration-20261003.
+
+EntityControl completed: aa80adf and color follow-up eba9185; Wiki 3caf3b5. ItemControl completed: 5660f71; Wiki af20294. Both used real existing clients with byte-identical restored options. KineticArmory begins from clean 7a4bdf7.
+
+Ruling: independent file groups within each addon use the plan-authorized dispatching-parallel-agents workflow; root integrates and performs shared builds/runtime checks after edits, avoiding concurrent shared state changes.
+
+KineticArmory completed locally: ab0d9ea; paired Wiki3de34f4. Both nodes built,31 states/186 captures plus6 empty,60 affected and18 colored followups; settings restored.
+Ruling: CombatSystems original checkout has user feature/build/resource edits and staged IDE files. Use ignored .worktrees/gui-long-text-20261004 at clean9b76311, branchcodex/gui-long-text-20261004; do not edit/stash/commit original changes. Current local Core26.10.3 already exposes required scrolling API (verified javap), so minimum can be26.10.3; local build validation needs Java21 due class65 Core.
+
+CombatSystems completed in isolated worktree: ee2ad6e. Final offline build passed 71 tests / 2369 language keys; 334 successful GUI captures across English/Chinese, two window sizes and stress translations. Original Core JAR and 12 watched game files restored byte-for-byte. Original dirty checkout unchanged. Tall Core tooltip height remains a documented limitation.
+Latest live handoff now confirms AdventureSystems 26.1.2 migration is committed (5db3d6f) and permits GUI edits. Reinspect its latest checkout and complete that previously deferred addon before TACZWorkshop.
