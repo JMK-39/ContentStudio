@@ -19,6 +19,8 @@ final class LootPoolEditPage extends KineticPage {
     private static final int HEIGHT = 240;
     private static final int PANEL_X = (CANVAS_WIDTH - WIDTH) / 2;
     private static final int PANEL_Y = (CANVAS_HEIGHT - HEIGHT) / 2;
+    private static final int FIELD_COLUMN_PITCH = 96;
+    private static final int TEXT_GAP = 4;
 
     private final AbstractLootEditorPage parent;
     private final int poolIndex;
@@ -130,9 +132,9 @@ final class LootPoolEditPage extends KineticPage {
 
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
-        g.text(title(), PANEL_X + 24, PANEL_Y + 24, 0xFFFFAA00, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
-                Component.literal(String.valueOf(poolIndex + 1))), PANEL_X + 24, PANEL_Y + 42, 0xFFE6E6E6, false);
+        g.scrollingText(title(), PANEL_X + 24, PANEL_Y + 24, WIDTH - 48, 0xFFFFAA00, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
+                Component.literal(String.valueOf(poolIndex + 1))), PANEL_X + 24, PANEL_Y + 42, WIDTH - 48, 0xFFE6E6E6, false);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 36, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_max", 132, 0xFF55FFFF);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_min", 228, 0xFFDD77FF);
@@ -145,12 +147,13 @@ final class LootPoolEditPage extends KineticPage {
                 Component.literal(String.valueOf(entries)),
                 Component.literal(String.valueOf(conditions)),
                 Component.literal(String.valueOf(functions)));
-        g.text(summary, PANEL_X + 36, PANEL_Y + 128, 0xFFE6E6E6, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, 0xFFAAAAAA, false);
+        g.scrollingText(summary, PANEL_X + 36, PANEL_Y + 128, WIDTH - 72, 0xFFE6E6E6, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, WIDTH - 72, 0xFFAAAAAA, false);
     }
 
     private void fieldLabel(KineticGraphics g, String key, int x, int color) {
-        g.text(KineticI18n.translatable(key), PANEL_X + x, PANEL_Y + 70, color, false);
+        int columnRight = Math.min(x + FIELD_COLUMN_PITCH, WIDTH - 24);
+        g.scrollingText(KineticI18n.translatable(key), PANEL_X + x, PANEL_Y + 70, columnRight - x - TEXT_GAP, color, false);
     }
 
     private int arraySize(JsonElement element) {

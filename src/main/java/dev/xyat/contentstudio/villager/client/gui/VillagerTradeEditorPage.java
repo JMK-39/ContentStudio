@@ -48,6 +48,10 @@ public class VillagerTradeEditorPage extends KineticPage {
     private static final int ROW_H = 41;
     private static final int LEVEL_ROW_H = 24;
     private static final int LEVEL_BUTTON_SIZE = 14;
+    // Shared layout bounds keep labels 4px away from neighboring controls and panel edges.
+    private static final int TEXT_GAP = 4;
+    private static final int META_FIELD_GAP = 88;
+    private static final int TRADE_SLOT_PANEL_WIDTH = 78;
 
     private static final int MAX_UNDO_STEPS = 10;
 
@@ -510,7 +514,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         int metaX = rightX + 14;
         int metaY = rightY + 196;
         int fieldW = 62;
-        int fieldGap = 88;
+        int fieldGap = META_FIELD_GAP;
         weightBox = addIntegerBox(metaX, metaY, fieldW, weight, "gui.contentstudio.villager.villager.trade.weight.tooltip", 0);
         maxUsesBox = addIntegerBox(metaX + fieldGap, metaY, fieldW, maxUses, "gui.contentstudio.villager.villager.trade.max_uses.tooltip", 0);
         xpBox = addIntegerBox(metaX + fieldGap * 2, metaY, fieldW, xp, "gui.contentstudio.villager.villager.trade.xp.tooltip", 0);
@@ -688,9 +692,10 @@ public class VillagerTradeEditorPage extends KineticPage {
             renderTradeSlotPanels(g);
         }
         if (!selectedOwner.isEmpty() && !editorActive && !levelSettingsActive) {
-            g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.right.empty.title"), rightX + 18, rightY + 24, 0xFFFFFF55, false);
-            g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.right.empty.line1"), rightX + 18, rightY + 48, 0xFFFFFFFF, false);
-            g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.right.empty.line2"), rightX + 18, rightY + 66, 0xFFFFFFFF, false);
+            int textWidth = rightW - 36;
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.right.empty.title"), rightX + 18, rightY + 24, textWidth, 0xFFFFFF55, false);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.right.empty.line1"), rightX + 18, rightY + 48, textWidth, 0xFFFFFFFF, false);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.right.empty.line2"), rightX + 18, rightY + 66, textWidth, 0xFFFFFFFF, false);
         }
     }
 
@@ -705,7 +710,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         if (professionBox == null || !selectedOwner.isEmpty() || isTradeSearching()) {
             return;
         }
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.hint"), listX + 4, listY + 8, 0xFFFFAA00, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.hint"), listX + 4, listY + 8, listW - 8, 0xFFFFAA00, false);
     }
 
 
@@ -732,7 +737,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         KineticTheme.panelAlt(g, listX, listY, listW, listH);
 
         if (isTradeSearching() && entries.isEmpty()) {
-            g.centeredText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.empty"), listX + listW / 2, listY + 10, 0xFFFFFF55, true);
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.empty"), listX + listW / 2, listY + 10, listW - 8, 0xFFFFFF55, true);
             return;
         }
 
@@ -811,22 +816,19 @@ public class VillagerTradeEditorPage extends KineticPage {
         );
 
         if (entry.header()) {
-            String left = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.trade_list.level", entry.level(), modeName(entry.mode())).getString();
-            String right = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.trade_list.level_summary", entry.levelCustomCount(), entry.levelOfferCount()).getString();
+            Component left = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.trade_list.level", entry.level(), modeName(entry.mode()));
+            Component right = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.trade_list.level_summary", entry.levelCustomCount(), entry.levelOfferCount());
 
             int leftTextX = listX + 29;
             int rightPadding = 22;
             int minGap = 10;
 
-            int maxRightWidth = Math.max(38, listX + listW - rightPadding - leftTextX - 74);
-            String safeRight = trim(right, Math.min(154, maxRightWidth));
-            int rightTextX = listX + listW - rightPadding - KineticText.width(safeRight);
-
-            int maxLeftWidth = Math.max(32, rightTextX - leftTextX - minGap);
-            String safeLeft = trim(left, maxLeftWidth);
-
-            g.text(safeLeft, leftTextX, y + 7, 0xFFFFFF55, false);
-            g.text(safeRight, rightTextX, y + 7, 0xFFFFFFFF, false);
+            int rightTextEnd = listX + listW - rightPadding;
+            // Fixed column shares prevent either translation from moving into its neighbor.
+            int leftWidth = (rightTextEnd - leftTextX - minGap) / 2;
+            int rightWidth = rightTextEnd - leftTextX - minGap - leftWidth;
+            g.scrollingText(left, leftTextX, y + 7, leftWidth, 0xFFFFFF55, false);
+            g.scrollingTextRight(right, rightTextEnd, y + 7, rightWidth, 0xFFFFFFFF, false);
             return;
         }
 
@@ -842,14 +844,15 @@ public class VillagerTradeEditorPage extends KineticPage {
                 : offerMeta;
 
         int sourceColor = entry.custom() ? 0xFFFF55FF : 0xFF55FF55;
-        g.text(trim(source.getString(), 48), listX + 9, y + 4, sourceColor, false);
-        renderOfferIconLine(g, entry.offer(), listX + 56, y + 2);
-        g.text(trim(meta, listW - 28), listX + 9, y + 27, 0xFFFFFFFF, false);
+        int iconX = listX + 56;
+        g.scrollingText(source, listX + 9, y + 4, iconX - (listX + 9) - TEXT_GAP, sourceColor, false);
+        renderOfferIconLine(g, entry.offer(), iconX, y + 2);
+        g.scrollingText(Component.literal(meta), listX + 9, y + 27, listW - 28, 0xFFFFFFFF, false);
     }
 
     private void renderOfferIconLine(KineticGraphics g, MerchantOffer offer, int x, int y) {
         if (offer == null) {
-            g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.offer.invalid"), x, y + 5, 0xFFFF5555, false);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.offer.invalid"), x, y + 5, listX + listW - 16 - x, 0xFFFF5555, false);
             return;
         }
 
@@ -989,30 +992,32 @@ public class VillagerTradeEditorPage extends KineticPage {
         }
 
         String ownerName = getProfessionName(selectedOwner);
-        g.text(trim(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName).getString(), rightW - 20), rightX + 8, rightY + 8, 0xFFFFFF55, false);
-        g.text(trim(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.selected_state", selectedLevel, modeName(selectedMode), countCustomOffers(selectedOwner, selectedLevel)).getString(), rightW - 20), rightX + 8, rightY + 24, 0xFFFFFFFF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName), rightX + 8, rightY + 8, rightW - 20, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.selected_state", selectedLevel, modeName(selectedMode), countCustomOffers(selectedOwner, selectedLevel)), rightX + 8, rightY + 24, rightW - 20, 0xFFFFFFFF, false);
 
         int noticeX = rightX + 8;
         int noticeY = rightY + 64;
         KineticTheme.panelAlt(g, noticeX, noticeY, rightW - 16, 18);
         Component state = editingDefault ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.editing_default") : (editingCustomIndex >= 0 ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.editing_custom") : KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.creating"));
-        g.text(trim(state.getString(), rightW - 28), noticeX + 6, noticeY + 5, 0xFFFF55FF, false);
+        g.scrollingText(state, noticeX + 6, noticeY + 5, rightW - 28, 0xFFFF55FF, false);
 
         renderTradeSlots(g, mx, my);
 
         int metaX = rightX + 14;
         int metaY = rightY + 196;
         int metaY2 = metaY + 38;
-        int fieldGap = 88;
+        int fieldGap = META_FIELD_GAP;
+        int labelWidth = fieldGap - TEXT_GAP;
+        int lastLabelWidth = rightX + rightW - 8 - (metaX + fieldGap * 3) - TEXT_GAP;
         int labelY = metaY - 14;
         int labelY2 = metaY2 - 14;
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.weight"), metaX, labelY, 0xFFFFFF55, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.max_uses"), metaX + fieldGap, labelY, 0xFFFFFF55, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.xp"), metaX + fieldGap * 2, labelY, 0xFFFFFF55, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.price"), metaX + fieldGap * 3, labelY, 0xFFFFFF55, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.demand"), metaX, labelY2, 0xFFFFFFFF, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.special_price"), metaX + fieldGap, labelY2, 0xFFFFFFFF, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.uses"), metaX + fieldGap * 2, labelY2, 0xFFFFFFFF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.weight"), metaX, labelY, labelWidth, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.max_uses"), metaX + fieldGap, labelY, labelWidth, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.xp"), metaX + fieldGap * 2, labelY, labelWidth, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.price"), metaX + fieldGap * 3, labelY, lastLabelWidth, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.demand"), metaX, labelY2, labelWidth, 0xFFFFFFFF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.special_price"), metaX + fieldGap, labelY2, labelWidth, 0xFFFFFFFF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.uses"), metaX + fieldGap * 2, labelY2, labelWidth, 0xFFFFFFFF, false);
     }
 
     private void renderLevelSettingsPanel(KineticGraphics g) {
@@ -1020,17 +1025,19 @@ public class VillagerTradeEditorPage extends KineticPage {
         int defaultCount = VillagerTradeRuntimeUtil.getDefaultOfferCount(selectedOwner, selectedLevel);
         int controlRightX = rightX + rightW - 190;
 
-        g.text(trim(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName).getString(), controlRightX - rightX - 12), rightX + 8, rightY + 8, 0xFFFFFF55, false);
-        g.text(trim(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings_state", selectedLevel, modeName(selectedMode), selectedOfferCount, defaultCount).getString(), controlRightX - rightX - 12), rightX + 8, rightY + 24, 0xFFFFFFFF, false);
+        int summaryWidth = controlRightX - (rightX + 8) - TEXT_GAP;
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.selected_profession", ownerName), rightX + 8, rightY + 8, summaryWidth, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings_state", selectedLevel, modeName(selectedMode), selectedOfferCount, defaultCount), rightX + 8, rightY + 24, summaryWidth, 0xFFFFFFFF, false);
 
         int buttonW = 92;
         int buttonX = rightX + rightW - 110;
         int buttonY = rightY + 8;
         int countX = buttonX - 70;
 
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.offer_count.label"), countX, buttonY, 0xFFFFFF55, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.title"), rightX + 8, rightY + 48, 0xFFFFFF55, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.tip"), rightX + 8, rightY + 64, 0xFFFFFFFF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.offer_count.label"), countX, buttonY, buttonX - countX - TEXT_GAP, 0xFFFFFF55, false);
+        // The settings title shares its row with the bottom of the action controls.
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.title"), rightX + 8, rightY + 48, summaryWidth, 0xFFFFFF55, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.tip"), rightX + 8, rightY + 64, rightW - 20, 0xFFFFFFFF, false);
 
         KineticTheme.stateOutline(g, countX - 8, buttonY - 4, buttonW + 82, 52, false, false, false);
     }
@@ -1062,7 +1069,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void renderTradeSlotSection(KineticGraphics g, int x, int y) {
-        KineticTheme.panelAlt(g, x - 6, y - 6, 78, 91);
+        KineticTheme.panelAlt(g, x - 6, y - 6, TRADE_SLOT_PANEL_WIDTH, 91);
     }
 
     private void renderLargeTradeSymbol(KineticGraphics g, String text, int centerX, int centerY) {
@@ -1082,7 +1089,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         int slotY = y + 20;
 
         int labelColor = slot == 0 ? BUY_A_LABEL : slot == 1 ? BUY_B_LABEL : SELL_LABEL;
-        g.text(trim(label.getString(), 94), x, y, labelColor, false);
+        g.scrollingText(label, x, y, TRADE_SLOT_PANEL_WIDTH - 6 - TEXT_GAP, labelColor, false);
         renderInsetSlot(g, x, slotY, isHoverSlot(mx, my, slot));
         if (!stack.isEmpty()) {
             g.item(stack, x + 4, slotY + 4);
@@ -2505,13 +2512,6 @@ public class VillagerTradeEditorPage extends KineticPage {
         };
     }
 
-    private String trim(String text, int width) {
-        if (KineticText.width(text) <= width) {
-            return text;
-        }
-        return KineticText.trim(text, Math.max(1, width - KineticText.width("..."))) + "...";
-    }
-
     private static class RemovedDefaultTradesPage extends KineticPage {
         private static final int ROW_HEIGHT = 42;
 
@@ -2586,14 +2586,18 @@ public class VillagerTradeEditorPage extends KineticPage {
         @Override
         protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
             KineticTheme.panel(g, rootX, rootY, rootW, rootH);
-            g.centeredText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.title"), rootX + rootW / 2, rootY + 12, 0xFFFFFF55, true);
+            int titleCenter = rootX + rootW / 2;
+            int titleLeft = rootX + 118 + TEXT_GAP;
+            int titleRight = rootX + rootW - 60 - TEXT_GAP;
+            int titleWidth = Math.max(1, 2 * Math.min(titleCenter - titleLeft, titleRight - titleCenter));
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.title"), titleCenter, rootY + 12, titleWidth, 0xFFFFFF55, true);
             KineticTheme.panelAlt(g, listX, listY, listW, listH);
         }
 
         @Override
         protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
             if (removedEntries.isEmpty()) {
-                g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.empty"), listX + 10, listY + 12, 0xFF55FF55, false);
+                g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.empty"), listX + 10, listY + 12, listW - 20, 0xFF55FF55, false);
             } else {
                 int visualShift = listScroll.visualShift(ROW_HEIGHT);
                 int y = listY + 4 - visualShift;
@@ -2640,8 +2644,8 @@ public class VillagerTradeEditorPage extends KineticPage {
                     hover,
                     false
             );
-            g.text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.entry", entry.level(), entry.index()), listX + 10, y + 5, 0xFFFFFF55, false);
             int iconX = listX + 126;
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.entry", entry.level(), entry.index()), listX + 10, y + 5, iconX - (listX + 10) - TEXT_GAP, 0xFFFFFF55, false);
             int iconY = y + 13;
             renderRemovedMiniStack(g, entry.offer().getBaseCostA(), iconX, iconY);
             g.text("+", iconX + 24, iconY + 6, 0xFFFFFF55, false);

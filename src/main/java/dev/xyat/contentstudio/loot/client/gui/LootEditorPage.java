@@ -254,7 +254,7 @@ public class LootEditorPage extends AbstractLootEditorPage {
                 hovered
         );
         if (!rendered) {
-            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.preview_failed"), cellX + cell / 2, cellY + cell / 2 - 4, 0xFFFF5555, true);
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.preview_failed"), cellX + cell / 2, cellY + cell / 2 - 4, cell - 2 * TEXT_GAP, 0xFFFF5555, true);
         }
         return rendered;
     }

@@ -6,6 +6,7 @@ public final class RuntimeValidation {
     private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(RuntimeValidation.class);
     public RuntimeValidation() { net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
+        if (Boolean.getBoolean("contentstudio.guiValidation")) { GuiLongTextValidation.install(); return; }
         failures=0;
         for(String name:java.util.List.of("dev.xyat.contentstudiovalidation.RuntimeRecipeChecks","dev.xyat.contentstudiovalidation.RuntimeLootRuleChecks","dev.xyat.contentstudiovalidation.RuntimeLootJsonChecks")) {
             try {

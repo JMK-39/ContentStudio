@@ -18,7 +18,6 @@ import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.contentstudio.villager.network.VillagerNetwork;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -125,7 +124,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             float partialTick
     ) {
         KineticTheme.panel(graphics, PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT);
-        graphics.centeredText(title(), width() / 2, 30, 0xFFFFAA00, true);
+        graphics.scrollingTextCentered(title(), width() / 2, 30, PANEL_WIDTH - 16, 0xFFFFAA00, true);
         KineticTheme.panel(graphics, GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT);
         renderItems(graphics, mouseX, mouseY);
         scroll.render(graphics,
@@ -146,7 +145,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             float partialTick
     ) {
         if (items.isEmpty()) {
-            graphics.centeredText(KineticI18n.translatable("gui.kineticcore.items.list_editor.empty"), GRID_X + GRID_WIDTH / 2, GRID_Y + GRID_HEIGHT / 2 - KineticText.lineHeight() / 2, 0xFFAAAAAA, true);
+            graphics.scrollingTextCentered(KineticI18n.translatable("gui.kineticcore.items.list_editor.empty"), GRID_X + GRID_WIDTH / 2, GRID_Y + GRID_HEIGHT / 2 - KineticText.lineHeight() / 2, GRID_WIDTH - 8, 0xFFAAAAAA, true);
         }
     }
 
@@ -271,17 +270,14 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
     protected void renderTooltips(int mouseX, int mouseY) {
         if (hoveredIndex < 0 || hoveredIndex >= items.size()) return;
         String itemId = items.get(hoveredIndex);
-        List<FormattedCharSequence> lines = new ArrayList<>();
+        List<Component> lines = new ArrayList<>();
         ItemStack stack = previewStack(itemId);
         if (!stack.isEmpty()) {
-            lines.addAll(KineticText.wrap(stack.getHoverName(), 300));
+            lines.add(stack.getHoverName());
         }
-        lines.addAll(KineticText.wrap(Component.literal(itemId), 300));
-        lines.addAll(KineticText.wrap(
-                KineticI18n.translatable("gui.kineticcore.items.list_editor.remove_hint"),
-                300
-        ));
-        showFormattedTooltip(lines);
+        lines.add(Component.literal(itemId));
+        lines.add(KineticI18n.translatable("gui.kineticcore.items.list_editor.remove_hint"));
+        showTooltip(lines, 300);
     }
 
     private static String normalizeItemId(String itemId) {

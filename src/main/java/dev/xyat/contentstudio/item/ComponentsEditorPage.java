@@ -62,10 +62,12 @@ public final class ComponentsEditorPage extends KineticPage {
 
     @Override
     protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.centeredText(title(), width() / 2, 8, 0xFFFFFF, true);
-        graphics.centeredText(KineticI18n.translatable("gui.contentstudio.components.hint"), width() / 2, 27, 0xAAAAAA, false);
-        if (!valid) graphics.centeredText(KineticI18n.translatable("gui.contentstudio.components.invalid"),
-                width() / 2, height() - 53, 0xFF5555, false);
+        int editorWidth = Math.min(width() - 30, 700);
+        graphics.scrollingTextCentered(title(), width() / 2, 8, width() - 30, 0xFFFFFF, true);
+        graphics.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.components.hint"),
+                width() / 2, 27, editorWidth, 0xAAAAAA, false);
+        if (!valid) graphics.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.components.invalid"),
+                width() / 2, height() - 53, width() - 30, 0xFF5555, false);
     }
 }
 *///?}

@@ -3,7 +3,6 @@ package dev.xyat.contentstudio.loot.client.gui;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.client.gui.input.KeyInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
-import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
@@ -49,6 +48,17 @@ final class LootEntryEditPage extends KineticPage {
     private static final int ENCHANT_FIELD_Y = 174;
     private static final int ENTITY_TITLE_Y = 203;
     private static final int ENTITY_BUTTON_Y = 218;
+    private static final int TEXT_GAP = 4;
+    private static final int CONTENT_RIGHT = WIDTH - 24;
+    private static final int TABLE_NAME_X = 170;
+    private static final int FUNCTION_HELP_X = 94;
+    // Reserve the rightmost column for the unknown-function summary.
+    private static final int FUNCTION_STATUS_X = 372;
+    private static final int ENCHANT_MIN_X = 82;
+    private static final int DAMAGE_MIN_X = 264;
+    private static final int DAMAGE_HELP_X = 372;
+    private static final int ENTITY_HELP_X = 132;
+    private static final int ITEM_TEXT_X = ITEM_X + ITEM_SIZE + 10;
 
     private final AbstractLootEditorPage parent;
     private final AbstractLootEditorPage.DropVisual original;
@@ -152,9 +162,9 @@ final class LootEntryEditPage extends KineticPage {
         furnaceButton = ui().toggle(260, FUNCTION_BUTTON_Y, 112).value(furnaceSmelt).labels(toggleText("gui.contentstudio.loot.loots.entry.furnace", true), toggleText("gui.contentstudio.loot.loots.entry.furnace", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.furnace")).onChange(value -> furnaceSmelt = value).build();
         explosionButton = ui().toggle(378, FUNCTION_BUTTON_Y, 112).value(explosionDecay).labels(toggleText("gui.contentstudio.loot.loots.entry.explosion", true), toggleText("gui.contentstudio.loot.loots.entry.explosion", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.explosion")).onChange(value -> explosionDecay = value).build();
 
-        enchantMinBox = numericBox(82, ENCHANT_FIELD_Y, 46, draft(draftEnchantMin, format(levels.min())), format(levels.min()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_min");
+        enchantMinBox = numericBox(ENCHANT_MIN_X, ENCHANT_FIELD_Y, 46, draft(draftEnchantMin, format(levels.min())), format(levels.min()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_min");
         enchantMaxBox = numericBox(136, ENCHANT_FIELD_Y, 46, draft(draftEnchantMax, format(levels.max())), format(levels.max()), LootNumericField.Type.POSITIVE_INTEGER, "gui.contentstudio.loot.loots.tip.entry.enchant_max");
-        damageMinBox = numericBox(264, ENCHANT_FIELD_Y, 46, draft(draftDamageMin, format(damage.min())), format(damage.min()), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_min");
+        damageMinBox = numericBox(DAMAGE_MIN_X, ENCHANT_FIELD_Y, 46, draft(draftDamageMin, format(damage.min())), format(damage.min()), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_min");
         damageMaxBox = numericBox(318, ENCHANT_FIELD_Y, 46, draft(draftDamageMax, format(damage.max())), format(damage.max()), LootNumericField.Type.RATIO, "gui.contentstudio.loot.loots.tip.entry.damage_max");
 
         killedButton = ui().toggle(24, ENTITY_BUTTON_Y, 151).value(killedByPlayer).labels(toggleText("gui.contentstudio.loot.loots.entry.killed", true), toggleText("gui.contentstudio.loot.loots.entry.killed", false)).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.killed_by_player")).onChange(value -> killedByPlayer = value).build();
@@ -391,34 +401,34 @@ final class LootEntryEditPage extends KineticPage {
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
-        g.text(title(), 24, 21, 0xFFFFAA00, false);
-        g.text(trim(parent.selectedTableName().getString(), WIDTH - 194), 170, 21, 0xFFFFD75F, false);
+        g.scrollingText(title(), 24, 21, TABLE_NAME_X - 24 - TEXT_GAP, 0xFFFFAA00, false);
+        g.scrollingText(Component.literal(parent.selectedTableName().getString()), TABLE_NAME_X, 21, CONTENT_RIGHT - TABLE_NAME_X, 0xFFFFD75F, false);
         drawItem(g, mx, my);
-        fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24);
-        fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_min", 101);
-        fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_max", 178);
-        fieldLabel(g, "gui.contentstudio.loot.loots.entry.weight", 255);
+        fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24, 101);
+        fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_min", 101, 178);
+        fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_max", 178, 255);
+        fieldLabel(g, "gui.contentstudio.loot.loots.entry.weight", 255, entityMode ? 332 : CONTENT_RIGHT);
         if (entityMode) {
-            fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_min", 332);
-            fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_max", 409);
+            fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_min", 332, 409);
+            fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_max", 409, CONTENT_RIGHT);
         }
-        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, 0xFFFF55FF, false);
-        g.text(trim(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions_help").getString(), 270), 94, FUNCTION_TITLE_Y, 0xFFAAAAAA, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, 0xFFDD77FF, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6, damageableItem ? 0xFFFFD75F : 0xFF777777, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, FUNCTION_HELP_X - 24 - TEXT_GAP, 0xFFFF55FF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions_help"), FUNCTION_HELP_X, FUNCTION_TITLE_Y, FUNCTION_STATUS_X - FUNCTION_HELP_X - TEXT_GAP, 0xFFAAAAAA, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, ENCHANT_MIN_X - 24 - TEXT_GAP, 0xFFDD77FF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6, DAMAGE_MIN_X - 204 - TEXT_GAP, damageableItem ? 0xFFFFD75F : 0xFF777777, false);
         Component damageHelp = KineticI18n.translatable(damageableItem
                 ? "gui.contentstudio.loot.loots.entry.damage_enabled"
                 : "gui.contentstudio.loot.loots.entry.damage_disabled");
-        g.text(trim(damageHelp.getString(), 124), 372, ENCHANT_FIELD_Y + 6, damageableItem ? 0xFF55FF55 : 0xFF777777, false);
+        g.scrollingText(damageHelp, DAMAGE_HELP_X, ENCHANT_FIELD_Y + 6, CONTENT_RIGHT - DAMAGE_HELP_X, damageableItem ? 0xFF55FF55 : 0xFF777777, false);
         if (entityMode) {
-            g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, 0xFF55FFFF, false);
-            g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_help"), 132, ENTITY_TITLE_Y, 0xFFAAAAAA, false);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, ENTITY_HELP_X - 24 - TEXT_GAP, 0xFF55FFFF, false);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_help"), ENTITY_HELP_X, ENTITY_TITLE_Y, CONTENT_RIGHT - ENTITY_HELP_X, 0xFFAAAAAA, false);
         }
         renderUnknownFunctions(g, mx, my);
     }
 
-    private void fieldLabel(KineticGraphics g, String key, int x) {
-        g.text(KineticI18n.translatable(key), x, NUMERIC_LABEL_Y, 0xFFE6E6E6, false);
+    private void fieldLabel(KineticGraphics g, String key, int x, int nextColumnX) {
+        g.scrollingText(KineticI18n.translatable(key), x, NUMERIC_LABEL_Y, nextColumnX - x - TEXT_GAP, 0xFFE6E6E6, false);
     }
 
     private void drawItem(KineticGraphics g, int mx, int my) {
@@ -434,13 +444,13 @@ final class LootEntryEditPage extends KineticPage {
             g.pop();
         }
         Component itemName = stack.isEmpty() ? original.name : stack.getHoverName();
-        int itemTextWidth = NBT_BUTTON_X - 70;
-        g.text(trim(itemName.getString(), itemTextWidth), 62, ITEM_Y + 1, 0xFFFFAA00, false);
-        g.text(trim(selectedItemId, itemTextWidth), 62, ITEM_Y + 13, 0xFF55FFFF, false);
+        int itemTextWidth = NBT_BUTTON_X - ITEM_TEXT_X - TEXT_GAP;
+        g.scrollingText(Component.literal(itemName.getString()), ITEM_TEXT_X, ITEM_Y + 1, itemTextWidth, 0xFFFFAA00, false);
+        g.scrollingText(Component.literal(selectedItemId), ITEM_TEXT_X, ITEM_Y + 13, itemTextWidth, 0xFF55FFFF, false);
         Component hint = KineticI18n.translatable(itemEntry
                 ? "gui.contentstudio.loot.loots.entry.item_hint"
                 : "gui.contentstudio.loot.loots.tip.entry.locked_type");
-        g.text(trim(hint.getString(), itemTextWidth), 62, ITEM_Y + 25, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
+        g.scrollingText(hint, ITEM_TEXT_X, ITEM_Y + 25, itemTextWidth, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
         if (mx >= ITEM_X && mx < WIDTH - 24 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE + 10) {
             deferredTooltip = stack.isEmpty()
                     ? List.of(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
@@ -477,10 +487,9 @@ final class LootEntryEditPage extends KineticPage {
         int count = LootJsonEditUtil.unknownFunctionCount(workingEntry);
         Component text = KineticI18n.translatable("gui.contentstudio.loot.loots.entry.unknown_functions",
                 Component.literal(String.valueOf(count)));
-        int x = WIDTH - KineticText.width(text) - 24;
         int y = FUNCTION_TITLE_Y;
-        g.text(text, x, y, 0xFFAAAAAA, false);
-        if (mx >= x && mx <= x + KineticText.width(text) && my >= y - 2 && my <= y + 11) {
+        g.scrollingTextRight(text, CONTENT_RIGHT, y, CONTENT_RIGHT - FUNCTION_STATUS_X, 0xFFAAAAAA, false);
+        if (mx >= FUNCTION_STATUS_X && mx <= CONTENT_RIGHT && my >= y - 2 && my <= y + 11) {
             deferredTooltip = new ArrayList<>();
             deferredTooltip.add(KineticTheme.muted(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.unknown_functions")));
             for (String id : LootJsonEditUtil.unknownFunctions(workingEntry)) {
@@ -522,10 +531,4 @@ final class LootEntryEditPage extends KineticPage {
         return String.format(java.util.Locale.ROOT, "%.4f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
-    private String trim(String text, int width) {
-        if (text == null || KineticText.width(text) <= width) {
-            return text == null ? "" : text;
-        }
-        return KineticText.trim(text, Math.max(4, width - KineticText.width("..."))) + "...";
-    }
 }

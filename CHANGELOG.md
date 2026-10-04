@@ -1,3 +1,23 @@
+# Changelog / 更新日志
+
+## 26.10.4 — 2026-10-04
+
+### English
+
+- Keep long editor labels, headings, names and IDs inside their layout bounds, using the shared scrolling text API. Short text retains its original alignment. Applies to villager trades, follow items, loot, recipes, item components and tooltip editors.
+- Separate Save and Back in the global loot removal editor and keep its counters clear of the panel border.
+- Require KineticCore 26.10.4+ and let the shared tooltip API wrap follow-item tooltip components to the available screen width. Very tall tooltips still need a central Core follow-up; see docs/tooltip-height-follow-up.md.
+- Both enabled nodes pass offline builds and existing checks. Reviewed real English/Chinese GUI captures at 854×480 and 1536×864, with automatic GUI scale and extra long translation probes.
+
+### 简体中文
+
+- 村民交易、跟随物品、战利品、配方、物品组件和提示编辑器的长标签、标题、名称及 ID 现在使用核心滚动文字 API，限制在各自布局范围内；短文字保持原有对齐。
+- 分开全局战利品移除页的保存与返回按钮，让计数文字避开面板边框。
+- 要求 KineticCore 26.10.4+；跟随物品悬浮提示交给统一 API 按屏幕可用宽度换行。过高提示仍需核心后续处理，复现见 docs/tooltip-height-follow-up.md。
+- 两个启用节点通过离线构建及现有检查；已在真实客户端、自动 GUI 缩放下检查中英文 854×480 与 1536×864 截图，并增加超长翻译验证。
+
+---
+
 2026年10月04日 — Language key validation / 语言键一致性检查
 
 - Require identical authored English/Chinese keys and string values in source, version overrides and packaged resources; generated formatting keys are rejected during builds.
@@ -5,8 +25,6 @@
 - 强制检查源码、版本覆盖与最终资源的中英文完整键名一致、值为字符串；构建禁止派生格式语言键。
 
 ---
-
-# Changelog / 更新日志
 
 ## 26.10.3 — 2026-10-03
 

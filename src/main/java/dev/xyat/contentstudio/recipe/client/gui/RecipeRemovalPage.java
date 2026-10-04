@@ -4,7 +4,6 @@ import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
-import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
@@ -824,7 +823,7 @@ public class RecipeRemovalPage extends KineticPage {
         }
     }
     private void text(KineticGraphics g, Component text, int x, int y, int width, int color) {
-        g.text(KineticText.trim(text.getString(), width), x, y, color, false);
+        g.scrollingText(text, x, y, width, color, false);
     }
     private void scrollbar(KineticGraphics g, KineticScrollController scroll, int mx, int my, int x, int y, int height) {
         scroll.render(g, mx, my, x, y, 4, height, 16);

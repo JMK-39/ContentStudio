@@ -3,7 +3,6 @@ package dev.xyat.contentstudio.recipe.client.gui;
 import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
-import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
@@ -14,6 +13,7 @@ import dev.xyat.kineticcore.api.client.search.KineticSuggestion;
 
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -23,6 +23,10 @@ import java.util.Map;
 
 /** Browse the selected item's real recipe types with an icon and recipe count. */
 final class RecipeTypeFilterPage extends KineticPage {
+    private static final int NAME_X = 44;
+    private static final int TYPE_X = 370;
+    private static final int ROW_RIGHT = 624;
+    private static final int TEXT_GAP = 4;
     private record Row(ResourceLocation type, long count) { }
 
     private final RecipeRemovalPage parent;
@@ -73,7 +77,7 @@ final class RecipeTypeFilterPage extends KineticPage {
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.text(title(), 16, 12, KineticTheme.current().text(), false);
+        graphics.scrollingText(title(), 16, 12, ROW_RIGHT - 16, KineticTheme.current().text(), false);
         scroll.update(visible.size(), 10);
         graphics.scissor(16, 68, 624, 308);
         int start = scroll.smoothIndexOffset(), shift = scroll.visualShift(24);
@@ -89,8 +93,10 @@ final class RecipeTypeFilterPage extends KineticPage {
             }
             String name = row.type() == null ? RecipeRemovalPage.tr("all_types").getString()
                     : RecipeRemovalPage.typeName(row.type()).getString();
-            graphics.text(KineticText.trim(name + " · " + row.count(), 320), 44, y + 8, KineticTheme.current().text(), false);
-            if (row.type() != null) graphics.text(KineticText.trim(row.type().toString(), 240), 370, y + 8, KineticTheme.current().mutedText(), false);
+            graphics.scrollingText(Component.literal(name + " · " + row.count()), NAME_X, y + 8,
+                    TYPE_X - NAME_X - TEXT_GAP, KineticTheme.current().text(), false);
+            if (row.type() != null) graphics.scrollingText(Component.literal(row.type().toString()), TYPE_X, y + 8,
+                    ROW_RIGHT - TYPE_X - TEXT_GAP, KineticTheme.current().mutedText(), false);
             scroll.renderSelectionFlash(graphics, i, 16, y + 1, 608, 22);
         }
         graphics.endScissor();

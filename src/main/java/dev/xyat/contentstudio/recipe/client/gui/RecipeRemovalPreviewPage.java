@@ -1,6 +1,5 @@
 package dev.xyat.contentstudio.recipe.client.gui;
 
-import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
@@ -15,6 +14,9 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 final class RecipeRemovalPreviewPage extends KineticPage {
+    private static final int PAGE_WIDTH = 640;
+    private static final int TEXT_MARGIN = 16;
+    private static final int TEXT_WIDTH = PAGE_WIDTH - TEXT_MARGIN * 2;
     private final RecipeRemovalPage parent;
     private final RecipeJeiBridge.Entry entry;
     private RecipeJeiBridge.Preview preview;
@@ -104,12 +106,13 @@ final class RecipeRemovalPreviewPage extends KineticPage {
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.centeredText(title(), 320, 16, KineticTheme.current().text(), true);
+        graphics.scrollingTextCentered(title(), PAGE_WIDTH / 2, 16, TEXT_WIDTH, KineticTheme.current().text(), true);
         Component id = entry.recipe().id() == null ? RecipeRemovalPage.tr("no_id") : Component.literal(entry.recipe().id().toString());
-        graphics.centeredText(KineticText.trim(id.getString(), 608), 320, 36, KineticTheme.current().mutedText(), true);
-        graphics.centeredText(parent.statusLabel(entry), 320, 50, KineticTheme.current().mutedText(), true);
+        graphics.scrollingTextCentered(id, PAGE_WIDTH / 2, 36, TEXT_WIDTH, KineticTheme.current().mutedText(), true);
+        graphics.scrollingTextCentered(parent.statusLabel(entry), PAGE_WIDTH / 2, 50, TEXT_WIDTH, KineticTheme.current().mutedText(), true);
         KineticTheme.panelAlt(graphics, 16, 62, 608, 250);
-        if (dataError) graphics.centeredText(RecipeRemovalPage.tr("data_error"), 320, 170, KineticTheme.current().danger(), true);
+        if (dataError) graphics.scrollingTextCentered(RecipeRemovalPage.tr("data_error"), PAGE_WIDTH / 2, 170,
+                TEXT_WIDTH - 8, KineticTheme.current().danger(), true);
         else if (preview != null) drawPreview(graphics, mouseX, mouseY, false);
         else {
             try { renderFallback(graphics); } catch (RuntimeException ignored) { markError(); }
@@ -136,7 +139,9 @@ final class RecipeRemovalPreviewPage extends KineticPage {
 
     private void renderFallback(KineticGraphics graphics) {
         var recipe = entry.recipe();
-        graphics.centeredText(RecipeRemovalPage.tr(dataError ? "data_error" : "fallback_preview"), 320, 82, dataError ? KineticTheme.current().danger() : KineticTheme.current().mutedText(), true);
+        graphics.scrollingTextCentered(RecipeRemovalPage.tr(dataError ? "data_error" : "fallback_preview"),
+                PAGE_WIDTH / 2, 82, TEXT_WIDTH - 8,
+                dataError ? KineticTheme.current().danger() : KineticTheme.current().mutedText(), true);
         int columns = recipe.craftingWidth() > 0 ? Math.min(9, recipe.craftingWidth()) : 9;
         int cycle = (int) ((System.currentTimeMillis() / 1000) % Integer.MAX_VALUE);
         for (int i = 0; i < Math.min(recipe.inputs().size(), columns * 6); i++) {

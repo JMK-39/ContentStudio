@@ -13,6 +13,7 @@ import dev.xyat.kineticcore.api.client.gui.widget.*;
 
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,7 +98,7 @@ public class RecipeTagSelectionPage extends KineticPage {
             int mouseY,
             float partialTick
     ) {
-        graphics.centeredText(title(), width() / 2, 5, 0xFFFFFF, true);
+        graphics.scrollingTextCentered(title(), width() / 2, 5, width() - 24, 0xFFFFFF, true);
 
         KineticTheme.panelAlt(
                 graphics,
@@ -147,7 +148,7 @@ public class RecipeTagSelectionPage extends KineticPage {
                     false, hovered, false
             );
 
-            graphics.text(tag, listX + 5, y + 6, 0xFFFFFF, true);
+            graphics.scrollingText(Component.literal(tag), listX + 5, y + 6, listW - 10, 0xFFFFFF, true);
         }
 
         graphics.endScissor();

@@ -4,7 +4,6 @@ package dev.xyat.contentstudio.loot.client.gui;
 import dev.xyat.kineticcore.api.client.gui.input.MouseButton;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.text.KineticI18n;
-import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
@@ -56,12 +55,18 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     private static final int EXCLUDE_ROW_H = 24;
     private static final int EXCLUDE_VISIBLE_ROWS = SPECIAL_H / EXCLUDE_ROW_H;
-    private static final int GLOBAL_REMOVE_SAVE_X = RIGHT_X + RIGHT_W - 50;
+    // Match the normal save slot, leaving the rightmost slot for Back.
+    private static final int GLOBAL_REMOVE_SAVE_X = RIGHT_X + RIGHT_W - 97;
     private static final int GLOBAL_REMOVE_NBT_X = GLOBAL_REMOVE_SAVE_X - 76;
     private static final int GLOBAL_REMOVE_MODE_X = GLOBAL_REMOVE_NBT_X - 106;
     private static final int GLOBAL_REMOVE_ADD_X = GLOBAL_REMOVE_MODE_X - 84;
     private static final int GLOBAL_REMOVE_BUTTON_Y = RIGHT_Y + 10;
+    private static final int COUNT_Y = GLOBAL_REMOVE_BUTTON_Y + CONTROL_HEIGHT + 2;
     private static final int GLOBAL_REMOVE_MODE_W = 100;
+    private static final int GLOBAL_EXCLUDE_SAVE_X = RIGHT_X + RIGHT_W - 97;
+    // Names end inside their row, before the scrollbar/right inset.
+    private static final int EXCLUDE_TEXT_W = SPECIAL_W - 10 - 7 - TEXT_GAP;
+    private static final int TARGET_TEXT_W = TARGET_WIDTH - 5 - TEXT_GAP;
 
 
     private final List<GlobalRemoveRule> globalRemoveRules = new ArrayList<>();
@@ -207,7 +212,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                     saveGlobalRemove();
                 }).build();
 
-        globalExcludeSaveButton = ui().button(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save")).onClick(this::saveGlobalExclude).build();
+        globalExcludeSaveButton = ui().button(GLOBAL_EXCLUDE_SAVE_X, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save")).onClick(this::saveGlobalExclude).build();
         updateSpecialButtons();
     }
 
@@ -222,6 +227,13 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     private boolean isGlobalExcludePanel() {
         return selectedEntry != null && selectedEntry.isGlobalChestExclude();
+    }
+
+    @Override
+    protected int headerTextRight() {
+        if (isGlobalRemovePanel()) return GLOBAL_REMOVE_ADD_X;
+        if (isGlobalExcludePanel()) return GLOBAL_EXCLUDE_SAVE_X;
+        return super.headerTextRight();
     }
 
     @Override
@@ -387,10 +399,11 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                 "gui.contentstudio.loot.loots.global_remove.count",
                 Component.literal(Integer.toString(globalRemoveRules.size()))
         );
-        g.text(count, RIGHT_X + RIGHT_W - 10 - KineticText.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
+        // Below the header buttons; the next panel begins at SPECIAL_Y.
+        g.scrollingTextRight(count, RIGHT_X + RIGHT_W - 10, COUNT_Y, RIGHT_W - 20, 0xFFFFFFFF, false);
 
         if (globalRemoveRules.isEmpty()) {
-            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.empty"), SPECIAL_X + SPECIAL_W / 2, SPECIAL_Y + SPECIAL_H / 2 - 4, 0xFFFFAA00, true);
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.empty"), SPECIAL_X + SPECIAL_W / 2, SPECIAL_Y + SPECIAL_H / 2 - 4, SPECIAL_W - 2 * TEXT_GAP, 0xFFFFAA00, true);
             return;
         }
 
@@ -458,13 +471,13 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                 "gui.contentstudio.loot.loots.global_exclude.count",
                 Component.literal(Integer.toString(globalExcludedLootTableIds.size()))
         );
-        g.text(count, RIGHT_X + RIGHT_W - 10 - KineticText.width(count), RIGHT_Y + 28, 0xFFFFFFFF, false);
-        g.text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.desc"), SPECIAL_X + 4, SPECIAL_Y + 4, 0xFFFFFF55, false);
+        g.scrollingTextRight(count, RIGHT_X + RIGHT_W - 10, COUNT_Y, RIGHT_W - 20, 0xFFFFFFFF, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.desc"), SPECIAL_X + 4, SPECIAL_Y + 4, SPECIAL_W - 2 * TEXT_GAP, 0xFFFFFF55, false);
 
         int listY = SPECIAL_Y + 18;
         int listH = SPECIAL_H - 18;
         if (globalExcludedLootTableIds.isEmpty()) {
-            g.centeredText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.empty"), SPECIAL_X + SPECIAL_W / 2, listY + listH / 2 - 4, 0xFFFFAA00, true);
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.empty"), SPECIAL_X + SPECIAL_W / 2, listY + listH / 2 - 4, SPECIAL_W - 2 * TEXT_GAP, 0xFFFFAA00, true);
         } else {
             double smoothExcludeScroll = globalExcludeScroller.smoothOffset();
             int smoothExcludeRow = (int) Math.floor(smoothExcludeScroll + 1.0E-6D);
@@ -519,10 +532,10 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
         String name = lootTableDisplayName(id);
         if (!name.equals(id)) {
-            g.text(KineticText.ellipsize(name, SPECIAL_W - 24), SPECIAL_X + 7, y + 2, 0xFFFFD75F, false);
-            g.text(KineticText.ellipsize(id, SPECIAL_W - 24), SPECIAL_X + 7, y + 12, 0xFF55FFFF, false);
+            g.scrollingText(Component.literal(name), SPECIAL_X + 7, y + 2, EXCLUDE_TEXT_W, 0xFFFFD75F, false);
+            g.scrollingText(Component.literal(id), SPECIAL_X + 7, y + 12, EXCLUDE_TEXT_W, 0xFF55FFFF, false);
         } else {
-            g.text(KineticText.ellipsize(id, SPECIAL_W - 24), SPECIAL_X + 7, y + 6, 0xFF55FFFF, false);
+            g.scrollingText(Component.literal(id), SPECIAL_X + 7, y + 6, EXCLUDE_TEXT_W, 0xFF55FFFF, false);
         }
 
         if (hovered) {
@@ -930,10 +943,10 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
             String name = getDisplayName(entry);
             String id = entry.lootTableId();
             if (!name.equals(id)) {
-                g.text(KineticText.ellipsize(name, TARGET_WIDTH - 10), LEFT_X + 5, y + 2, 0xFFFFD75F, false);
-                g.text(KineticText.ellipsize(id, TARGET_WIDTH - 10), LEFT_X + 5, y + 12, 0xFF55FFFF, false);
+                g.scrollingText(Component.literal(name), LEFT_X + 5, y + 2, TARGET_TEXT_W, 0xFFFFD75F, false);
+                g.scrollingText(Component.literal(id), LEFT_X + 5, y + 12, TARGET_TEXT_W, 0xFF55FFFF, false);
             } else {
-                g.text(KineticText.ellipsize(id, TARGET_WIDTH - 10), LEFT_X + 5, y + 6, 0xFF55FFFF, false);
+                g.scrollingText(Component.literal(id), LEFT_X + 5, y + 6, TARGET_TEXT_W, 0xFF55FFFF, false);
             }
             flashTarget(g, i, LEFT_X, y, TARGET_WIDTH, ROW_HEIGHT);
 

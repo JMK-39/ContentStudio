@@ -323,7 +323,7 @@ public class TooltipClientHandlers {
         ) {
             KineticTheme.canvasBackground(graphics, width(), height());
 
-            graphics.centeredText(title(), width() / 2, 5, 0xFFFFFF, true);
+            graphics.scrollingTextCentered(title(), width() / 2, 5, width() - 40, 0xFFFFFF, true);
 
             KineticTheme.panel(graphics, gridX - 2, gridY - 2, gridW + 4, gridH + 4);
         }
@@ -666,6 +666,11 @@ public class TooltipClientHandlers {
                         index -> index - this.visibleRows / 2);
 
         private final int ROW_HEIGHT = 28;
+        // Header viewports follow the mode, line, key and text controls below them.
+        private static final int MODE_WIDTH = 32, LINE_X = 34, LINE_WIDTH = 24;
+        private static final int KEY_X = 60, KEY_WIDTH = 65, TEXT_X = 127;
+        private static final int HEADER_GAP = 4;
+        private int infoTextWidth;
         private int listStartY, listH, visibleRows, startX, listW, infoX;
 
         public TooltipEditPage(TooltipHubPage parent, String itemId) {
@@ -753,6 +758,8 @@ public class TooltipClientHandlers {
             }
 
             int curX = backBtnX - (8 * 16) - 15;
+            // The color palette is the first control beside both item information lines.
+            infoTextWidth = curX - (infoX + 30) - HEADER_GAP;
             for (int i = 0; i < COLORS.length; i++) {
                 final String c = "§" + CODES[i];
                 int col = i % 8;
@@ -794,7 +801,7 @@ public class TooltipClientHandlers {
         protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
             KineticTheme.canvasBackground(g, this.width(), this.height());
             KineticTheme.panel(g, startX - 2, listStartY - 2, listW + 4, listH + 4);
-            g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.drag_hint"), startX, listStartY - 30, 0xFFFFFF, true);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.drag_hint"), startX, listStartY - 30, listW, 0xFFFFFF, true);
         }
 
         @Override
@@ -809,14 +816,14 @@ public class TooltipClientHandlers {
             g.item(itemStack, 0, 0);
             g.pop();
 
-            g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.title", itemStack.getHoverName()), infoX + 30, 12, 0xFFFFFF, true);
-            g.text(itemId, infoX + 30, 24, 0xAAAAAA, true);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.title", itemStack.getHoverName()), infoX + 30, 12, infoTextWidth, 0xFFFFFF, true);
+            g.scrollingText(Component.literal(itemId), infoX + 30, 24, infoTextWidth, 0xAAAAAA, true);
 
             int headerY = listStartY - 15;
-            g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.mode"), startX + 2, headerY, 0xFFFF55, true);
-            g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.line_short"), startX + 35, headerY, 0xFFFF55, true);
-            g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.key"), startX + 70, headerY, 0xFFFF55, true);
-            g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.text_content"), startX + 127, headerY, 0xFFFF55, true);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.mode"), startX + 2, headerY, MODE_WIDTH - HEADER_GAP, 0xFFFF55, true);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.line_short"), startX + LINE_X + 1, headerY, LINE_WIDTH - HEADER_GAP, 0xFFFF55, true);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.key"), startX + KEY_X + 10, headerY, KEY_WIDTH - 10 - HEADER_GAP, 0xFFFF55, true);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.text_content"), startX + TEXT_X, headerY, listW - TEXT_X - HEADER_GAP, 0xFFFF55, true);
 
             // 行由控件组成，闪烁框包住整行控件并裁剪到列表区域 / Rows are made of controls; the flash frames the whole row, clipped to the list.
             if (lastClickedRuleIndex >= 0) {
@@ -875,12 +882,9 @@ public class TooltipClientHandlers {
                 );
 
                 String displayTxt = rules.get(draggingIndex).text;
-                if (KineticText.width(displayTxt) > listW - 140) {
-                    displayTxt = KineticText.trim(displayTxt, listW - 150) + "...";
-                }
 
-                g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_prefix"), startX + 10, ghostY + 4, 0xAAAAAA, true);
-                g.text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_item", displayTxt), startX + 10, ghostY + 13, 0xFFFFFF, true);
+                g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_prefix"), startX + 10, ghostY + 4, listW - 20, 0xAAAAAA, true);
+                g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.moving_item", displayTxt), startX + 10, ghostY + 13, listW - 20, 0xFFFFFF, true);
                 g.pop();
             }
         }
@@ -1008,7 +1012,7 @@ public class TooltipClientHandlers {
             RuleWidget(KineticUi rowUi, TooltipManager.TooltipRule rule, int index, int startX, int y, int listWidth) {
                 this.rule = rule;
                 modeBtn = rowUi.cycleButton(
-                                startX, y, 32,
+                                startX, y, MODE_WIDTH,
                                 List.of(
                                         KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.mode.overwrite"),
                                         KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.mode.append")
@@ -1022,7 +1026,7 @@ public class TooltipClientHandlers {
                         })
                         .build();
 
-                lineBox = rowUi.textField(startX + 34, y, 24).build();
+                lineBox = rowUi.textField(startX + LINE_X, y, LINE_WIDTH).build();
                 lineBox.setTextValue(String.valueOf(rule.line));
                 lineBox.limitTextLength(2);
                 lineBox.filterText(value -> value.matches("\\d*"));
@@ -1033,7 +1037,7 @@ public class TooltipClientHandlers {
                 });
 
                 keyBtn = rowUi.cycleButton(
-                                startX + 60, y, 65,
+                                startX + KEY_X, y, KEY_WIDTH,
                                 List.of(
                                         KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.key.none"),
                                         KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.key.shift"),
@@ -1049,7 +1053,7 @@ public class TooltipClientHandlers {
                 int delBtnW = 20;
                 int delBtnX = startX + listWidth - delBtnW - 2;
 
-                textBox = rowUi.textField(startX + 127, y, delBtnX - (startX + 127) - 4).build();
+                textBox = rowUi.textField(startX + TEXT_X, y, delBtnX - (startX + TEXT_X) - 4).build();
                 textBox.limitTextLength(256);
                 textBox.setTextValue(rule.text);
                 textBox.onTextChange(value -> rule.text = value);

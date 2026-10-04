@@ -3,7 +3,6 @@ package dev.xyat.contentstudio.recipe.client.gui;
 import dev.xyat.kineticcore.api.client.gui.input.ScrollInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseDragInput;
 import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
-import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
@@ -21,6 +20,7 @@ import dev.xyat.contentstudio.recipe.removal.RuleImpactDraft;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -39,6 +39,15 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
     private static final int ROW_TOP = 82;
     private static final int ROW_BOTTOM = 258;
     private static final int ROW_HEIGHT = 20;
+    private static final int TEXT_LEFT = 16;
+    private static final int TEXT_RIGHT = 624;
+    private static final int TEXT_GAP = 4;
+    private static final int COUNTS_X = 400;
+    private static final int GROUP_NAME_X = 84;
+    private static final int GROUP_COUNT_X = 545;
+    private static final int RECIPE_TEXT_X = 78;
+    private static final int BLOCKER_X = 529;
+    private static final int STALE_NOTE_Y = 302;
 
     private record OutputGroup(@Nullable ResourceLocation outputId, List<RemovalCandidate> recipes) { }
     private record Row(OutputGroup group, @Nullable RemovalCandidate recipe) { }
@@ -207,21 +216,25 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.text(title(), 16, 10, KineticTheme.current().text(), false);
-        graphics.text(KineticText.trim(rule.value(), 390), 16, 28, KineticTheme.current().mutedText(), false);
+        graphics.scrollingText(title(), TEXT_LEFT, 10, TEXT_RIGHT - TEXT_LEFT, KineticTheme.current().text(), false);
+        graphics.scrollingText(Component.literal(rule.value()), TEXT_LEFT, 28,
+                COUNTS_X - TEXT_LEFT - TEXT_GAP, KineticTheme.current().mutedText(), false);
         if (flow.isComplete()) {
-            graphics.text(RecipeRemovalPage.tr("impact_counts", groups.size(),
-                    flow.candidates().size(), flow.draft().selectedRecipeIds().size()), 400, 28, KineticTheme.current().text(), false);
+            graphics.scrollingText(RecipeRemovalPage.tr("impact_counts", groups.size(),
+                    flow.candidates().size(), flow.draft().selectedRecipeIds().size()), COUNTS_X, 28,
+                    TEXT_RIGHT - COUNTS_X, KineticTheme.current().text(), false);
         }
         KineticTheme.panelAlt(graphics, 14, 80, 612, 180);
         if (!flow.isComplete()) {
-            graphics.text(RecipeRemovalPage.tr(loadFailed ? "impact_load_failed" : "impact_loading",
-                    flow.loadedCount(), flow.totalPages()), 24, 93, KineticTheme.current().mutedText(), false);
+            graphics.scrollingText(RecipeRemovalPage.tr(loadFailed ? "impact_load_failed" : "impact_loading",
+                    flow.loadedCount(), flow.totalPages()), 24, 93, TEXT_RIGHT - 24 - TEXT_GAP, KineticTheme.current().mutedText(), false);
         } else if (flow.candidates().isEmpty()) {
-            graphics.text(RecipeRemovalPage.tr(editingExisting
-                    ? "impact_no_original_existing" : "impact_no_original"), 24, 93, KineticTheme.current().mutedText(), false);
+            graphics.scrollingText(RecipeRemovalPage.tr(editingExisting
+                    ? "impact_no_original_existing" : "impact_no_original"), 24, 93,
+                    TEXT_RIGHT - 24 - TEXT_GAP, KineticTheme.current().mutedText(), false);
         } else if (visibleRows.isEmpty()) {
-            graphics.text(RecipeRemovalPage.tr("impact_no_search_result"), 24, 93, KineticTheme.current().mutedText(), false);
+            graphics.scrollingText(RecipeRemovalPage.tr("impact_no_search_result"), 24, 93,
+                    TEXT_RIGHT - 24 - TEXT_GAP, KineticTheme.current().mutedText(), false);
         }
         scroll.update(visibleRows.size(), 8);
         graphics.scissor(16, ROW_TOP, 624, ROW_BOTTOM);
@@ -237,10 +250,13 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
         }
         graphics.endScissor();
         scroll.render(graphics, mouseX, mouseY, 628, ROW_TOP, 4, ROW_BOTTOM - ROW_TOP, 8);
-        graphics.text(RecipeRemovalPage.tr("impact_scope_note"), 16, 270, KineticTheme.current().mutedText(), false);
-        graphics.text(RecipeRemovalPage.tr("impact_future_note"), 16, 284, KineticTheme.current().mutedText(), false);
+        graphics.scrollingText(RecipeRemovalPage.tr("impact_scope_note"), TEXT_LEFT, 270,
+                TEXT_RIGHT - TEXT_LEFT, KineticTheme.current().mutedText(), false);
+        graphics.scrollingText(RecipeRemovalPage.tr("impact_future_note"), TEXT_LEFT, 284,
+                TEXT_RIGHT - TEXT_LEFT, KineticTheme.current().mutedText(), false);
         if (flow.isComplete() && !flow.staleExcludedRecipeIds().isEmpty()) {
-            graphics.text(RecipeRemovalPage.tr("impact_stale_count", flow.staleExcludedRecipeIds().size()), 16, 302, KineticTheme.current().mutedText(), false);
+            graphics.scrollingText(RecipeRemovalPage.tr("impact_stale_count", flow.staleExcludedRecipeIds().size()),
+                    TEXT_LEFT, STALE_NOTE_Y, TEXT_RIGHT - TEXT_LEFT, KineticTheme.current().mutedText(), false);
         }
     }
 
@@ -261,8 +277,10 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
             graphics.item(stack, 62, y + 2);
         }
         String label = outputName(id) + (id == null ? "" : "  " + id);
-        graphics.text(KineticText.trim(label, 442), 84, y + 6, KineticTheme.current().text(), false);
-        graphics.text(RecipeRemovalPage.tr("impact_group_count", group.recipes().size()), 545, y + 6, KineticTheme.current().mutedText(), false);
+        graphics.scrollingText(Component.literal(label), GROUP_NAME_X, y + 6,
+                GROUP_COUNT_X - GROUP_NAME_X - TEXT_GAP, KineticTheme.current().text(), false);
+        graphics.scrollingText(RecipeRemovalPage.tr("impact_group_count", group.recipes().size()), GROUP_COUNT_X, y + 6,
+                TEXT_RIGHT - GROUP_COUNT_X - TEXT_GAP, KineticTheme.current().mutedText(), false);
     }
 
     private void renderRecipe(KineticGraphics graphics, RemovalCandidate recipe, int y, boolean hover) {
@@ -270,9 +288,11 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
         KineticTheme.stateSurface(graphics, 16, y + 1, 608, 18, KineticTheme.Surface.PANEL_ALT, selected, hover, false);
         graphics.text(selected ? "[x]" : "[ ]", 42, y + 6, KineticTheme.current().text(), false);
         String detail = recipe.id() + (recipe.recipeType() == null ? "" : "  ·  " + recipe.recipeType());
-        graphics.text(KineticText.trim(detail, 449), 78, y + 6, KineticTheme.current().text(), false);
+        graphics.scrollingText(Component.literal(detail), RECIPE_TEXT_X, y + 6,
+                BLOCKER_X - RECIPE_TEXT_X - TEXT_GAP, KineticTheme.current().text(), false);
         if (!selected && !flow.otherBlockingRules(recipe.id()).isEmpty()) {
-            graphics.text(RecipeRemovalPage.tr("impact_other_blocker"), 529, y + 6, KineticTheme.current().mutedText(), false);
+            graphics.scrollingText(RecipeRemovalPage.tr("impact_other_blocker"), BLOCKER_X, y + 6,
+                    TEXT_RIGHT - BLOCKER_X - TEXT_GAP, KineticTheme.current().mutedText(), false);
         }
     }
 
