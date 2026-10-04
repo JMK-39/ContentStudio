@@ -9,14 +9,14 @@
 
 ## Global constraints
 
-Core, TextStudio and RealmControl are read-only. Preserve preexisting changes. HUD/world text, bounded numbers and wrapped lines are excluded unless actual overlaps are found. The user explicitly included tooltip overflow. Source language keys remain identical. Local commits only, normal local Git identity, no AI attribution; commit messages English first then Chinese.
+Core, TextStudio, RealmControl and EnchantWorks are read-only. The updated handoff also reserves AdventureSystems for Claude; skip it until its adaptation is committed. Preserve preexisting changes. HUD/world text, bounded numbers and wrapped lines are excluded unless actual overlaps are found. The user explicitly included tooltip overflow. Source language keys remain identical. Local commits only, normal local Git identity, no AI attribution; commit messages English first then Chinese.
 Use existing game installations and memory settings, avoiding desktop input and game downloads. Only normally stop the test client launched for this task; do not stop user instances.
 
 ## Repository sequence
 
 Complete, validate and commit one repository before editing the next:
 1. ContentStudio.
-2. AdventureSystems.
+2. AdventureSystems (deferred: Claude is adapting it; latest handoff prohibits concurrent edits).
 3. EntityControl.
 4. ItemControl.
 5. KineticArmory.
@@ -40,3 +40,7 @@ Complete, validate and commit one repository before editing the next:
 Apply equivalent per-project checks to the remaining repositories; Forge-only projects use existing build commands and existing Forge profile.
 
 ContentStudio validation limits: populated global-removal and exclusion rows were replaced by the server response before capture; those row bounds were reviewed in source. Tall tooltip geometry still fails in Core 26.10.4 and is handed off separately; it is not counted as a fixed addon issue.
+
+Ruling (2026-10-04): proceed from ContentStudio to EntityControl, skipping AdventureSystems — the live handoff explicitly assigns AdventureSystems to Claude. Do not assume its current clean status means it is available.
+
+ContentStudio local commits: e111e99; paired Wiki requirements: 34c13dd. EntityControl began from clean 0e06026 on codex/multiversion-migration-20261003.
