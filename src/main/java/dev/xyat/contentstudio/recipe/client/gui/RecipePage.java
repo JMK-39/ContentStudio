@@ -528,11 +528,6 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             default -> FURNACE_BG;
         };
         g.texture(t, leftPos(), topPos(), 0, 0, imageWidth(), imageHeight());
-        for (Slot slot : menu().slots) {
-            if (slot.isActive() && (slot.container == menu().inputContainer || slot.container == menu().outputContainer)) {
-                KineticTheme.itemSlot(g, leftPos() + slot.x - 1, topPos() + slot.y - 1);
-            }
-        }
         int countInputFrameWidth = COUNT_INPUT_WIDTH + COUNT_INPUT_FRAME_PADDING * 2;
         int countInputFrameX = boxX + (OUTPUT_SLOT_SIZE - countInputFrameWidth) / 2;
         KineticTheme.panelAlt(g, countInputFrameX, boxY, countInputFrameWidth, 12);

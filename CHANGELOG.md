@@ -1,5 +1,17 @@
 # Changelog / 更新日志
 
+## 2026-10-05 — Vanilla recipe slot textures / 原版配方槽位贴图
+
+### English
+
+- Keep the recipe editor's vanilla container slots visible by removing the custom slot texture overlay. Use vanilla slot textures in the recipe browser while preserving its existing 22-pixel cells, item scale and actions.
+- Preserve editor backgrounds, controls, slot positions and interactions.
+
+### 简体中文
+
+- 移除配方编辑器覆盖原版容器槽位的自定义贴图；配方浏览器使用原版槽位贴图，保留既有 22 像素格子、物品缩放与操作。
+- 保留编辑器背景、控件、槽位位置与交互。
+
 ## 26.10.4 — 2026-10-04
 
 ### English

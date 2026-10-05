@@ -9,6 +9,7 @@ import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.render.KineticTexture;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
@@ -31,6 +32,7 @@ import java.util.Locale;
 import java.util.Set;
 
 public class RecipePreviewPage extends KineticPage {
+    private static final KineticTexture SLOT_BG = KineticTexture.of("minecraft", "textures/gui/container/crafting_table.png");
     private static final int SLOT_SIZE = 22;
     private static final int SLOT_GAP = 1;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
@@ -447,7 +449,7 @@ public class RecipePreviewPage extends KineticPage {
             RecipeRecord record =
                     displayRecords.get(i);
 
-            KineticTheme.itemGrid(graphics, x, y, SLOT_SIZE, SLOT_SIZE);
+            graphics.texture(SLOT_BG, x, y, SLOT_SIZE, SLOT_SIZE, 29f, 16f, 18, 18);
 
             KineticTheme.stateOutline(
                     graphics,
