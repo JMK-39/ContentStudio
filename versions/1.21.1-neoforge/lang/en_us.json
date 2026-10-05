@@ -1,9 +1,4 @@
 {
-  "gui.contentstudio.components.title": "Edit item components",
-  "gui.contentstudio.components.hint": "Use native [components], e.g. [damage=5,custom_data={sample:1}]",
-  "gui.contentstudio.components.invalid": "Invalid component syntax",
-  "gui.contentstudio.components.save": "Save",
-  "gui.contentstudio.components.back": "Back",
   "gui.contentstudio.recipe.recipehud.tooltip.rclick_toggle": "[Right Click] §bToggle components Status",
   "gui.contentstudio.recipe.recipehud.status.nbt": "components Match: ",
   "gui.contentstudio.recipe.recipehud.status.nbt.output": "Include components: ",

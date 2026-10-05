@@ -1,5 +1,17 @@
 # Changelog / 更新日志
 
+## 2026-10-05 — Same data editor on every version / 各版本使用同一数据编辑器
+
+### English
+
+- On 1.21.1 and 26.1.2, item component data (`[damage=5]`) in recipes, loot entries and trades is now edited in Core's NBT editor, the same editor Forge uses for NBT, instead of a separate page, so the screen looks the same on every version. Requires KineticCore 26.10.5+, which also draws 26.1.2 container page backgrounds (such as the vanilla recipe screens) in place with their slots.
+- No @OnlyIn annotations on 26.1.2, where NeoForge showed a mod-loading warning screen for them on every client start.
+
+### 简体中文
+
+- 1.21.1 与 26.1.2 中配方、战利品条目与交易的物品数据组件（`[damage=5]`）改用核心 NBT 编辑器编辑，与 Forge 编辑 NBT 相同，不再使用单独页面，各版本界面一致。要求 KineticCore 26.10.5+，该版本同时修复 26.1.2 容器页面（例如原版配方界面）背景与槽位错位。
+- 26.1.2 不再使用 @OnlyIn 注解，此前 NeoForge 会在每次客户端启动时为它显示模组加载警告界面。
+
 ## 2026-10-05 — Vanilla recipe slot textures / 原版配方槽位贴图
 
 ### English

@@ -21,6 +21,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import java.util.ArrayList;
 import java.util.List;
 
+// NeoForge 26.1 no longer strips @OnlyIn members and warns about the annotation; this class is only used on the client.
+//? if <26.1
 @OnlyIn(Dist.CLIENT)
 public final class RecipeNetworkClient {
     private static java.lang.ref.WeakReference<RecipeRemovalPage> recipeBrowser = new java.lang.ref.WeakReference<>(null);

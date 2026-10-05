@@ -98,7 +98,7 @@ public final class GuiLongTextValidation {
         if(page>=NAMES.length){nextPhase();return;}
         openPage(page);
         screenshot=false;due=System.currentTimeMillis()+1000;
-        LOG.info("CONTENT_GUI_OPEN phase={} case={} page={}",phase,NAMES[page],KineticGui.currentPage().getClass().getName());
+        LOG.info("CONTENT_GUI_OPEN phase={} case={} page={}",phase,NAMES[page],KineticGui.currentPage()!=null?KineticGui.currentPage().getClass().getName():String.valueOf(Minecraft.getInstance().screen));
     }
     private static MerchantOffer offer(){return new MerchantOffer(new ItemCost(Items.EMERALD,2),new ItemStack(Items.BREAD,3),16,2,0.05F);}
     private static VillagerTradeEditorPage trade(boolean level)throws Exception {
@@ -172,7 +172,7 @@ public final class GuiLongTextValidation {
             }
             case 16 -> KineticGui.open((KineticPage)construct("dev.xyat.contentstudio.recipe.client.gui.RecipeTypeFilterPage",removal(),Map.of(ResourceLocation.parse("minecraft:crafting"),123L,ResourceLocation.parse("example:a_deliberately_long_type_identifier_for_scrolling"),4L),null));
             case 17 -> KineticGui.open(new RecipeTagSelectionPage(value->{}));
-            case 18,19 -> KineticGui.open(new dev.xyat.contentstudio.item.ComponentsEditorPage("minecraft:diamond_sword",index==18?"[damage=1]":"[invalid=]",value->{}));
+            case 18,19 -> dev.xyat.contentstudio.item.ItemData.edit("minecraft:diamond_sword",index==18?"[damage=1]":"[invalid=]",value->{});
             case 20,21 -> {
                 var rule=new TooltipManager.TooltipRule();rule.text="Read-only GUI validation text";rule.mode=0;rule.line=2;
                 TooltipClientHandlers.clientData=new HashMap<>(Map.of("minecraft:diamond_sword",new ArrayList<>(List.of(rule))));

@@ -105,6 +105,12 @@ public final class ItemData {
     public static void updateCustomData(ItemStack stack, java.util.function.Consumer<net.minecraft.nbt.CompoundTag> action) { net.minecraft.world.item.component.CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA, stack, action); }
     public static void reset(ItemStack stack) { if (!stack.isEmpty()) ((net.minecraft.core.component.PatchedDataComponentMap) stack.getComponents()).restorePatch(net.minecraft.core.component.DataComponentPatch.EMPTY); }
     public static void edit(String initial, java.util.function.Consumer<String> saved) { edit("minecraft:stone", initial, saved); }
-    public static void edit(String id, String initial, java.util.function.Consumer<String> saved) { dev.xyat.kineticcore.api.client.gui.KineticGui.openChild(new ComponentsEditorPage(id, initial, saved)); }
+    // Item component text is edited in Core's NBT editor, the same screen Forge uses for NBT; blank text saves as [].
+    public static void edit(String id, String initial, java.util.function.Consumer<String> saved) {
+        dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.openNbtEditor(initial, text -> {
+            try { compile(id, text); return null; }
+            catch (RuntimeException invalid) { return invalid.getMessage() == null ? invalid.toString() : invalid.getMessage(); }
+        }, value -> saved.accept(value.isBlank() ? "[]" : value));
+    }
 }
 *///?}

@@ -1,9 +1,4 @@
 {
-  "gui.contentstudio.components.title": "编辑物品数据组件",
-  "gui.contentstudio.components.hint": "使用原生 [组件] 写法，例如 [damage=5,custom_data={sample:1}]",
-  "gui.contentstudio.components.invalid": "数据组件语法无效",
-  "gui.contentstudio.components.save": "保存",
-  "gui.contentstudio.components.back": "返回",
   "gui.contentstudio.recipe.recipehud.tooltip.rclick_toggle": "右键: §b切换 数据组件 状态",
   "gui.contentstudio.recipe.recipehud.nbt.editor.title": "数据组件 编辑器 (模糊匹配)",
   "gui.contentstudio.recipe.recipehud.nbt.editor.clear": "清空数据组件",
