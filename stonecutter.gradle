@@ -158,6 +158,10 @@ stonecutter.parameters {
         call 'Lnet/minecraft/Util;', 'Lnet/minecraft/util/Util;'
         // Runtime validation fixtures: FancyModLoader 11 takes the mod loading issues as a list.
         call 'java.util.List.of(),java.util.Map.of())', 'java.util.List.of(),java.util.List.<net.neoforged.fml.ModLoadingIssue>of(),java.util.Map.of())'
+        // GUI validation fixture: the window resizes the GUI, and screenshots arrive through a callback.
+        call 'mc.resizeDisplay()', 'mc.resizeGui()'
+        call 'List.of(Ingredient.of(Items.DIAMOND),Ingredient.of(Items.STICK)),1)', 'List.of(List.of(new ItemStack(Items.DIAMOND)),List.of(new ItemStack(Items.STICK))),1)'
+        call 'try(var image=Screenshot.takeScreenshot(mc.getMainRenderTarget())){image.writeToFile(path);}', 'Screenshot.takeScreenshot(mc.getMainRenderTarget(),image->{try(image){image.writeToFile(path);}catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}});'
     }
 }
 

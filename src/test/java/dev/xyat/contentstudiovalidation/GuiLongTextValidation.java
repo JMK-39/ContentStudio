@@ -30,10 +30,11 @@ import org.slf4j.LoggerFactory;
 /^** Uses the existing client and unsaved page drafts. Never clicks or saves editor changes. *^/
 public final class GuiLongTextValidation {
     private static final Logger LOG=LoggerFactory.getLogger(GuiLongTextValidation.class);
-    private static final String ROOT="D:/IDEAWork/ContentStudio/.gradle/gui-long-text-20261004/";
+    private static final String ROOT=System.getProperty("contentstudio.guiValidation.output","D:/IDEAWork/ContentStudio/.gradle/gui-long-text-20261004/");
     private static final String[] NAMES={"villager-offer","villager-level","villager-removed","villager-follow-empty","villager-follow",
         "loot-entity","loot-block","loot-entry-entity","loot-entry-block","loot-pool","loot-chest","loot-chest-remove","loot-chest-exclude",
-        "recipe-removal","recipe-impact","recipe-preview","recipe-types","recipe-tags","components","components-invalid","tooltip-hub","tooltip-editor","tooltip-wide-left","tooltip-wide-right","tooltip-wrapped-edge","tooltip-tall"};
+        "recipe-removal","recipe-impact","recipe-preview","recipe-types","recipe-tags","components","components-invalid","tooltip-hub","tooltip-editor","tooltip-wide-left","tooltip-wide-right","tooltip-wrapped-edge","tooltip-tall",
+        "recipe-hub","recipe-crafting","recipe-furnace","recipe-blast","recipe-smoker","recipe-smithing","recipe-stonecutter"};
     private static boolean installed,started,screenshot,finished,originalFullscreen;
     private static String originalLanguage;
     private static int originalScale,originalWidth,originalHeight,phase=-1,page=-1,captures,failures;
@@ -180,7 +181,14 @@ public final class GuiLongTextValidation {
                 KineticGui.open(index==20?hub:new TooltipClientHandlers.TooltipEditPage(hub,"minecraft:diamond_sword"));
             }
             case 22,23,24,25 -> KineticGui.open(new TooltipProbePage(index));
+            // Recipe editors are container pages drawn on the vanilla workstation textures.
+            case 26 -> containerPage(new dev.xyat.contentstudio.recipe.client.gui.RecipeHubPage(new dev.xyat.contentstudio.recipe.RecipeMenu(0,Minecraft.getInstance().player.getInventory()),Component.literal("GUI validation")));
+            default -> containerPage(new dev.xyat.contentstudio.recipe.client.gui.RecipePage(new dev.xyat.contentstudio.recipe.UniversalRecipeMenu(0,Minecraft.getInstance().player.getInventory(),dev.xyat.contentstudio.recipe.RecipeRegistry.EditorType.values()[index-27],null),Component.literal("GUI validation")));
         }
+    }
+    private static void containerPage(Object page)throws Exception {
+        var mc=Minecraft.getInstance();
+        mc.setScreen((net.minecraft.client.gui.screens.Screen)construct("dev.xyat.kineticcore.internal.client.gui.page.PageContainerScreen",page,mc.player.getInventory(),Component.literal("GUI validation")));
     }
     private static Object field(Object target,String name)throws Exception {
         for(Class<?> type=target.getClass();type!=null;type=type.getSuperclass())try {

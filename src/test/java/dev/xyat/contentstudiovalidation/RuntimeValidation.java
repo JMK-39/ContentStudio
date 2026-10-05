@@ -7,10 +7,7 @@ public final class RuntimeValidation {
     public RuntimeValidation() { net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
 *///?}
-        // The client GUI validation is not ported to 26.1's render and window API yet.
-        //? if >=26.1 {
-        /*if (Boolean.getBoolean("contentstudio.guiValidation")) { LOG.error("CONTENTSTUDIO_GUI_VALIDATION_UNAVAILABLE"); return; }
-        *///?} else if >=1.21 {
+        //? if >=1.21 {
         /*if (Boolean.getBoolean("contentstudio.guiValidation")) { GuiLongTextValidation.install(); return; }
         *///?}
         //? if >=1.21 {

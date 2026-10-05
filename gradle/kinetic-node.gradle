@@ -287,12 +287,11 @@ tasks.named('test', Test).configure { exclude 'dev/xyat/contentstudiovalidation/
 apply from: rootProject.file('gradle/kinetic-language-validation.gradle')
 
 // The unit tests boot Minecraft through a stand-in FancyModLoader mod list, which FancyModLoader 11 (26.1) no longer
-// supports, and the client GUI validation is not ported to 26.1 yet; 26.1 nodes build only the runtime validation
-// fixture, which checks the recipe, loot and trade code in a running server.
+// supports; 26.1 nodes build only the in-game fixtures: the runtime validation, which checks the recipe, loot and
+// trade code in a running server, and the client GUI validation.
 if (pMinecraft.startsWith('26.')) {
     sourceSets.test.java {
         exclude 'dev/xyat/contentstudio/**'
-        exclude 'dev/xyat/contentstudiovalidation/GuiLongTextValidation.java'
     }
     tasks.named('test').configure { enabled = false }
 }
