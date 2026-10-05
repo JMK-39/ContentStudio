@@ -828,6 +828,11 @@ public class VillagerTradeEditorPage extends KineticPage {
             int rightWidth = rightTextEnd - leftTextX - minGap - leftWidth;
             g.scrollingText(left, leftTextX, y + 7, leftWidth, 0xFFFFFF55, false);
             g.scrollingTextRight(right, rightTextEnd, y + 7, rightWidth, 0xFFFFFFFF, false);
+            // The row surface covers the expand button, so the row draws its arrow; the button only takes the click.
+            if (!isTradeSearching()) {
+                g.scrollingTextCentered(levelExpandText(entry.level()), listX + 8 + LEVEL_BUTTON_SIZE / 2, y + 7,
+                        LEVEL_BUTTON_SIZE - 4, 0xFFFFFFFF, true);
+            }
             return;
         }
 
