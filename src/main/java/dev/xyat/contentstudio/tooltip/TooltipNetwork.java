@@ -152,7 +152,8 @@ public final class TooltipNetwork {
                         new TypeToken<Map<String, List<TooltipManager.TooltipRule>>>() {}.getType()
                 );
                 success = TooltipManager.save(next);
-                if (success) broadcastRules();
+                // Only the editor gets the new rules now; other players receive them when they log in.
+                if (success) sendRulesTo(player);
             } catch (RuntimeException exception) {
                 TooltipModule.LOGGER.error("Rejected invalid tooltip save payload", exception);
             }

@@ -1,5 +1,17 @@
 # Changelog / 更新日志
 
+## 2026-10-05 — Tooltip rules and match mode / 提示规则与匹配模式
+
+### English
+
+- Saving custom tooltip rules updates the player who saved straight away; other players receive the new rules when they log in, instead of every online player being sent them on each save. The reload command still refreshes everyone.
+- The match mode menu of global chest-loot removal marks the current mode yellow as a single choice.
+
+### 简体中文
+
+- 保存自定义提示规则后，保存的玩家立即生效；其他玩家在登录时获得新规则，不再每次保存都发送给所有在线玩家。重载命令仍会刷新所有人。
+- 全局箱子战利品移除的匹配模式菜单作为单选，用黄色标出当前模式。
+
 ## 2026-10-05 — Same data editor on every version / 各版本使用同一数据编辑器
 
 ### English

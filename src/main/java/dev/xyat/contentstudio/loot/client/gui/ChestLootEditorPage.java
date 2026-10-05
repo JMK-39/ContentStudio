@@ -717,14 +717,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         GlobalRemoveRule.MatchMode selectedMode = globalRemoveRules.get(globalRemoveSelectedIndex).mode();
         List<KineticOverlays.MenuItem> items = new ArrayList<>();
         for (GlobalRemoveRule.MatchMode mode : GlobalRemoveRule.MatchMode.values()) {
-            items.add(KineticOverlays.MenuItem.create(
+            // One match mode applies at a time: the current one is the yellow choice.
+            items.add(KineticOverlays.MenuItem.choice(
                     globalRemoveModeComponent(mode, false),
-                    Component.empty(),
                     globalRemoveModeTooltip(mode),
                     mode == selectedMode,
-                    () -> setSelectedGlobalRemoveMode(mode),
-                    true,
-                    KineticOverlays.MenuItemStyle.NORMAL
+                    () -> setSelectedGlobalRemoveMode(mode)
             ));
         }
         openContextMenu(GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y + 20, items);
