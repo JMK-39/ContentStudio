@@ -29,7 +29,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.npc.VillagerTrades;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -1560,9 +1559,9 @@ public class VillagerTradeEditorPage extends KineticPage {
                 continue;
             }
 
-            VillagerTrades.ItemListing[] listings = VillagerTradeRuntimeUtil.getVanillaListings(selectedOwner, level);
-            if (listings != null) {
-                for (int i = 0; i < listings.length; i++) {
+            int vanillaCount = VillagerTradeRuntimeUtil.vanillaTradeCount(selectedOwner, level);
+            if (vanillaCount > 0) {
+                for (int i = 0; i < vanillaCount; i++) {
                     MerchantOffer offer = VillagerTradeRuntimeUtil.createPreviewOffer(selectedOwner, level, i);
                     if (offer != null && VillagerConfig.isVanillaTradeEnabled(selectedOwner, level, i)) {
                         entries.add(TradeEntry.vanilla(
@@ -1597,9 +1596,9 @@ public class VillagerTradeEditorPage extends KineticPage {
 
             int maxLevel = VillagerConfig.isWanderingTrader(owner) ? 2 : 5;
             for (int level = 1; level <= maxLevel; level++) {
-                VillagerTrades.ItemListing[] listings = VillagerTradeRuntimeUtil.getVanillaListings(owner, level);
-                if (listings != null) {
-                    for (int i = 0; i < listings.length; i++) {
+                int vanillaCount = VillagerTradeRuntimeUtil.vanillaTradeCount(owner, level);
+                if (vanillaCount > 0) {
+                    for (int i = 0; i < vanillaCount; i++) {
                         if (!VillagerConfig.isVanillaTradeEnabled(owner, level, i)) {
                             continue;
                         }
@@ -2313,9 +2312,9 @@ public class VillagerTradeEditorPage extends KineticPage {
             return data != null && data.matches(selectedOwner, safeLevel);
         });
 
-        VillagerTrades.ItemListing[] listings = VillagerTradeRuntimeUtil.getVanillaListings(selectedOwner, safeLevel);
-        if (listings != null) {
-            for (int i = 0; i < listings.length; i++) {
+        int vanillaCount = VillagerTradeRuntimeUtil.vanillaTradeCount(selectedOwner, safeLevel);
+        if (vanillaCount > 0) {
+            for (int i = 0; i < vanillaCount; i++) {
                 VillagerConfig.setVanillaTradeOverride(new VillagerConfig.VanillaTradeOverride(selectedOwner, safeLevel, i, false, 0));
             }
         }
@@ -2563,11 +2562,11 @@ public class VillagerTradeEditorPage extends KineticPage {
             lastClickedIndex = -1;
             int maxLevel = VillagerConfig.isWanderingTrader(owner) ? 2 : 5;
             for (int level = 1; level <= maxLevel; level++) {
-                VillagerTrades.ItemListing[] listings = VillagerTradeRuntimeUtil.getVanillaListings(owner, level);
-                if (listings == null) {
+                int vanillaCount = VillagerTradeRuntimeUtil.vanillaTradeCount(owner, level);
+                if (vanillaCount <= 0) {
                     continue;
                 }
-                for (int i = 0; i < listings.length; i++) {
+                for (int i = 0; i < vanillaCount; i++) {
                     if (VillagerConfig.isVanillaTradeEnabled(owner, level, i)) {
                         continue;
                     }

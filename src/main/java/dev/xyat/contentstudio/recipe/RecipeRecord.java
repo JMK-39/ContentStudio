@@ -2,6 +2,7 @@ package dev.xyat.contentstudio.recipe;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 //? if >=1.21 {
 /*import dev.xyat.contentstudio.item.ItemData;
@@ -75,7 +76,12 @@ public class RecipeRecord {
         record.uuid = tag.getString("uuid");
         record.editorType = tag.getString("editorType");
         record.isShapeless = tag.getBoolean("isShapeless");
+        // Written out on 26.1: its getter rule and the NeoForge key rename would overlap here.
+//? if >=26.1 {
+/*        record.outputUseNbt = tag.getBooleanOr("outputUseComponents", false);
+*///?} else {
         record.outputUseNbt = tag.getBoolean("outputUseNbt");
+//?}
 //? if >=1.21 {
 /*
         record.output = ItemData.load(tag.getCompound("output"));
@@ -87,16 +93,16 @@ public class RecipeRecord {
         record.configIndex = tag.contains("configIndex") ? tag.getInt("configIndex") : -1;
         record.invalidReason = tag.getString("invalidReason");
 
-        ListTag inputsList = tag.getList("inputs", 10);
-        for (int i = 0; i < inputsList.size(); i++) {
-            CompoundTag slotTag = inputsList.getCompound(i);
+        ListTag list = tag.getList("inputs", Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag data = list.getCompound(i);
 //? if >=1.21 {
 /*
-            record.inputs.add(ItemData.load(slotTag.getCompound("item")));
+            record.inputs.add(ItemData.load(data.getCompound("item")));
 *///?} else {
-            record.inputs.add(ItemStack.of(slotTag.getCompound("item")));
+            record.inputs.add(ItemStack.of(data.getCompound("item")));
 //?}
-            record.inputModes.add(slotTag.getInt("mode"));
+            record.inputModes.add(data.getInt("mode"));
         }
         return record;
     }

@@ -1,3 +1,5 @@
+// Up to 1.21.1 custom offers are inserted into the vanilla trade tables as listings; 26.1 adds them in the updateTrades mixins.
+//? if <26.1 {
 package dev.xyat.contentstudio.villager.trade;
 
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
@@ -19,3 +21,4 @@ public final class TradeListing implements VillagerTrades.ItemListing {
         return data.createOffer();
     }
 }
+//?}

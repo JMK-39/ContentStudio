@@ -29,8 +29,16 @@ public final class ItemData {
         try {
             var result = new net.minecraft.commands.arguments.item.ItemParser(lookup).parse(reader);
             if (reader.canRead()) throw new IllegalArgumentException("Trailing item component text");
-            return new ItemStack(result.item(), 1, result.components());
-        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException invalid) {
+*///?}
+            // 26.1's item parser no longer rejects damageable stackable items or oversized containers; the stack check that
+            // command-given items go through does.
+            //? if >=26.1 {
+            /*return ItemStack.validateStrict(new ItemStack(result.item(), 1, result.components())).getOrThrow(IllegalArgumentException::new);
+            *///?} else if >=1.21 {
+            /*return new ItemStack(result.item(), 1, result.components());
+            *///?}
+            //? if >=1.21 {
+/*        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException invalid) {
             throw new IllegalArgumentException(invalid.getMessage(), invalid);
         }
     }
@@ -49,23 +57,51 @@ public final class ItemData {
         int start = text.indexOf('[');
         return start < 0 ? "[]" : text.substring(start);
     }
-    public static net.minecraft.core.HolderLookup.Provider registries() {
+*///?}
+    // The server's registries together with its loot data registries. 26.1 lists the lookups themselves.
+    //? if >=26.1 {
+    /*public static net.minecraft.core.HolderLookup.Provider registries() {
         var server = dev.xyat.kineticcore.api.runtime.KineticServerRuntime.currentServer();
         if (server != null) {
             var lookups = new java.util.LinkedHashMap<net.minecraft.resources.ResourceKey<?>, net.minecraft.core.HolderLookup.RegistryLookup<?>>();
-            server.registryAccess().listRegistries().forEach(key -> lookups.put(key, server.registryAccess().lookupOrThrow(key)));
-            server.reloadableRegistries().get().listRegistries().forEach(key -> lookups.put(key, server.reloadableRegistries().get().lookupOrThrow(key)));
+            server.registryAccess().listRegistries().forEach(lookup -> lookups.put(lookup.key(), lookup));
+            server.reloadableRegistries().lookup().listRegistries().forEach(lookup -> lookups.put(lookup.key(), lookup));
             return net.minecraft.core.HolderLookup.Provider.create(lookups.values().stream());
         }
-        var lookup = dev.xyat.kineticcore.api.runtime.KineticPlatform.callOnClient(() -> () -> {
+    *///?} else if >=1.21 {
+    /*public static net.minecraft.core.HolderLookup.Provider registries() {
+        var server = dev.xyat.kineticcore.api.runtime.KineticServerRuntime.currentServer();
+        if (server != null) {
+            var lookups = new java.util.LinkedHashMap<net.minecraft.resources.ResourceKey<?>, net.minecraft.core.HolderLookup.RegistryLookup<?>>();
+            var access = server.registryAccess();
+            var loot = server.reloadableRegistries().get();
+            access.listRegistries().forEach(key -> lookups.put(key, access.lookup(key).orElseThrow()));
+            loot.listRegistries().forEach(key -> lookups.put(key, loot.lookup(key).orElseThrow()));
+            return net.minecraft.core.HolderLookup.Provider.create(lookups.values().stream());
+        }
+    *///?}
+    //? if >=1.21 {
+/*        var lookup = dev.xyat.kineticcore.api.runtime.KineticPlatform.callOnClient(() -> () -> {
             var level = dev.xyat.kineticcore.api.runtime.KineticClientRuntime.currentLevel();
             return level == null ? null : level.registryAccess();
         }, null);
         return lookup != null ? lookup : net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(net.minecraft.core.registries.BuiltInRegistries.REGISTRY);
     }
-    public static net.minecraft.nbt.CompoundTag save(ItemStack stack) { return (net.minecraft.nbt.CompoundTag) stack.saveOptional(registries()); }
+*///?}
+    // Stored item stacks, including empty ones. 26.1 writes them through the optional item stack codec.
+    //? if >=26.1 {
+    /*public static net.minecraft.nbt.CompoundTag save(ItemStack stack) {
+        return (net.minecraft.nbt.CompoundTag) ItemStack.OPTIONAL_CODEC.encodeStart(registries().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), stack).getOrThrow();
+    }
+    public static ItemStack load(net.minecraft.nbt.CompoundTag saved) {
+        return ItemStack.OPTIONAL_CODEC.parse(registries().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), saved).result().orElse(ItemStack.EMPTY);
+    }
+    *///?} else if >=1.21 {
+    /*public static net.minecraft.nbt.CompoundTag save(ItemStack stack) { return (net.minecraft.nbt.CompoundTag) stack.saveOptional(registries()); }
     public static ItemStack load(net.minecraft.nbt.CompoundTag saved) { return ItemStack.parseOptional(registries(), saved); }
-    public static net.minecraft.nbt.CompoundTag customData(ItemStack stack) { return stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.EMPTY).copyTag(); }
+    *///?}
+    //? if >=1.21 {
+/*    public static net.minecraft.nbt.CompoundTag customData(ItemStack stack) { return stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.EMPTY).copyTag(); }
     public static void updateCustomData(ItemStack stack, java.util.function.Consumer<net.minecraft.nbt.CompoundTag> action) { net.minecraft.world.item.component.CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA, stack, action); }
     public static void reset(ItemStack stack) { if (!stack.isEmpty()) ((net.minecraft.core.component.PatchedDataComponentMap) stack.getComponents()).restorePatch(net.minecraft.core.component.DataComponentPatch.EMPTY); }
     public static void edit(String initial, java.util.function.Consumer<String> saved) { edit("minecraft:stone", initial, saved); }

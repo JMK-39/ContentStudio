@@ -32,7 +32,11 @@ public final class VillagerNetwork {
             PROTOCOL_VERSION,
             NetworkVersionPolicy.ANY
     );
+    //? if >=26.1 {
+    /*private static final boolean[] PACKET_REGISTERED = new boolean[9];
+    *///?} else {
     private static final boolean[] PACKET_REGISTERED = new boolean[8];
+    //?}
     private static boolean initialized;
 
     private VillagerNetwork() {
@@ -51,6 +55,8 @@ public final class VillagerNetwork {
                 () -> registerServerbound(5, RequestFollowItemEditorPacket.class, (buffer, packet) -> packet.encode(buffer), RequestFollowItemEditorPacket::decode, RequestFollowItemEditorPacket::handle),
                 () -> registerServerbound(6, SaveFollowItemsPacket.class, (buffer, packet) -> packet.encode(buffer), SaveFollowItemsPacket::decode, SaveFollowItemsPacket::handle),
                 () -> registerClientbound(7, FollowItemSaveResultPacket.class, (buffer, packet) -> packet.encode(buffer), FollowItemSaveResultPacket::decode, FollowItemSaveResultPacket::handle),
+                //? if >=26.1
+                /*() -> registerClientbound(8, VanillaTradePreviewsPacket.class, (buffer, packet) -> packet.encode(buffer), VanillaTradePreviewsPacket::decode, VanillaTradePreviewsPacket::handle),*/
                 () -> initialized = allPacketsRegistered()
         );
     }
@@ -110,6 +116,9 @@ public final class VillagerNetwork {
     }
 
     private static void sendTradeEditor(ServerPlayer player) {
+        // 26.1 clients have no villager trade sets; the editor's vanilla trade previews arrive first.
+        //? if >=26.1
+        /*CHANNEL.sendToPlayer(player, VanillaTradePreviewsPacket.collect(player));*/
         CHANNEL.sendToPlayer(player, new OpenTradeEditorPacket(
                 VillagerConfig.villagerTradeGroups,
                 VillagerConfig.villagerTradeOffers,
@@ -245,6 +254,87 @@ public final class VillagerNetwork {
         }
     }
 
+    //? if >=26.1 {
+    /*/^* The vanilla trade previews of every owner and level, each offer as NBT written with the server registries. ^/
+    public record VanillaTradePreviewsPacket(java.util.Map<String, List<List<net.minecraft.nbt.CompoundTag>>> previews) {
+        private static final int MAX_OWNERS = 1024;
+        private static final int MAX_OFFERS = 256;
+
+        static VanillaTradePreviewsPacket collect(ServerPlayer player) {
+            var ops = player.level().registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+            java.util.Map<String, List<List<net.minecraft.nbt.CompoundTag>>> encoded = new java.util.LinkedHashMap<>();
+            dev.xyat.contentstudio.villager.util.VillagerTradeRuntimeUtil.collectPreviews().forEach((owner, levels) -> {
+                List<List<net.minecraft.nbt.CompoundTag>> encodedLevels = new ArrayList<>();
+                for (var offers : levels) {
+                    List<net.minecraft.nbt.CompoundTag> encodedOffers = new ArrayList<>();
+                    for (var offer : offers) {
+                        encodedOffers.add(offer == null ? new net.minecraft.nbt.CompoundTag()
+                                : net.minecraft.world.item.trading.MerchantOffer.CODEC.encodeStart(ops, offer).result()
+                                .filter(net.minecraft.nbt.CompoundTag.class::isInstance)
+                                .map(net.minecraft.nbt.CompoundTag.class::cast)
+                                .orElseGet(net.minecraft.nbt.CompoundTag::new));
+                    }
+                    encodedLevels.add(encodedOffers);
+                }
+                encoded.put(owner, encodedLevels);
+            });
+            return new VanillaTradePreviewsPacket(encoded);
+        }
+
+        private void encode(NetworkBuffer buffer) {
+            buffer.writeVarInt(previews.size());
+            previews.forEach((owner, levels) -> {
+                buffer.writeUtf(owner);
+                buffer.writeVarInt(levels.size());
+                for (var offers : levels) {
+                    buffer.writeVarInt(offers.size());
+                    offers.forEach(buffer::writeNbt);
+                }
+            });
+        }
+
+        public static VanillaTradePreviewsPacket decode(NetworkBuffer buffer) {
+            int owners = buffer.readVarInt();
+            if (owners < 0 || owners > MAX_OWNERS) throw new IllegalArgumentException("Invalid trade preview owner count");
+            java.util.Map<String, List<List<net.minecraft.nbt.CompoundTag>>> previews = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < owners; i++) {
+                String owner = buffer.readUtf();
+                int levels = buffer.readVarInt();
+                if (levels < 0 || levels > 5) throw new IllegalArgumentException("Invalid trade preview level count");
+                List<List<net.minecraft.nbt.CompoundTag>> levelOffers = new ArrayList<>();
+                for (int level = 0; level < levels; level++) {
+                    int count = buffer.readVarInt();
+                    if (count < 0 || count > MAX_OFFERS) throw new IllegalArgumentException("Invalid trade preview count");
+                    List<net.minecraft.nbt.CompoundTag> offers = new ArrayList<>();
+                    for (int offer = 0; offer < count; offer++) offers.add(buffer.readNbt());
+                    levelOffers.add(offers);
+                }
+                previews.put(owner, levelOffers);
+            }
+            return new VanillaTradePreviewsPacket(previews);
+        }
+
+        // An empty compound stands for a trade that could not build an offer; it decodes to null.
+        public static void handle(VanillaTradePreviewsPacket packet) {
+            var ops = dev.xyat.contentstudio.item.ItemData.registries().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+            java.util.Map<String, List<List<net.minecraft.world.item.trading.MerchantOffer>>> previews = new java.util.LinkedHashMap<>();
+            packet.previews.forEach((owner, levels) -> {
+                List<List<net.minecraft.world.item.trading.MerchantOffer>> decodedLevels = new ArrayList<>();
+                for (var offers : levels) {
+                    List<net.minecraft.world.item.trading.MerchantOffer> decoded = new ArrayList<>();
+                    for (var tag : offers) {
+                        decoded.add(tag == null || tag.isEmpty() ? null
+                                : net.minecraft.world.item.trading.MerchantOffer.CODEC.parse(ops, tag).result().orElse(null));
+                    }
+                    decodedLevels.add(java.util.Collections.unmodifiableList(decoded));
+                }
+                previews.put(owner, List.copyOf(decodedLevels));
+            });
+            dev.xyat.contentstudio.villager.util.VillagerTradeRuntimeUtil.setRemotePreviews(previews);
+        }
+    }
+
+    *///?}
     public static final class OpenTradeEditorPacket {
         private final List<String> groups;
         private final List<String> offers;

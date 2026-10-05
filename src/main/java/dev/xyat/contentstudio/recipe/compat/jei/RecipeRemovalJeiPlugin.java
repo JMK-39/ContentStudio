@@ -72,15 +72,25 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
                         .limitFocus(focus).get().forEach(recipe -> {
                             try {
                                 ResourceLocation id = category.getRegistryName(recipe);
-//? if >=1.21 {
+//? if >=26.1 {
+/*
+                                if (id == null && recipe instanceof RecipeHolder<?> vanilla) id = vanilla.id().identifier();
+*///?} else if >=1.21 {
 /*
                                 if (id == null && recipe instanceof RecipeHolder<?> vanilla) id = vanilla.id();
 *///?} else {
                                 if (id == null && recipe instanceof Recipe<?> vanilla) id = vanilla.getId();
 //?}
                                 var level = KineticClientRuntime.currentLevel();
+                                // 26.1 clients only know the recipes the server synced.
+//? if >=26.1 {
+/*
+                                var registered = level == null || id == null ? null
+                                        : dev.xyat.contentstudio.recipe.client.ClientRecipes.byId(id);
+*///?} else {
                                 var registered = level == null || id == null ? null
                                         : level.getRecipeManager().byKey(id).orElse(null);
+//?}
                                 RecipeSummary summary = registered == null
                                         ? new RecipeSummary(id, category.getRecipeType().getUid(), output.copy(), List.of(), 0)
                                         : RecipeSummary.of(registered, level.registryAccess());

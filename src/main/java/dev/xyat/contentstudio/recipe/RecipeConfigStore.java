@@ -612,7 +612,7 @@ public final class RecipeConfigStore {
 /*
             var conditions = STACK_CONDITIONS.get();
             boolean hasTag = conditions != null ? !conditions.getTag(tagKey).isEmpty()
-                    : ItemData.registries().lookupOrThrow(Registries.ITEM).get(tagKey)
+                    : ItemData.registries().lookup(Registries.ITEM).flatMap(items -> items.get(tagKey))
                             .map(tag -> tag.size() > 0).orElse(false);
             if (!hasTag) {
                 throw new IllegalArgumentException("missing or empty item tag " + rawTag);

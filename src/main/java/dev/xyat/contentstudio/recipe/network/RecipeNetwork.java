@@ -146,7 +146,7 @@ public final class RecipeNetwork {
         public static void handle(RequestItemRecipesPacket packet, ServerPacketContext context) {
             ServerPlayer player = context.sender();
             if (!player.hasPermissions(2) || packet.item.isEmpty() || packet.page < 0 || packet.page > 100_000) return;
-            long version = RecipeMemoryManager.catalogVersion(player.server.getRecipeManager());
+            long version = RecipeMemoryManager.catalogVersion(player.getServer().getRecipeManager());
             if (packet.expectedVersion != 0 && packet.expectedVersion != version) {
                 CHANNEL.sendToPlayer(player, new ItemRecipesPacket(packet.item, packet.requestId,
                         packet.page, 0, version, true, List.of(), false));
@@ -154,9 +154,12 @@ public final class RecipeNetwork {
             }
             List<RecipeSummary> recipes = new ArrayList<>();
             boolean dataError = false;
-            for (var recipe : RecipeMemoryManager.recipeCatalog(player.server.getRecipeManager())) {
+            for (var recipe : RecipeMemoryManager.recipeCatalog(player.getServer().getRecipeManager())) {
                 try {
-//? if >=1.21 {
+//? if >=26.1 {
+/*
+                    if (dev.xyat.contentstudio.recipe.RecipeView.output(recipe.value(), player.level().registryAccess()).is(packet.item.getItem())) {
+*///?} else if >=1.21 {
 /*
                     if (recipe.value().getResultItem(player.level().registryAccess()).is(packet.item.getItem())) {
 *///?} else {
@@ -564,14 +567,14 @@ public final class RecipeNetwork {
             ServerPlayer player = context.sender();
             if (!player.hasPermissions(2) || packet.page < 0 || packet.page > 100_000
                     || isInvalidRemovalEntry(new RemovalEntry(packet.mode, packet.value, ""))) return;
-            long version = RecipeMemoryManager.catalogVersion(player.server.getRecipeManager());
+            long version = RecipeMemoryManager.catalogVersion(player.getServer().getRecipeManager());
             if (packet.expectedVersion != 0L && packet.expectedVersion != version) {
                 CHANNEL.sendToPlayer(player, new RuleImpactPagePacket(packet.requestId, packet.mode,
                         packet.value, packet.page, 0, version, true, List.of()));
                 return;
             }
             RemovalEntry scope = new RemovalEntry(packet.mode, packet.value, "");
-            List<RemovalCandidate> candidates = RecipeMemoryManager.originalCatalog(player.server.getRecipeManager())
+            List<RemovalCandidate> candidates = RecipeMemoryManager.originalCatalog(player.getServer().getRecipeManager())
                     .entries().values().stream().map(OriginalRecipeCatalog.Entry::candidate)
                     .filter(candidate -> RemovalRuleEvaluator.matchesScope(scope, candidate)).toList();
             List<RemovalCatalogPages.Page> pages;
@@ -864,12 +867,12 @@ public final class RecipeNetwork {
                                      List<RemovalEntry> entries) {
         byte[] bytes = RemovalStateCodec.encodeRules(entries);
         List<byte[]> chunks = RuleTransfer.split(bytes);
-        long version = RecipeMemoryManager.catalogVersion(player.server.getRecipeManager());
+        long version = RecipeMemoryManager.catalogVersion(player.getServer().getRecipeManager());
         CHANNEL.sendToPlayer(player, new RuleStateBeginPacket(requestId, status, bytes.length, chunks.size(), version));
         for (int index = 0; index < chunks.size(); index++) {
             CHANNEL.sendToPlayer(player, new RuleStateChunkPacket(requestId, index, chunks.get(index)));
         }
-        List<ResourceLocation> outputs = RecipeMemoryManager.originalCatalog(player.server.getRecipeManager())
+        List<ResourceLocation> outputs = RecipeMemoryManager.originalCatalog(player.getServer().getRecipeManager())
                 .entries().values().stream()
                 .filter(entry -> entry.removed() && entry.candidate().outputItemId() != null)
                 .map(entry -> entry.candidate().outputItemId())

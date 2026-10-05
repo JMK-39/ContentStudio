@@ -148,7 +148,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
             int x = 100 + i % columns * 22, y = 118 + i / columns * 22;
             KineticTheme.itemSlot(graphics, x, y, 20, false);
             try {
-                var alternatives = recipe.inputs().get(i).getItems();
+                var alternatives = recipe.alternatives(i);
                 if (alternatives.length > 0) graphics.item(alternatives[cycle % alternatives.length], x + 2, y + 2);
             } catch (RuntimeException ignored) { markError(); }
         }
@@ -177,7 +177,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
             int x = 100 + i % columns * 22, y = 118 + i / columns * 22;
             if (mouseX >= x && mouseX < x + 20 && mouseY >= y && mouseY < y + 20) {
                 try {
-                    ItemStack[] alternatives = recipe.inputs().get(i).getItems();
+                    ItemStack[] alternatives = recipe.alternatives(i);
                     if (alternatives.length > 0) return alternatives[cycle % alternatives.length];
                 } catch (RuntimeException ignored) {
                     return ItemStack.EMPTY;

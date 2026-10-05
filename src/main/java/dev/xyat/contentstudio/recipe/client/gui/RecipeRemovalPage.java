@@ -238,12 +238,20 @@ public class RecipeRemovalPage extends KineticPage {
             originals.put(summary.id(), row);
             originalRows.register(row, candidateOf(summary));
         }
+        // 26.1 clients have no recipe manager and see the recipes the server synced instead.
+//? if >=26.1 {
+/*
+        for (var recipe : dev.xyat.contentstudio.recipe.client.ClientRecipes.all()) {
+            try {
+                if (!dev.xyat.contentstudio.recipe.RecipeView.output(recipe.value(), level.registryAccess()).is(selectedItem.getItem())) continue;
+*///?} else if >=1.21 {
+/*
         for (var recipe : level.getRecipeManager().getRecipes()) {
             try {
-//? if >=1.21 {
-/*
                 if (!recipe.value().getResultItem(level.registryAccess()).is(selectedItem.getItem())) continue;
 *///?} else {
+        for (var recipe : level.getRecipeManager().getRecipes()) {
+            try {
                 if (!recipe.getResultItem(level.registryAccess()).is(selectedItem.getItem())) continue;
 //?}
                 RecipeSummary summary = RecipeSummary.of(recipe, level.registryAccess());
@@ -791,7 +799,7 @@ public class RecipeRemovalPage extends KineticPage {
             int x = 252 + i % columns * 18, y = 252 + i / columns * 18;
             KineticTheme.itemSlot(g, x, y, 18, false);
             try {
-                var alternatives = summary.inputs().get(i).getItems();
+                var alternatives = summary.alternatives(i);
                 if (alternatives.length > 0) drawItem(g, alternatives[cycle % alternatives.length], x + 1, y + 1);
             } catch (RuntimeException exception) { errors.add(selectedItem.getItem()); }
         }
@@ -845,7 +853,7 @@ public class RecipeRemovalPage extends KineticPage {
             int x = 252 + i % columns * 18, y = 252 + i / columns * 18;
             if (mx >= x && mx < x + 18 && my >= y && my < y + 18) {
                 try {
-                    ItemStack[] alternatives = summary.inputs().get(i).getItems();
+                    ItemStack[] alternatives = summary.alternatives(i);
                     if (alternatives.length > 0) return alternatives[cycle % alternatives.length];
                 } catch (RuntimeException ignored) {
                     return ItemStack.EMPTY;

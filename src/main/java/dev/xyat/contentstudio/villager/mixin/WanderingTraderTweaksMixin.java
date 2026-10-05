@@ -20,7 +20,10 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
     }
 
     @Inject(method = "updateTrades", at = @At("HEAD"), cancellable = true)
-    private void contentstudio_villager$applyWanderingTraderTrades(CallbackInfo ci) {
+    private void contentstudio_villager$applyWanderingTraderTrades(
+            //? if >=26.1
+            /*net.minecraft.server.level.ServerLevel serverLevel,*/
+            CallbackInfo ci) {
         if (VillagerTradeRegistry.isSessionUnavailable()) {
             return;
         }
@@ -38,6 +41,9 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
 
         MerchantOffers offers = this.getOffers();
         offers.clear();
+        // 26.1 also rolls a buying set, which the editor does not cover; keep it vanilla.
+        //? if >=26.1
+        /*this.addOffersFromTradeSet(serverLevel, offers, net.minecraft.world.item.trading.TradeSets.WANDERING_TRADER_BUYING);*/
         VillagerTradeRuntimeUtil.addConfiguredOffers(
                 offers,
                 this,
@@ -58,7 +64,10 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
     }
 
     @Inject(method = "updateTrades", at = @At("TAIL"))
-    private void contentstudio_villager$applyWanderingTraderTradesLate(CallbackInfo ci) {
+    private void contentstudio_villager$applyWanderingTraderTradesLate(
+            //? if >=26.1
+            /*net.minecraft.server.level.ServerLevel serverLevel,*/
+            CallbackInfo ci) {
         if (!VillagerConfig.enableVillagerTradeLateOverride || VillagerTradeRegistry.isSessionUnavailable()) {
             return;
         }
@@ -72,6 +81,9 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
 
         MerchantOffers offers = this.getOffers();
         offers.clear();
+        // 26.1 also rolls a buying set, which the editor does not cover; keep it vanilla.
+        //? if >=26.1
+        /*this.addOffersFromTradeSet(serverLevel, offers, net.minecraft.world.item.trading.TradeSets.WANDERING_TRADER_BUYING);*/
         VillagerTradeRuntimeUtil.addConfiguredOffers(
                 offers,
                 this,

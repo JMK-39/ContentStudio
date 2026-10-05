@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.VillagerProfession;
+//? if <26.1
 import net.minecraft.world.entity.npc.VillagerTrades;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
@@ -24,6 +25,125 @@ public final class VillagerTradeRuntimeUtil {
             return VillagerConfig.clampTradeLevel(owner, level) == 1 ? 5 : 1;
         }
         return 2;
+    }
+
+    // The vanilla trades of one villager level, by index. Up to 1.21.1 they are the static item listings; 26.1 keeps
+    // them in data as the profession's trade set, whose trades build offers from a loot context like vanilla does.
+    //? if >=26.1 {
+    /*public static int vanillaTradeCount(String owner, int level) {
+        return onServerThread() ? vanillaTrades(owner, level).size() : remotePreviews(owner, level).size();
+    }
+
+    public static MerchantOffer createVanillaOffer(String owner, int level, int vanillaIndex, Entity entity, RandomSource random) {
+        if (entity == null && !onServerThread()) {
+            List<MerchantOffer> previews = remotePreviews(owner, level);
+            MerchantOffer preview = vanillaIndex < 0 || vanillaIndex >= previews.size() ? null : previews.get(vanillaIndex);
+            return preview == null ? null : preview.copy();
+        }
+        List<net.minecraft.core.Holder<net.minecraft.world.item.trading.VillagerTrade>> trades = vanillaTrades(owner, level);
+        if (vanillaIndex < 0 || vanillaIndex >= trades.size()) {
+            return null;
+        }
+        net.minecraft.server.level.ServerLevel serverLevel = entity != null && entity.level() instanceof net.minecraft.server.level.ServerLevel level0
+                ? level0 : previewLevel();
+        if (serverLevel == null) {
+            return null;
+        }
+        Entity source = entity != null ? entity : net.minecraft.world.entity.EntityType.VILLAGER.create(serverLevel, net.minecraft.world.entity.EntitySpawnReason.LOAD);
+        if (source == null) {
+            return null;
+        }
+        try {
+            net.minecraft.world.level.storage.loot.LootContext context = new net.minecraft.world.level.storage.loot.LootContext.Builder(
+                    new net.minecraft.world.level.storage.loot.LootParams.Builder(serverLevel)
+                            .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, source.position())
+                            .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY, source)
+                            .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ADDITIONAL_COST_COMPONENT_ALLOWED, net.minecraft.util.Unit.INSTANCE)
+                            .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.VILLAGER_TRADE))
+                    .withOptionalRandomSource(random)
+                    .create(java.util.Optional.empty());
+            return trades.get(vanillaIndex).value().getOffer(context);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static List<net.minecraft.core.Holder<net.minecraft.world.item.trading.VillagerTrade>> vanillaTrades(String owner, int level) {
+        net.minecraft.resources.ResourceKey<net.minecraft.world.item.trading.TradeSet> key = tradeSetKey(owner, level);
+        net.minecraft.server.level.ServerLevel serverLevel = previewLevel();
+        if (key == null || serverLevel == null) {
+            return List.of();
+        }
+        return serverLevel.registryAccess().lookup(net.minecraft.core.registries.Registries.TRADE_SET)
+                .flatMap(lookup -> lookup.get(key))
+                .map(set -> List.copyOf(set.value().getTrades().stream().toList()))
+                .orElse(List.of());
+    }
+
+    // The wandering trader's common and uncommon sets are levels 1 and 2; its 26.1 buying set stays vanilla.
+    private static net.minecraft.resources.ResourceKey<net.minecraft.world.item.trading.TradeSet> tradeSetKey(String owner, int level) {
+        String cleanOwner = VillagerConfig.clean(owner);
+        int safeLevel = VillagerConfig.clampTradeLevel(cleanOwner, level);
+        if (VillagerConfig.isWanderingTrader(cleanOwner)) {
+            return safeLevel == 1 ? net.minecraft.world.item.trading.TradeSets.WANDERING_TRADER_COMMON
+                    : net.minecraft.world.item.trading.TradeSets.WANDERING_TRADER_UNCOMMON;
+        }
+        ResourceLocation id = KineticResourceIds.tryParse(cleanOwner);
+        VillagerProfession profession = id == null ? null : KineticRegistries.villagerProfessions().get(id);
+        return profession == null ? null : profession.getTrades(safeLevel);
+    }
+
+    // Trade sets live on the server: the running (or integrated) server's overworld builds the offers.
+    private static net.minecraft.server.level.ServerLevel previewLevel() {
+        var server = dev.xyat.kineticcore.api.runtime.KineticServerRuntime.currentServer();
+        return server == null ? null : server.overworld();
+    }
+
+    private static boolean onServerThread() {
+        var server = dev.xyat.kineticcore.api.runtime.KineticServerRuntime.currentServer();
+        return server != null && server.isSameThread();
+    }
+
+    // Clients have no trade sets, so the server sends the trade editor the preview offers of every owner and level
+    // (see VillagerNetwork). A null preview keeps the vanilla index of a trade that could not build an offer.
+    private static volatile java.util.Map<String, List<List<MerchantOffer>>> remotePreviews = java.util.Map.of();
+
+    public static void setRemotePreviews(java.util.Map<String, List<List<MerchantOffer>>> previews) {
+        remotePreviews = java.util.Map.copyOf(previews);
+    }
+
+    private static List<MerchantOffer> remotePreviews(String owner, int level) {
+        String cleanOwner = VillagerConfig.clean(owner);
+        List<List<MerchantOffer>> levels = remotePreviews.get(cleanOwner);
+        int index = VillagerConfig.clampTradeLevel(cleanOwner, level) - 1;
+        return levels == null || index >= levels.size() ? List.of() : levels.get(index);
+    }
+
+    /^* The preview offers of every villager profession and the wandering trader; list index 0 is level 1. ^/
+    public static java.util.Map<String, List<List<MerchantOffer>>> collectPreviews() {
+        List<String> owners = new ArrayList<>();
+        KineticRegistries.villagerProfessions().ids().forEach(id -> owners.add(id.toString()));
+        owners.add(VillagerConfig.WANDERING_TRADER_ID);
+        java.util.Map<String, List<List<MerchantOffer>>> result = new java.util.LinkedHashMap<>();
+        for (String owner : owners) {
+            int maxLevel = VillagerConfig.isWanderingTrader(owner) ? 2 : 5;
+            List<List<MerchantOffer>> levels = new ArrayList<>();
+            for (int level = 1; level <= maxLevel; level++) {
+                List<MerchantOffer> offers = new ArrayList<>();
+                int count = vanillaTrades(owner, level).size();
+                for (int i = 0; i < count; i++) {
+                    offers.add(createPreviewOffer(owner, level, i));
+                }
+                levels.add(java.util.Collections.unmodifiableList(offers));
+            }
+            result.put(VillagerConfig.clean(owner), List.copyOf(levels));
+        }
+        return result;
+    }
+    *///?} else {
+    public static int vanillaTradeCount(String owner, int level) {
+        VillagerTrades.ItemListing[] listings = getVanillaListings(owner, level);
+        return listings == null ? 0 : listings.length;
     }
 
     public static VillagerTrades.ItemListing[] getVanillaListings(String owner, int level) {
@@ -65,6 +185,8 @@ public final class VillagerTradeRuntimeUtil {
         }
     }
 
+    //?}
+
     public static MerchantOffer createPreviewOffer(String owner, int level, int vanillaIndex) {
         return createVanillaOffer(owner, level, vanillaIndex, null, RandomSource.create(1234567L + (long) level * 131L + vanillaIndex * 17L));
     }
@@ -101,13 +223,13 @@ public final class VillagerTradeRuntimeUtil {
             return;
         }
 
-        VillagerTrades.ItemListing[] listings = getVanillaListings(owner, level);
-        if (listings == null || listings.length == 0) {
+        int vanillaCount = vanillaTradeCount(owner, level);
+        if (vanillaCount == 0) {
             return;
         }
 
         List<Candidate> candidates = new ArrayList<>();
-        for (int i = 0; i < listings.length; i++) {
+        for (int i = 0; i < vanillaCount; i++) {
             int weight = 1;
             if (respectOverrides || VillagerTradeRegistry.hasActiveVanillaOverrides(owner, level)) {
                 if (VillagerTradeRegistry.isActiveVanillaTradeDisabled(owner, level, i)) {
@@ -144,9 +266,9 @@ public final class VillagerTradeRuntimeUtil {
         }
 
         List<Candidate> candidates = new ArrayList<>();
-        VillagerTrades.ItemListing[] listings = getVanillaListings(owner, level);
-        if (listings != null) {
-            for (int i = 0; i < listings.length; i++) {
+        int vanillaCount = vanillaTradeCount(owner, level);
+        if (vanillaCount > 0) {
+            for (int i = 0; i < vanillaCount; i++) {
                 if (VillagerTradeRegistry.isActiveVanillaTradeDisabled(owner, level, i)) {
                     continue;
                 }

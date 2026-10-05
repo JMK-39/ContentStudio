@@ -38,8 +38,13 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
     @Shadow
     private boolean increaseProfessionLevelOnUpdate;
 
+    // 26.1 levels up the villager with the server level it is in.
     @Shadow
+    //? if >=26.1 {
+    /*protected abstract void increaseMerchantCareer(net.minecraft.server.level.ServerLevel level);
+    *///?} else {
     protected abstract void increaseMerchantCareer();
+    //?}
 
     @Unique
     private Player contentstudio_villager$followingPlayer = null;
@@ -55,15 +60,18 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
     }
 
     @Inject(method = "updateTrades", at = @At("HEAD"), cancellable = true)
-    private void contentstudio_villager$applyConfiguredTrades(CallbackInfo ci) {
+    private void contentstudio_villager$applyConfiguredTrades(
+            //? if >=26.1
+            /*net.minecraft.server.level.ServerLevel serverLevel,*/
+            CallbackInfo ci) {
         if (VillagerTradeRegistry.isSessionUnavailable()) {
             return;
         }
 
-        VillagerData data = ((Villager) (Object) this).getVillagerData();
-        ResourceLocation professionId = KineticRegistries.villagerProfessions().id(data.getProfession());
+        VillagerData villagerData = ((Villager) (Object) this).getVillagerData();
+        ResourceLocation professionId = KineticRegistries.villagerProfessions().id(villagerData.getProfession());
         String profession = professionId.toString();
-        int level = data.getLevel();
+        int level = villagerData.getLevel();
         if (!VillagerTradeRegistry.hasActiveLevelChanges(profession, level)) {
             return;
         }
@@ -91,21 +99,24 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
     }
 
     @Inject(method = "updateTrades", at = @At("TAIL"))
-    private void contentstudio_villager$applyConfiguredTradesLate(CallbackInfo ci) {
+    private void contentstudio_villager$applyConfiguredTradesLate(
+            //? if >=26.1
+            /*net.minecraft.server.level.ServerLevel serverLevel,*/
+            CallbackInfo ci) {
         if (!VillagerConfig.enableVillagerTradeLateOverride || VillagerTradeRegistry.isSessionUnavailable()) {
             contentstudio_villager$offersBeforeLateOverride = List.of();
             return;
         }
 
-        VillagerData data = ((Villager) (Object) this).getVillagerData();
-        ResourceLocation professionId = KineticRegistries.villagerProfessions().id(data.getProfession());
+        VillagerData villagerData = ((Villager) (Object) this).getVillagerData();
+        ResourceLocation professionId = KineticRegistries.villagerProfessions().id(villagerData.getProfession());
         if (professionId == null) {
             contentstudio_villager$offersBeforeLateOverride = List.of();
             return;
         }
 
         String profession = professionId.toString();
-        int level = data.getLevel();
+        int level = villagerData.getLevel();
         if (!VillagerTradeRegistry.hasActiveLevelChanges(profession, level)) {
             contentstudio_villager$offersBeforeLateOverride = List.of();
             return;
@@ -132,9 +143,12 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
     }
 
     @Inject(method = "customServerAiStep", at = @At("HEAD"), cancellable = true)
-    private void contentstudio_villager$modifyVillagerAi(CallbackInfo ci) {
+    private void contentstudio_villager$modifyVillagerAi(
+            //? if >=26.1
+            /*net.minecraft.server.level.ServerLevel serverLevel,*/
+            CallbackInfo ci) {
         Level level = this.level();
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return;
         }
 
@@ -204,7 +218,11 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
 
         if (this.updateMerchantTimer == 0) {
             if (this.increaseProfessionLevelOnUpdate) {
+                //? if >=26.1 {
+                /*this.increaseMerchantCareer((net.minecraft.server.level.ServerLevel) this.level());
+                *///?} else {
                 this.increaseMerchantCareer();
+                //?}
                 this.increaseProfessionLevelOnUpdate = false;
             }
 

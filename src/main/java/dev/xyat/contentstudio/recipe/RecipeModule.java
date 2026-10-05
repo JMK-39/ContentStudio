@@ -25,6 +25,8 @@ public final class RecipeModule {
         KineticPlatform.runOnClient(() -> () -> {
             RecipeEditorSetup.register();
             RecipeConfigGui.load();
+            //? if >=26.1
+            /*dev.xyat.contentstudio.recipe.client.ClientRecipes.register();*/
         });
     }
 }

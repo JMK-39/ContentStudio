@@ -62,11 +62,27 @@ public record ComponentPatchIngredient(Holder<Item> item, DataComponentPatch com
         return new ItemStack(item, 1, components);
     }
 
+*///?}
+    // 26.1 ingredients list item holders and show a slot display; earlier ones list display stacks.
+    //? if >=26.1 {
+    /*@Override
+    public Stream<Holder<Item>> items() {
+        return Stream.of(item);
+    }
+
     @Override
+    public net.minecraft.world.item.crafting.display.SlotDisplay display() {
+        return new net.minecraft.world.item.crafting.display.SlotDisplay.ItemStackSlotDisplay(
+                new net.minecraft.world.item.ItemStackTemplate(item, 1, components));
+    }
+    *///?} else if >=1.21 {
+    /*@Override
     public Stream<ItemStack> getItems() {
         return Stream.of(displayStack());
     }
-
+    *///?}
+    //? if >=1.21 {
+    /*
     @Override
     public boolean isSimple() {
         return false;

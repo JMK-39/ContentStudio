@@ -88,7 +88,9 @@ public class LootTableOverrideStore {
 
         if (mode == LootEntryInfo.MODE_ENTITY) {
             KineticRegistries.entityTypes().entries().forEach((targetId, type) -> {
-                //? if >=1.21 {
+                //? if >=26.1 {
+/*ResourceLocation lootTable = type.getDefaultLootTable().map(ResourceKey::location).orElse(null);
+*///?} else if >=1.21 {
 /*ResourceLocation lootTable = type.getDefaultLootTable().location();
 *///?} else {
 ResourceLocation lootTable = type.getDefaultLootTable();
@@ -100,7 +102,9 @@ ResourceLocation lootTable = type.getDefaultLootTable();
             });
         } else if (mode == LootEntryInfo.MODE_BLOCK) {
             KineticRegistries.blocks().entries().forEach((targetId, block) -> {
-                //? if >=1.21 {
+                //? if >=26.1 {
+/*ResourceLocation lootTable = block.getLootTable().map(ResourceKey::location).orElse(null);
+*///?} else if >=1.21 {
 /*ResourceLocation lootTable = block.getLootTable().location();
 *///?} else {
 ResourceLocation lootTable = block.getLootTable();
@@ -302,7 +306,7 @@ ResourceLocation lootTable = block.getLootTable();
 //? if >=1.21 {
 /*    public static void applyAll(MinecraftServer server, ResourceManager resourceManager) {
         if (server == null || resourceManager == null) return;
-        applyAll(server.reloadableRegistries(), server.reloadableRegistries().get(), resourceManager);
+        applyAll(server.reloadableRegistries(), lootAccess(server.reloadableRegistries()), resourceManager);
     }
 
     public static void applyAll(ReloadableServerRegistries.Holder registries,
@@ -310,7 +314,7 @@ ResourceLocation lootTable = block.getLootTable();
         if (resources == null || !hasAnyOverrides()) return;
         Map<ResourceLocation, LootTable> replacements = new HashMap<>();
         boolean applyGlobalChest = hasGlobalChestAppend() || hasGlobalRemovedItems();
-        for (ResourceLocation id : registries.getKeys(Registries.LOOT_TABLE)) {
+        for (ResourceLocation id : lootTableIds(registries)) {
             boolean directOverride = hasOverride(id);
             if (!directOverride && !applyGlobalChest) continue;
             JsonElement raw = readResourceElement(resources, id);
@@ -333,7 +337,7 @@ ResourceLocation lootTable = block.getLootTable();
         Map<ResourceLocation, LootTable> replacements = new HashMap<>();
         boolean applyGlobalChest = hasGlobalChestAppend() || hasGlobalRemovedItems();
 //? if >=1.21 {
-/*        for (ResourceLocation tableId : server.reloadableRegistries().getKeys(Registries.LOOT_TABLE)) {
+/*        for (ResourceLocation tableId : lootTableIds(server.reloadableRegistries())) {
 *///?} else {
         for (ResourceLocation tableId : server.getLootData().getKeys(LootDataType.TABLE)) {
 //?}
@@ -381,7 +385,7 @@ ResourceLocation lootTable = block.getLootTable();
         }
 
 //? if >=1.21 {
-/*        LootDataType.TABLE.codec().parse(server.reloadableRegistries().get().createSerializationContext(JsonOps.INSTANCE), element).getOrThrow();
+/*        LootDataType.TABLE.codec().parse(lootAccess(server.reloadableRegistries()).createSerializationContext(JsonOps.INSTANCE), element).getOrThrow();
 *///?} else {
         deserializeLootTable(server, lootTableId, element);
 //?}
@@ -635,7 +639,7 @@ ResourceLocation lootTable = block.getLootTable();
         }
         Map<ResourceLocation, LootTable> replacements = new HashMap<>();
 //? if >=1.21 {
-/*        for (ResourceLocation tableId : server.reloadableRegistries().getKeys(Registries.LOOT_TABLE)) {
+/*        for (ResourceLocation tableId : lootTableIds(server.reloadableRegistries())) {
 *///?} else {
         for (ResourceLocation tableId : server.getLootData().getKeys(LootDataType.TABLE)) {
 //?}
@@ -655,9 +659,41 @@ ResourceLocation lootTable = block.getLootTable();
         refreshGlobalRemovalTargetTables(server);
     }
 
+    // The loot registries of a reload. On 26.1 the holder only offers a lookup; it is the server's frozen registry
+    // access, whose loot table lookup is the registry itself.
+//? if >=26.1 {
+/*    private static net.minecraft.core.RegistryAccess lootAccess(ReloadableServerRegistries.Holder registries) {
+        return (net.minecraft.core.RegistryAccess) registries.lookup();
+    }
+
+    private static java.util.Collection<ResourceLocation> lootTableIds(ReloadableServerRegistries.Holder registries) {
+        return lootAccess(registries).lookupOrThrow(Registries.LOOT_TABLE).keySet();
+    }
+
+    private static Optional<LootTable> parseLootTable(ResourceLocation id, com.mojang.serialization.DynamicOps<JsonElement> ops, JsonElement json) {
+        var result = LootDataType.TABLE.conditionalCodec().parse(ops, json);
+        result.error().ifPresent(error -> LOGGER.error("{} Couldn't load loot table {}: {}", LOG_PREFIX, id, error.message()));
+        Optional<LootTable> table = result.result().flatMap(value -> value);
+        table.ifPresent(value -> LootDataType.TABLE.idSetter().accept(value, id));
+        return table;
+    }
+*///?} else if >=1.21 {
+/*    private static net.minecraft.core.RegistryAccess lootAccess(ReloadableServerRegistries.Holder registries) {
+        return registries.get();
+    }
+
+    private static java.util.Collection<ResourceLocation> lootTableIds(ReloadableServerRegistries.Holder registries) {
+        return registries.getKeys(Registries.LOOT_TABLE);
+    }
+
+    private static Optional<LootTable> parseLootTable(ResourceLocation id, com.mojang.serialization.DynamicOps<JsonElement> ops, JsonElement json) {
+        return LootDataType.TABLE.deserialize(id, ops, json);
+    }
+*///?}
+
 //? if >=1.21 {
 /*    private static LootTable deserializeLootTable(MinecraftServer server, ResourceLocation id, JsonElement json) {
-        return deserializeLootTable(server.reloadableRegistries().get(), id, json);
+        return deserializeLootTable(lootAccess(server.reloadableRegistries()), id, json);
     }
     private static LootTable deserializeLootTable(ResourceManager resources, ResourceLocation id, JsonElement json) {
         return deserializeLootTable(ItemData.registries(), id, json);
@@ -669,7 +705,7 @@ ResourceLocation lootTable = block.getLootTable();
             var ops = lookup.createSerializationContext(JsonOps.INSTANCE);
             JsonElement safe = sanitizeRuntimeLootTable(id, json);
             try {
-                Optional<LootTable> parsed = LootDataType.TABLE.deserialize(id, ops, safe);
+                Optional<LootTable> parsed = parseLootTable(id, ops, safe);
                 if (parsed.isPresent()) {
                     if (parsed.get() == LootTable.EMPTY) {
                         LootTable empty = LootTable.lootTable().build();
@@ -683,7 +719,7 @@ ResourceLocation lootTable = block.getLootTable();
             } catch (RuntimeException failure) {
                 LOGGER.error("{} Invalid loot table {}, using barrier fallback", LOG_PREFIX, id, failure);
             }
-            return LootDataType.TABLE.deserialize(id, ops, createBarrierFallbackTable())
+            return parseLootTable(id, ops, createBarrierFallbackTable())
                     .orElseThrow(() -> new IllegalStateException("Cannot create safe loot table: " + id));
         } finally { LOAD_EVENT_BYPASS.set(previous); }
     }
@@ -813,7 +849,7 @@ ResourceLocation lootTable = block.getLootTable();
 
     static void replaceLootTables(ReloadableServerRegistries.Holder manager, Map<ResourceLocation, LootTable> replacements) {
         if (replacements.isEmpty()) return;
-        Registry<LootTable> registry = manager.get().registryOrThrow(Registries.LOOT_TABLE);
+        Registry<LootTable> registry = lootAccess(manager).registryOrThrow(Registries.LOOT_TABLE);
         LootRegistryAccessor<LootTable> accessor = (LootRegistryAccessor<LootTable>) registry;
         // Validate the whole batch before changing any holder or reverse index.
         Set<LootTable> values = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -883,7 +919,7 @@ ResourceLocation lootTable = block.getLootTable();
         }
         Set<LootTable> targets = Collections.newSetFromMap(new IdentityHashMap<>());
         LinkedHashSet<ResourceLocation> ids = new LinkedHashSet<>();
-        for (ResourceLocation id : registries.getKeys(Registries.LOOT_TABLE)) {
+        for (ResourceLocation id : lootTableIds(registries)) {
             if (!shouldApplyGlobalChestRules(id)) continue;
             JsonElement raw = readResourceElement(resources, id);
             JsonElement override = readOverrideElement(id);
@@ -908,7 +944,7 @@ ResourceLocation lootTable = block.getLootTable();
         LinkedHashSet<ResourceLocation> targetIds = new LinkedHashSet<>();
         ResourceManager resourceManager = server.getResourceManager();
 //? if >=1.21 {
-/*        for (ResourceLocation tableId : server.reloadableRegistries().getKeys(Registries.LOOT_TABLE)) {
+/*        for (ResourceLocation tableId : lootTableIds(server.reloadableRegistries())) {
 *///?} else {
         for (ResourceLocation tableId : server.getLootData().getKeys(LootDataType.TABLE)) {
 //?}
@@ -986,7 +1022,9 @@ ResourceLocation lootTable = block.getLootTable();
                 if (cached == null) {
                     LinkedHashSet<ResourceLocation> values = new LinkedHashSet<>();
                     KineticRegistries.entityTypes().values().forEach(type -> {
-                        //? if >=1.21 {
+                        //? if >=26.1 {
+/*ResourceLocation id = type.getDefaultLootTable().map(ResourceKey::location).orElse(null);
+*///?} else if >=1.21 {
 /*ResourceLocation id = type.getDefaultLootTable().location();
 *///?} else {
 ResourceLocation id = type.getDefaultLootTable();
@@ -997,7 +1035,9 @@ ResourceLocation id = type.getDefaultLootTable();
                         }
                     });
                     KineticRegistries.blocks().values().forEach(block -> {
-                        //? if >=1.21 {
+                        //? if >=26.1 {
+/*ResourceLocation id = block.getLootTable().map(ResourceKey::location).orElse(null);
+*///?} else if >=1.21 {
 /*ResourceLocation id = block.getLootTable().location();
 *///?} else {
 ResourceLocation id = block.getLootTable();
@@ -1327,7 +1367,10 @@ ResourceLocation id = block.getLootTable();
     }
 
     private static boolean isValidLootTable(ResourceLocation id) {
-//? if >=1.21 {
+// 26.1 has no empty loot table id; a missing loot table is an empty optional key.
+//? if >=26.1 {
+/*        return id != null;
+*///?} else if >=1.21 {
 /*        return id != null && !BuiltInLootTables.EMPTY.location().equals(id);
 *///?} else {
         return id != null && !BuiltInLootTables.EMPTY.equals(id);

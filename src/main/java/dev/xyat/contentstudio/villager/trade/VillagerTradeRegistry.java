@@ -5,12 +5,14 @@ import dev.xyat.contentstudio.villager.VillagerModule;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+//? if <26.1 {
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.VillagerTrades;
+import dev.xyat.kineticcore.api.villager.event.KineticVillagerEvents;
+//?}
 import dev.xyat.kineticcore.api.event.KineticEventPriority;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.server.event.KineticServerEvents;
-import dev.xyat.kineticcore.api.villager.event.KineticVillagerEvents;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +23,8 @@ public final class VillagerTradeRegistry {
     private static final Map<String, VillagerConfig.TradeGroup> ACTIVE_GROUPS = new HashMap<>();
     private static final Map<String, List<VillagerConfig.TradeOfferData>> ACTIVE_OFFERS = new HashMap<>();
     private static final Map<String, VillagerConfig.VanillaTradeOverride> ACTIVE_OVERRIDES = new HashMap<>();
+    // Up to 1.21.1 the vanilla trade tables are rewritten in place; their original listings are kept here.
+    //? if <26.1
     private static final Map<String, List<VillagerTrades.ItemListing>> BASELINE_LISTINGS = new HashMap<>();
 
     private static boolean sessionPrepared;
@@ -43,6 +47,9 @@ public final class VillagerTradeRegistry {
             prepareSession();
         });
 
+        // 26.1 keeps trades in data and has no trade events: the updateTrades mixins apply the configuration when a
+        // villager or wandering trader rolls its offers.
+        //? if <26.1 {
         KineticVillagerEvents.onVillagerTrades(KineticEventPriority.LOWEST, context -> {
             prepareSession();
             ResourceLocation professionId = KineticRegistries.villagerProfessions().id(context.profession());
@@ -68,6 +75,7 @@ public final class VillagerTradeRegistry {
             applyPublishedPool(owner, 1, context.genericTrades());
             applyPublishedPool(owner, 2, context.rareTrades());
         });
+        //?}
 
         KineticServerEvents.onStopped(KineticEventPriority.NORMAL, server -> {
             if (activeServer == null || activeServer == server) {
@@ -135,10 +143,12 @@ public final class VillagerTradeRegistry {
                 || hasActiveCustomOffers(owner, level);
     }
 
+    //? if <26.1 {
     public static VillagerTrades.ItemListing[] getBaselineListings(String owner, int level) {
         List<VillagerTrades.ItemListing> listings = BASELINE_LISTINGS.get(tradeKey(owner, level));
         return listings == null ? null : listings.toArray(VillagerTrades.ItemListing[]::new);
     }
+    //?}
 
     public static boolean applyAndSaveLive(
             List<String> groups,
@@ -175,6 +185,7 @@ public final class VillagerTradeRegistry {
         ACTIVE_GROUPS.clear();
         ACTIVE_OFFERS.clear();
         ACTIVE_OVERRIDES.clear();
+        //? if <26.1
         BASELINE_LISTINGS.clear();
     }
 
@@ -217,6 +228,13 @@ public final class VillagerTradeRegistry {
         }
     }
 
+    //? if >=26.1 {
+    /*private static void publishAllLive() {
+    }
+
+    private static void restoreBaselinePools() {
+    }
+    *///?} else {
     private static void captureBaseline(String owner, int level, List<VillagerTrades.ItemListing> trades) {
         BASELINE_LISTINGS.put(tradeKey(owner, level), new ArrayList<>(trades));
     }
@@ -333,6 +351,7 @@ public final class VillagerTradeRegistry {
             tradesByLevel.put(level, array);
         }
     }
+    //?}
 
     private static String tradeKey(String owner, int level) {
         String cleanOwner = VillagerConfig.clean(owner);

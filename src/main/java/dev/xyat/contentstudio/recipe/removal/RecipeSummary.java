@@ -1,4 +1,65 @@
-//? if >=1.21 {
+//? if >=26.1 {
+/*
+package dev.xyat.contentstudio.recipe.removal;
+
+import dev.xyat.contentstudio.recipe.RecipeView;
+import dev.xyat.kineticcore.api.network.NetworkBuffer;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/^* 26.1 recipes describe their inputs as slot displays; each input keeps the stacks its slot shows. ^/
+public record RecipeSummary(ResourceLocation id, ResourceLocation type, ItemStack output,
+                            List<List<ItemStack>> inputs, int craftingWidth) {
+    public static RecipeSummary of(RecipeHolder<?> holder, RegistryAccess registries) {
+        Recipe<?> recipe = holder.value();
+        ResourceLocation id = holder.id().identifier();
+        ResourceLocation type = KineticRegistries.recipeTypes().id(recipe.getType());
+        return new RecipeSummary(id, type == null ? id : type, RecipeView.output(recipe, registries).copy(),
+                RecipeView.inputs(recipe, registries), RecipeView.craftingWidth(recipe));
+    }
+
+    public ItemStack[] alternatives(int index) {
+        return inputs.get(index).toArray(ItemStack[]::new);
+    }
+
+    public void encode(NetworkBuffer buffer) {
+        buffer.writeResourceLocation(id);
+        buffer.writeResourceLocation(type);
+        buffer.writeItemStack(output);
+        buffer.writeVarInt(inputs.size());
+        for (List<ItemStack> input : inputs) {
+            buffer.writeVarInt(input.size());
+            input.forEach(buffer::writeItemStack);
+        }
+        buffer.writeVarInt(craftingWidth);
+    }
+
+    public static RecipeSummary decode(NetworkBuffer buffer) {
+        ResourceLocation id = buffer.readResourceLocation();
+        ResourceLocation type = buffer.readResourceLocation();
+        ItemStack output = buffer.readItemStack();
+        int size = buffer.readVarInt();
+        if (size < 0 || size > 256) throw new IllegalArgumentException("Invalid ingredient count");
+        List<List<ItemStack>> inputs = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            int count = buffer.readVarInt();
+            if (count < 0 || count > 4096) throw new IllegalArgumentException("Invalid ingredient alternative count");
+            List<ItemStack> alternatives = new ArrayList<>();
+            for (int j = 0; j < count; j++) alternatives.add(buffer.readItemStack());
+            inputs.add(List.copyOf(alternatives));
+        }
+        return new RecipeSummary(id, type, output, List.copyOf(inputs), buffer.readVarInt());
+    }
+}
+
+*///?} else if >=1.21 {
 /*
 package dev.xyat.contentstudio.recipe.removal;
 
@@ -23,6 +84,10 @@ public record RecipeSummary(ResourceLocation id, ResourceLocation type, ItemStac
         return new RecipeSummary(holder.id(), type == null ? holder.id() : type,
                 recipe.getResultItem(registries).copy(), List.copyOf(recipe.getIngredients()),
                 recipe instanceof ShapedRecipe shaped ? shaped.getWidth() : 0);
+    }
+
+    public ItemStack[] alternatives(int index) {
+        return inputs.get(index).getItems();
     }
 
     public void encode(NetworkBuffer buffer) {
@@ -68,6 +133,10 @@ public record RecipeSummary(ResourceLocation id, ResourceLocation type, ItemStac
         return new RecipeSummary(recipe.getId(), type == null ? recipe.getId() : type,
                 recipe.getResultItem(registries).copy(), List.copyOf(recipe.getIngredients()),
                 recipe instanceof ShapedRecipe shaped ? shaped.getWidth() : 0);
+    }
+
+    public ItemStack[] alternatives(int index) {
+        return inputs.get(index).getItems();
     }
 
     public void encode(NetworkBuffer buffer) {

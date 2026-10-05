@@ -177,7 +177,7 @@ public final class LootNetwork {
             if (player != null && player.hasPermissions(2) && isEditorMode(packet.mode)) {
                 sendToPlayer(player, new OpenScreenPacket(
                         packet.mode,
-                        LootTableOverrideStore.buildEntries(player.server, packet.mode)
+                        LootTableOverrideStore.buildEntries(player.getServer(), packet.mode)
                 ));
             }
             
@@ -227,7 +227,7 @@ public final class LootNetwork {
                     
                     return;
                 }
-                String json = LootTableOverrideStore.readJson(player.server, lootTableId);
+                String json = LootTableOverrideStore.readJson(player.getServer(), lootTableId);
                 boolean overridden = LootTableOverrideStore.hasOverride(lootTableId);
                 sendToPlayer(player, new DetailPacket(packet.mode, packet.targetId, packet.lootTableId, json, overridden));
             }
@@ -269,7 +269,7 @@ public final class LootNetwork {
             if (player != null && player.hasPermissions(2)) {
                 ResourceLocation lootTableId = KineticResourceIds.tryParse(packet.lootTableId);
                 if (lootTableId != null) {
-                    String json = LootTableOverrideStore.previewResetJson(player.server, lootTableId);
+                    String json = LootTableOverrideStore.previewResetJson(player.getServer(), lootTableId);
                     sendToPlayer(player, new ResetPreviewPacket(packet.mode, packet.targetId, packet.lootTableId, json));
                 }
             }
@@ -310,7 +310,7 @@ public final class LootNetwork {
             ServerPlayer player = context.sender();
             ResourceLocation lootTableId = KineticResourceIds.tryParse(packet.lootTableId);
             if (player != null && lootTableId != null && player.hasPermissions(2)) {
-                LootTableOverrideStore.SaveResult result = LootTableOverrideStore.save(player.server, lootTableId, packet.json);
+                LootTableOverrideStore.SaveResult result = LootTableOverrideStore.save(player.getServer(), lootTableId, packet.json);
                 String responseJson = result.success() ? "" : result.json();
                 sendToPlayer(player, new SaveResultPacket(packet.mode, packet.targetId, packet.lootTableId, responseJson, result.overridden(), result.success(), result.messageKey()));
             } else if (player != null && lootTableId != null) {
@@ -335,10 +335,10 @@ public final class LootNetwork {
             ServerPlayer player = context.sender();
             ResourceLocation lootTableId = KineticResourceIds.tryParse(packet.lootTableId);
             if (player != null && lootTableId != null && player.hasPermissions(2)) {
-                LootTableOverrideStore.SaveResult result = LootTableOverrideStore.reset(player.server, lootTableId);
+                LootTableOverrideStore.SaveResult result = LootTableOverrideStore.reset(player.getServer(), lootTableId);
                 sendToPlayer(player, new SaveResultPacket(packet.mode, packet.targetId, packet.lootTableId, result.json(), result.overridden(), result.success(), result.messageKey()));
             } else if (player != null && lootTableId != null) {
-                sendToPlayer(player, new SaveResultPacket(packet.mode, packet.targetId, packet.lootTableId, LootTableOverrideStore.readJson(player.server, lootTableId), LootTableOverrideStore.hasOverride(lootTableId), false, "msg.contentstudio.loot.loots.no_permission"));
+                sendToPlayer(player, new SaveResultPacket(packet.mode, packet.targetId, packet.lootTableId, LootTableOverrideStore.readJson(player.getServer(), lootTableId), LootTableOverrideStore.hasOverride(lootTableId), false, "msg.contentstudio.loot.loots.no_permission"));
             }
             
         }
@@ -407,7 +407,7 @@ public final class LootNetwork {
         public static void handle(SaveGlobalRemovePacket packet, ServerPacketContext context) {
             ServerPlayer player = context.sender();
             if (player != null && player.hasPermissions(2)) {
-                LootTableOverrideStore.GlobalRemoveResult result = LootTableOverrideStore.saveGlobalRemovedItems(player.server, packet.rules);
+                LootTableOverrideStore.GlobalRemoveResult result = LootTableOverrideStore.saveGlobalRemovedItems(player.getServer(), packet.rules);
                 sendToPlayer(player, new GlobalRemoveSaveResultPacket(result.rules(), result.success(), result.messageKey()));
             } else if (player != null) {
                 sendToPlayer(player, new GlobalRemoveSaveResultPacket(
@@ -484,7 +484,7 @@ public final class LootNetwork {
         public static void handle(SaveGlobalExcludePacket packet, ServerPacketContext context) {
             ServerPlayer player = context.sender();
             if (player != null && player.hasPermissions(2)) {
-                LootTableOverrideStore.GlobalExcludeResult result = LootTableOverrideStore.saveGlobalExcludedLootTables(player.server, packet.lootTableIds);
+                LootTableOverrideStore.GlobalExcludeResult result = LootTableOverrideStore.saveGlobalExcludedLootTables(player.getServer(), packet.lootTableIds);
                 sendToPlayer(player, new GlobalExcludeSaveResultPacket(result.lootTableIds(), result.success(), result.messageKey()));
             } else if (player != null) {
                 sendToPlayer(player, new GlobalExcludeSaveResultPacket(

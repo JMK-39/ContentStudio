@@ -11,7 +11,8 @@ import java.util.*;
 final class RuntimeLootServices {
     private static void require(boolean value,String message){if(!value)throw new AssertionError(message);}
     static void check(net.minecraft.server.MinecraftServer server) throws Exception {
-        var registry=server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE);
+        var lootAccess=dev.xyat.contentstudio.loot.server.LootTableOverrideStore.class.getDeclaredMethod("lootAccess",net.minecraft.server.ReloadableServerRegistries.Holder.class);lootAccess.setAccessible(true);
+        var registry=((net.minecraft.core.RegistryAccess)lootAccess.invoke(null,server.reloadableRegistries())).registryOrThrow(Registries.LOOT_TABLE);
         var parentId=ResourceLocation.parse("minecraft:chests/simple_dungeon");
         var childId=ResourceLocation.parse("minecraft:chests/abandoned_mineshaft");
         var parentHolder=registry.getHolder(parentId).orElseThrow();var childHolder=registry.getHolder(childId).orElseThrow();

@@ -49,8 +49,14 @@ neoForge {
 
 kineticConfigureReleaseJar(tasks.named('jar', Jar))
 
+// Third-party mods differ per Minecraft version, so each node lists its own in mod_dependencies
+// (versions/<node>/gradle.properties, comma-separated coordinates). A "compileOnly:" prefix keeps a mod
+// off the dev runtime.
 dependencies {
-    implementation 'maven.modrinth:jei:Tn0dgwL0'
+    (project.findProperty('mod_dependencies')?.toString() ?: '').split(',')*.trim().findAll { it }.each {
+        if (it.startsWith('compileOnly:')) compileOnly it.substring('compileOnly:'.length())
+        else implementation it
+    }
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
