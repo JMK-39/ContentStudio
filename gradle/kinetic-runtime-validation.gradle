@@ -1,11 +1,16 @@
-if (project.property('loader') == 'neoforge') {
+// Explicit test fixture; never included in release artifacts. Forge 1.20.1 reads META-INF/mods.toml, NeoForge
+// META-INF/neoforge.mods.toml.
+{
+    def forge = project.property('loader') == 'forge'
     def metadata = layout.buildDirectory.dir('runtime-validation')
     def writeMetadata = tasks.register('writeRuntimeValidationMetadata') {
         outputs.dir metadata
         doLast {
-            File target = new File(metadata.get().asFile, 'META-INF/neoforge.mods.toml')
+            File target = new File(metadata.get().asFile, forge ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml')
             target.parentFile.mkdirs()
-            target.setText('modLoader="javafml"\nloaderVersion="[1,)"\nlicense="LGPLv3"\n[[mods]]\nmodId="contentstudio_validation"\nversion="1.0.0"\ndisplayName="ContentStudio runtime validation"\n', 'UTF-8')
+            target.setText('modLoader="javafml"\nloaderVersion="' + (forge ? '[47,)' : '[1,)') + '"\nlicense="LGPLv3"\n[[mods]]\nmodId="contentstudio_validation"\nversion="1.0.0"\ndisplayName="ContentStudio runtime validation"\n', 'UTF-8')
+            // Forge 1.20.1 shows a blocking warning screen for a mod jar without pack metadata.
+            if (forge) new File(metadata.get().asFile, 'pack.mcmeta').setText('{"pack":{"description":"ContentStudio runtime validation","pack_format":15}}', 'UTF-8')
         }
     }
     tasks.register('runtimeValidationJar', Jar) {

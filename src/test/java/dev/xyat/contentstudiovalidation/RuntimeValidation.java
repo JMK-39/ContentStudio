@@ -4,7 +4,10 @@
 public final class RuntimeValidation {
     private static int failures;
     private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(RuntimeValidation.class);
-    public RuntimeValidation() { net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(this::started); }
+    public RuntimeValidation() {
+        if (Boolean.getBoolean("contentstudio.serverRecipeValidation")) { dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> ServerRecipeValidation::install); return; }
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(this::started);
+    }
     private void started(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
 *///?}
         //? if >=1.21 {
