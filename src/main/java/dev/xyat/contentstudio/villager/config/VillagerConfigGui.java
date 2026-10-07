@@ -14,6 +14,7 @@ public final class VillagerConfigGui {
     }
 
     public static void load() {
+        dev.xyat.contentstudio.villager.client.VillagerClientKeyBindings.register();
         KTConfigApi.register(buildSettingsPage());
         KTConfigApi.register(buildEditorsPage());
     }
@@ -77,7 +78,7 @@ public final class VillagerConfigGui {
                 .action(
                         "trade_editor",
                         KineticI18n.translatable("cfg.contentstudio.villager.villager.trade_editor"),
-                        VillagerNetwork::requestTradeEditor,
+                        dev.xyat.contentstudio.villager.client.VillagerClientActions::requestTradeEditor,
                         KineticI18n.translatable("cfg.contentstudio.villager.villager.trade_editor.tooltip")
                 )
                 .build();

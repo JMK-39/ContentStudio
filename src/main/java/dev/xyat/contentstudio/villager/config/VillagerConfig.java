@@ -42,6 +42,7 @@ public class VillagerConfig {
     public static List<String> villagerFollowItems = new ArrayList<>();
 
     public static boolean enableCustomVillagerTrades = true;
+    private static TradeSourceMode tradeSourceMode = TradeSourceMode.MERGE_ALL;
     public static List<String> villagerTradeGroups = new ArrayList<>();
     public static List<String> villagerTradeOffers = new ArrayList<>();
     public static List<String> villagerDefaultTradeOverrides = new ArrayList<>();
@@ -103,6 +104,11 @@ public class VillagerConfig {
           村民交易后覆盖模式。开启后不会使用 Tick 轮询，而是在村民/流浪商人的交易刷新完成后最后一次应用 ContentStudio 交易规则，用于覆盖其它模组在刷新过程中动态追加的交易。
           Villager trade late-override mode. Does not poll every tick. When enabled, ContentStudio applies its trade rules once after villager/wandering-trader trade refresh completes, so dynamically appended trades from other mods can be overridden.""");
 
+        configData.set("villager.trade_source_mode", tradeSourceMode.configValue());
+        configData.setComment("villager.trade_source_mode", """
+          村民交易来源模式。merge_all = 合并原版、其它模组与本地自定义交易；local_only = 仅使用 ContentStudio 本地自定义交易。
+          Villager trade source mode. merge_all = merge vanilla, other-mod, and local custom trades; local_only = use only ContentStudio local custom trades.""");
+
         configData.set("villager.follow_enable", enableVillagerFollow);
         configData.setComment("villager.follow_enable", """
           是否允许村民跟随手持特定物品的玩家。
@@ -155,6 +161,13 @@ public class VillagerConfig {
 
         enableVillagerTradeUpdateProtection = configData.getOrElse("villager.trade_update_protection", true);
         enableVillagerTradeLateOverride = configData.getOrElse("villager.trade_late_override", false);
+        String sourceModeValue = configData.getOrElse("villager.trade_source_mode", TradeSourceMode.MERGE_ALL.configValue());
+        TradeSourceMode parsedSourceMode = TradeSourceMode.parse(sourceModeValue);
+        if (parsedSourceMode == null) {
+            VillagerModule.LOGGER.warn("Invalid villager.trade_source_mode '{}', falling back to merge_all", sourceModeValue);
+            parsedSourceMode = TradeSourceMode.MERGE_ALL;
+        }
+        tradeSourceMode = parsedSourceMode;
         enableVillagerFollow = configData.getOrElse("villager.follow_enable", true);
         villagerFollowItems = new ArrayList<>(configData.getOrElse(
                 "villager.follow_items",
@@ -175,6 +188,40 @@ public class VillagerConfig {
         villagerDefaultTradeOverrides = new ArrayList<>(configData.getOrElse("villager.default_trade_overrides", new ArrayList<>()));
 
         rebuildTradeCache();
+    }
+
+    public static TradeSourceMode getTradeSourceMode() {
+        return tradeSourceMode;
+    }
+
+    public static String getTradeSourceModeValue() {
+        return tradeSourceMode.configValue();
+    }
+
+    public static boolean setTradeSourceMode(String value) {
+        TradeSourceMode parsed = TradeSourceMode.parse(value);
+        if (parsed == null) {
+            return false;
+        }
+        tradeSourceMode = parsed;
+        return true;
+    }
+
+    public static void setTradeSourceMode(TradeSourceMode mode) {
+        tradeSourceMode = mode == null ? TradeSourceMode.MERGE_ALL : mode;
+    }
+
+    public static boolean isLocalCustomTradesOnly() {
+        return tradeSourceMode == TradeSourceMode.LOCAL_ONLY;
+    }
+
+    public static boolean isKineticCustomTrade(MerchantOffer offer) {
+        Object offerObject = offer;
+        if (offerObject instanceof IMerchantOfferAccess access) {
+            String id = access.contentstudio_villager$getCustomTradeId();
+            return id != null && !id.isEmpty();
+        }
+        return false;
     }
 
     public static boolean isVillagerFollowItem(ItemStack stack) {
@@ -211,6 +258,34 @@ public class VillagerConfig {
         } catch (Exception exception) {
             restoreAfterFailedSave(backupPath, hadOriginal);
             throw new IllegalStateException("Failed to save villager config", exception);
+        }
+    }
+
+    public static void saveTradeSourceModeSnapshot(TradeSourceMode requested, List<String> groups,
+                                                   List<String> offers, List<String> overrides, boolean lateOverride) {
+        List<String> draftGroups = new ArrayList<>(villagerTradeGroups);
+        List<String> draftOffers = new ArrayList<>(villagerTradeOffers);
+        List<String> draftOverrides = new ArrayList<>(villagerDefaultTradeOverrides);
+        boolean draftLateOverride = enableVillagerTradeLateOverride;
+        TradeSourceMode previous = tradeSourceMode;
+        try {
+            if (configData == null) {
+                load();
+            }
+            if (configData == null) {
+                throw new IllegalStateException("Villager config is not loaded");
+            }
+            replaceTradeLists(groups, offers, overrides);
+            enableVillagerTradeLateOverride = lateOverride;
+            setTradeSourceMode(requested);
+            save();
+        } catch (RuntimeException failure) {
+            tradeSourceMode = previous;
+            throw failure;
+        } finally {
+            // An integrated server shares this class with the editor. Keep its unsaved raw draft out of mode IO.
+            replaceTradeLists(draftGroups, draftOffers, draftOverrides);
+            enableVillagerTradeLateOverride = draftLateOverride;
         }
     }
 
@@ -267,28 +342,24 @@ public class VillagerConfig {
     }
 
     public static void normalizeTradeLists() {
+        TradeValidationResult validation = validateTradeListsDetailed(villagerTradeGroups, villagerTradeOffers, villagerDefaultTradeOverrides);
+        Set<String> validGroups = new HashSet<>(validation.validGroups());
+        Set<String> validOffers = new HashSet<>(validation.validOffers());
+        Set<String> validOverrides = new HashSet<>(validation.validOverrides());
         List<String> groups = new ArrayList<>();
         for (String line : villagerTradeGroups) {
-            TradeGroup group = TradeGroup.parse(line);
-            if (group != null) {
-                groups.add(group.toConfigLine());
-            }
+            // Invalid rows are editor drafts that still need repair; do not clamp, discard or shift their indices.
+            groups.add(validGroups.contains(line) ? canonicalTradeGroupLine(line) : line);
         }
 
         List<String> offers = new ArrayList<>();
         for (String line : villagerTradeOffers) {
-            TradeOfferData data = TradeOfferData.parse(line, offers.size());
-            if (data != null) {
-                offers.add(data.toConfigLine());
-            }
+            offers.add(validOffers.contains(line) ? canonicalTradeOfferLine(line, offers.size()) : line);
         }
 
         List<String> overrides = new ArrayList<>();
         for (String line : villagerDefaultTradeOverrides) {
-            VanillaTradeOverride override = VanillaTradeOverride.parse(line);
-            if (override != null) {
-                overrides.add(override.toConfigLine());
-            }
+            overrides.add(validOverrides.contains(line) ? canonicalVanillaOverrideLine(line) : line);
         }
 
         villagerTradeGroups = groups;
@@ -308,6 +379,9 @@ public class VillagerConfig {
         }
         boolean replaced = false;
         for (int i = 0; i < villagerTradeGroups.size(); i++) {
+            if (!isValidTradeGroupLine(villagerTradeGroups.get(i))) {
+                continue;
+            }
             TradeGroup group = TradeGroup.parse(villagerTradeGroups.get(i));
             if (group != null && group.matches(newGroup.profession, newGroup.level)) {
                 villagerTradeGroups.set(i, newGroup.toConfigLine());
@@ -392,6 +466,9 @@ public class VillagerConfig {
         }
         boolean replaced = false;
         for (int i = 0; i < villagerDefaultTradeOverrides.size(); i++) {
+            if (!isValidVanillaOverrideLine(villagerDefaultTradeOverrides.get(i))) {
+                continue;
+            }
             VanillaTradeOverride old = VanillaTradeOverride.parse(villagerDefaultTradeOverrides.get(i));
             if (old != null && old.matches(override.profession(), override.level(), override.vanillaIndex())) {
                 villagerDefaultTradeOverrides.set(i, override.toConfigLine());
@@ -415,23 +492,27 @@ public class VillagerConfig {
         TRADE_OFFER_CACHE.clear();
         VANILLA_OVERRIDE_CACHE.clear();
 
-        for (String line : villagerTradeGroups) {
+        TradeValidationResult validation = validateTradeListsDetailed(villagerTradeGroups, villagerTradeOffers, villagerDefaultTradeOverrides);
+        for (String line : validation.validGroups()) {
             TradeGroup group = TradeGroup.parse(line);
             if (group != null) {
                 TRADE_GROUP_CACHE.put(buildTradeKey(group.profession, group.level), group);
             }
         }
 
-        int offerIndex = 0;
-        for (String line : villagerTradeOffers) {
+        Set<String> validOffers = new HashSet<>(validation.validOffers());
+        for (int offerIndex = 0; offerIndex < villagerTradeOffers.size(); offerIndex++) {
+            String line = villagerTradeOffers.get(offerIndex);
+            if (!validOffers.contains(line)) {
+                continue;
+            }
             TradeOfferData data = TradeOfferData.parse(line, offerIndex);
             if (data != null) {
                 TRADE_OFFER_CACHE.computeIfAbsent(buildTradeKey(data.profession(), data.level()), key -> new ArrayList<>()).add(data);
-                offerIndex++;
             }
         }
 
-        for (String line : villagerDefaultTradeOverrides) {
+        for (String line : validation.validOverrides()) {
             VanillaTradeOverride override = VanillaTradeOverride.parse(line);
             if (override != null) {
                 VANILLA_OVERRIDE_CACHE.put(buildVanillaOverrideKey(override.profession(), override.level(), override.vanillaIndex()), override);
@@ -511,18 +592,203 @@ public class VillagerConfig {
     }
 
     public static boolean areValidTradeLists(List<String> groups, List<String> offers, List<String> overrides) {
-        if (groups == null || offers == null || overrides == null) return false;
-        if (groups.size() > 8192 || offers.size() > 8192 || overrides.size() > 8192) return false;
-        for (String line : groups) {
-            if (!isValidTradeGroupLine(line)) return false;
+        return validateTradeListsDetailed(groups, offers, overrides).issues().isEmpty();
+    }
+
+    public enum TradeSourceMode {
+        MERGE_ALL("merge_all"),
+        LOCAL_ONLY("local_only");
+
+        private final String configValue;
+
+        TradeSourceMode(String configValue) {
+            this.configValue = configValue;
         }
-        for (String line : offers) {
-            if (!isValidTradeOfferLine(line)) return false;
+
+        public String configValue() {
+            return configValue;
         }
-        for (String line : overrides) {
-            if (!isValidVanillaOverrideLine(line)) return false;
+
+        public static TradeSourceMode parse(String value) {
+            String cleaned = clean(value);
+            for (TradeSourceMode mode : values()) {
+                if (mode.configValue.equals(cleaned)) {
+                    return mode;
+                }
+            }
+            return null;
         }
-        return true;
+    }
+
+    public enum TradeIssueKind {
+        GROUP,
+        OFFER,
+        OVERRIDE
+    }
+
+    public record TradeValidationIssue(
+            TradeIssueKind kind,
+            int index,
+            String owner,
+            int level,
+            int slot,
+            String reasonKey,
+            String value
+    ) {
+    }
+
+    public record TradeValidationResult(
+            List<String> validGroups,
+            List<String> validOffers,
+            List<String> validOverrides,
+            List<TradeValidationIssue> issues
+    ) {
+        public int skippedOfferCount() {
+            Set<Integer> rejectedOffers = new HashSet<>();
+            for (TradeValidationIssue issue : issues) {
+                if (issue.kind() == TradeIssueKind.OFFER) {
+                    rejectedOffers.add(issue.index());
+                }
+            }
+            return rejectedOffers.size();
+        }
+    }
+
+    public static TradeValidationResult validateTradeListsDetailed(
+            List<String> groups,
+            List<String> offers,
+            List<String> overrides
+    ) {
+        List<String> validGroups = new ArrayList<>();
+        List<String> validOffers = new ArrayList<>();
+        List<String> validOverrides = new ArrayList<>();
+        List<TradeValidationIssue> issues = new ArrayList<>();
+        if (groups == null || offers == null || overrides == null) {
+            issues.add(new TradeValidationIssue(TradeIssueKind.OFFER, -1, "", 1, -1,
+                    "msg.contentstudio.villager.villager.trade.error.missing_data", ""));
+            return new TradeValidationResult(validGroups, validOffers, validOverrides, issues);
+        }
+        if (groups.size() > 8192 || offers.size() > 8192 || overrides.size() > 8192) {
+            TradeIssueKind kind = groups.size() > 8192 ? TradeIssueKind.GROUP
+                    : offers.size() > 8192 ? TradeIssueKind.OFFER : TradeIssueKind.OVERRIDE;
+            issues.add(new TradeValidationIssue(kind, -1, "", 1, -1,
+                    "msg.contentstudio.villager.villager.trade.error.limit", ""));
+            return new TradeValidationResult(validGroups, validOffers, validOverrides, issues);
+        }
+
+        for (int i = 0; i < groups.size(); i++) {
+            String line = groups.get(i);
+            if (isValidTradeGroupLine(line)) {
+                validGroups.add(line);
+            } else {
+                List<String> parts = splitConfigLine(line);
+                issues.add(new TradeValidationIssue(TradeIssueKind.GROUP, i, part(parts, 0), bestLevel(parts), -1,
+                        "msg.contentstudio.villager.villager.trade.error.group", line == null ? "" : line));
+            }
+        }
+        for (int i = 0; i < offers.size(); i++) {
+            String line = offers.get(i);
+            List<TradeValidationIssue> offerIssues = validateTradeOfferIssues(line, i);
+            if (offerIssues.isEmpty()) {
+                validOffers.add(line);
+            } else {
+                issues.addAll(offerIssues);
+            }
+        }
+        for (int i = 0; i < overrides.size(); i++) {
+            String line = overrides.get(i);
+            if (isValidVanillaOverrideLine(line)) {
+                validOverrides.add(line);
+            } else {
+                List<String> parts = splitConfigLine(line);
+                issues.add(new TradeValidationIssue(TradeIssueKind.OVERRIDE, i, part(parts, 0), bestLevel(parts), -1,
+                        "msg.contentstudio.villager.villager.trade.error.override", line == null ? "" : line));
+            }
+        }
+        return new TradeValidationResult(validGroups, validOffers, validOverrides, issues);
+    }
+
+    public static TradeValidationResult canonicalizeValidTradeLists(List<String> groups, List<String> offers, List<String> overrides) {
+        TradeValidationResult validation = validateTradeListsDetailed(groups, offers, overrides);
+        List<String> canonicalGroups = new ArrayList<>();
+        List<String> canonicalOffers = new ArrayList<>();
+        List<String> canonicalOverrides = new ArrayList<>();
+        for (String line : validation.validGroups()) {
+            canonicalGroups.add(canonicalTradeGroupLine(line));
+        }
+        for (String line : validation.validOffers()) {
+            canonicalOffers.add(canonicalTradeOfferLine(line, canonicalOffers.size()));
+        }
+        for (String line : validation.validOverrides()) {
+            canonicalOverrides.add(canonicalVanillaOverrideLine(line));
+        }
+        return new TradeValidationResult(canonicalGroups, canonicalOffers, canonicalOverrides, validation.issues());
+    }
+
+    private static String canonicalTradeGroupLine(String line) {
+        return TradeGroup.parse(line).toConfigLine();
+    }
+
+    private static String canonicalTradeOfferLine(String line, int index) {
+        return TradeOfferData.parse(line, index).toConfigLine();
+    }
+
+    private static String canonicalVanillaOverrideLine(String line) {
+        return VanillaTradeOverride.parse(line).toConfigLine();
+    }
+
+    private static List<TradeValidationIssue> validateTradeOfferIssues(String line, int index) {
+        List<TradeValidationIssue> issues = new ArrayList<>();
+        List<String> parts = splitConfigLine(line);
+        String owner = part(parts, 0);
+        int level = bestLevel(parts);
+        if (parts.size() != 19 && parts.size() != 20) {
+            addOfferIssue(issues, index, owner, level, -1, "format", line);
+            return issues;
+        }
+        if (isInvalidProfession(parts.get(0))) addOfferIssue(issues, index, owner, level, -1, "profession", parts.get(0));
+        Integer strictLevel = strictInt(parts.get(1), 1, 5);
+        if (strictLevel == null || strictLevel != clampTradeLevel(parts.get(0), strictLevel)) {
+            addOfferIssue(issues, index, owner, level, -1, "level", parts.get(1));
+        }
+        if (isInvalidItemId(parts.get(2), false)) addOfferIssue(issues, index, owner, level, 0, "item", parts.get(2));
+        if (strictInt(parts.get(3), 1, 64) == null) addOfferIssue(issues, index, owner, level, 0, "count", parts.get(3));
+        validateOfferItemData(issues, index, owner, level, 0, parts.get(2), parts.get(4), true);
+
+        Integer buyBCount = strictInt(parts.get(6), 0, 64);
+        if (buyBCount == null) addOfferIssue(issues, index, owner, level, 1, "count", parts.get(6));
+        validateOfferItemData(issues, index, owner, level, 1,
+                buyBCount != null && buyBCount == 0 ? "minecraft:air" : parts.get(5), parts.get(7), true);
+        if (buyBCount != null && isInvalidItemId(parts.get(5), buyBCount == 0)) {
+            addOfferIssue(issues, index, owner, level, 1, "item", parts.get(5));
+        }
+
+        if (isInvalidItemId(parts.get(8), false)) addOfferIssue(issues, index, owner, level, 2, "item", parts.get(8));
+        if (strictInt(parts.get(9), 1, 64) == null) addOfferIssue(issues, index, owner, level, 2, "count", parts.get(9));
+        validateOfferItemData(issues, index, owner, level, 2, parts.get(8), parts.get(10), false);
+        if (strictInt(parts.get(11), 0, 999999) == null) addOfferIssue(issues, index, owner, level, -1, "max_uses", parts.get(11));
+        if (strictInt(parts.get(12), 0, 999999) == null) addOfferIssue(issues, index, owner, level, -1, "xp", parts.get(12));
+        if (strictFloat(parts.get(13)) == null) addOfferIssue(issues, index, owner, level, -1, "price", parts.get(13));
+        if (strictInt(parts.get(14), -999999, 999999) == null) addOfferIssue(issues, index, owner, level, -1, "demand", parts.get(14));
+        if (strictInt(parts.get(15), -999999, 999999) == null) addOfferIssue(issues, index, owner, level, -1, "special_price", parts.get(15));
+        if (isNotStrictBoolean(parts.get(16))) addOfferIssue(issues, index, owner, level, -1, "reward", parts.get(16));
+        if (strictInt(parts.get(17), 0, 999999) == null) addOfferIssue(issues, index, owner, level, -1, "uses", parts.get(17));
+        if (isNotStrictBoolean(parts.get(18))) addOfferIssue(issues, index, owner, level, -1, "restock", parts.get(18));
+        if (parts.size() == 20 && strictInt(parts.get(19), 0, 999999) == null) addOfferIssue(issues, index, owner, level, -1, "weight", parts.get(19));
+        return issues;
+    }
+
+    private static void addOfferIssue(List<TradeValidationIssue> issues, int index, String owner, int level, int slot, String field, String value) {
+        issues.add(new TradeValidationIssue(TradeIssueKind.OFFER, index, owner, level, slot,
+                "msg.contentstudio.villager.villager.trade.error." + field, value == null ? "" : value));
+    }
+
+    private static String part(List<String> parts, int index) {
+        return index >= 0 && index < parts.size() ? clean(parts.get(index)) : "";
+    }
+
+    private static int bestLevel(List<String> parts) {
+        return parts.size() < 2 ? 1 : parseIntValue(parts.get(1), 1, 1, 5);
     }
 
     private static boolean isValidTradeGroupLine(String line) {
@@ -546,52 +812,18 @@ public class VillagerConfig {
     }
 
 //? if >=1.21 {
-/*    private static boolean isValidTradeOfferLine(String line) {
-        List<String> parts = splitConfigLine(line);
-        if ((parts.size() != 19 && parts.size() != 20) || isInvalidProfession(parts.get(0))) return false;
-        Integer level = strictInt(parts.get(1), 1, 5);
-        if (level == null || level != clampTradeLevel(parts.get(0), level)) return false;
-        if (isInvalidItemId(parts.get(2), false) || strictInt(parts.get(3), 1, 64) == null || isInvalidComponents(parts.get(2), parts.get(4), true)) return false;
-
-        Integer buyBCount = strictInt(parts.get(6), 0, 64);
-        if (buyBCount == null || isInvalidComponents(buyBCount == 0 ? "minecraft:air" : parts.get(5), parts.get(7), true)) return false;
-        if (buyBCount > 0 && isInvalidItemId(parts.get(5), false)) return false;
-        if (buyBCount == 0 && isInvalidItemId(parts.get(5), true)) return false;
-
-        if (isInvalidItemId(parts.get(8), false) || strictInt(parts.get(9), 1, 64) == null || isInvalidComponents(parts.get(8), parts.get(10), false)) return false;
-        if (strictInt(parts.get(11), 0, 999999) == null) return false;
-        if (strictInt(parts.get(12), 0, 999999) == null) return false;
-        if (strictFloat(parts.get(13)) == null) return false;
-        if (strictInt(parts.get(14), -999999, 999999) == null) return false;
-        if (strictInt(parts.get(15), -999999, 999999) == null) return false;
-        if (isNotStrictBoolean(parts.get(16))) return false;
-        if (strictInt(parts.get(17), 0, 999999) == null) return false;
-        if (isNotStrictBoolean(parts.get(18))) return false;
-        return parts.size() == 19 || strictInt(parts.get(19), 0, 999999) != null;
+/*    private static void validateOfferItemData(List<TradeValidationIssue> issues, int index, String owner, int level, int slot,
+                                              String itemId, String data, boolean payment) {
+        if (isInvalidComponents(itemId, data, payment)) {
+            addOfferIssue(issues, index, owner, level, slot, "components", data);
+        }
     }
 *///?} else {
-    private static boolean isValidTradeOfferLine(String line) {
-        List<String> parts = splitConfigLine(line);
-        if ((parts.size() != 19 && parts.size() != 20) || isInvalidProfession(parts.get(0))) return false;
-        Integer level = strictInt(parts.get(1), 1, 5);
-        if (level == null || level != clampTradeLevel(parts.get(0), level)) return false;
-        if (isInvalidItemId(parts.get(2), false) || strictInt(parts.get(3), 1, 64) == null || isInvalidNbt(parts.get(4))) return false;
-
-        Integer buyBCount = strictInt(parts.get(6), 0, 64);
-        if (buyBCount == null || isInvalidNbt(parts.get(7))) return false;
-        if (buyBCount > 0 && isInvalidItemId(parts.get(5), false)) return false;
-        if (buyBCount == 0 && isInvalidItemId(parts.get(5), true)) return false;
-
-        if (isInvalidItemId(parts.get(8), false) || strictInt(parts.get(9), 1, 64) == null || isInvalidNbt(parts.get(10))) return false;
-        if (strictInt(parts.get(11), 0, 999999) == null) return false;
-        if (strictInt(parts.get(12), 0, 999999) == null) return false;
-        if (strictFloat(parts.get(13)) == null) return false;
-        if (strictInt(parts.get(14), -999999, 999999) == null) return false;
-        if (strictInt(parts.get(15), -999999, 999999) == null) return false;
-        if (isNotStrictBoolean(parts.get(16))) return false;
-        if (strictInt(parts.get(17), 0, 999999) == null) return false;
-        if (isNotStrictBoolean(parts.get(18))) return false;
-        return parts.size() == 19 || strictInt(parts.get(19), 0, 999999) != null;
+    private static void validateOfferItemData(List<TradeValidationIssue> issues, int index, String owner, int level, int slot,
+                                              String itemId, String data, boolean payment) {
+        if (isInvalidNbt(data)) {
+            addOfferIssue(issues, index, owner, level, slot, "nbt", data);
+        }
     }
 //?}
 

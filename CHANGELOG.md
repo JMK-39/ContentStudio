@@ -1,5 +1,23 @@
 # Changelog / 更新日志
 
+## 2026-10-07 — Trade sources and editor drafts / 交易来源与编辑草稿
+
+### English
+
+- Add a server trade-source setting: all registered trades or only ContentStudio custom trades. It applies independently of the existing Late Override switch, including offers already present on villagers and wandering traders.
+- Save valid trades after server confirmation while retaining rejected records in the editor. Show exact validation issues, navigate to the affected record, and remove an invalid record with Undo available.
+- Confirm unsaved changes when leaving. Add an unbound trade-editor shortcut that suspends and resumes the same draft, including form quantities, toggles and Undo state.
+- Keep item quantities when replacing a trade item, allow right-click clearing, synchronize toggle values, and validate native item components on 1.21.1 and 26.1.2. Forge 1.20.1 continues to use NBT.
+- Preserve the current Kinetic page architecture, existing editor layout, trading rules, late overrides and remote administrator editing on all three versions. Keep client drafts separate from acknowledged server rules in singleplayer.
+
+### 简体中文
+
+- 新增服务端交易来源设置：所有已注册交易，或仅 ContentStudio 自定义交易。与现有“后覆盖”开关独立生效，并处理村民、流浪商人已有的交易。
+- 收到服务端保存确认后提交有效交易，无效记录仍保留在编辑器中。显示具体校验问题、定位对应记录，并支持移除无效记录及撤销恢复。
+- 离开时确认未保存的修改。新增默认不绑定的交易编辑器快捷键，暂存并恢复同一份草稿，包括表单数量、开关和撤销状态。
+- 替换交易物品时保留数量，支持右键清空槽位，同步开关内部值；1.21.1 与 26.1.2 按原生数据组件校验，Forge 1.20.1 继续使用 NBT。
+- 三版本保留当前 Kinetic 页面架构、现有编辑器布局、交易规则、后覆盖和远程管理员编辑；单人游戏中未保存的客户端草稿与服务端已确认规则分开。
+
 ## 2026-10-06 — Windows fit their content / 窗口按内容大小显示
 
 ### English
@@ -97,7 +115,7 @@
 
 ### English
 
-- Migrated to a shared Stonecutter source tree and ModDevGradle (MDG) builds for Minecraft 1.20.1 / Forge and 1.21.1 / NeoForge, both using Java 21. The 26.1.2 node remains reserved and disabled.
+- Migrated to a shared Stonecutter source tree and ModDevGradle (MDG) builds for Minecraft 1.20.1 / Forge and 1.21.1 / NeoForge. The 26.1.2 node remains reserved and disabled.
 - Release JARs now identify loader, Minecraft version, and mod version: `contentstudio-<loader>-<minecraft>-<version>.jar`. Required KineticCore is 26.10.3+; optional JEI is 15.20+ on Forge and 19+ on NeoForge.
 - Added native NeoForge item component parsing and editing, component-aware recipe ingredients and outputs, `RecipeHolder` handling, and recipe codecs. Forge retains its item NBT workflow; no old item-NBT converter is provided.
 - Adapted NeoForge loot to reloadable loot registries, registry-aware codecs, native `set_components`, and component-patch removal modes. Adapted trades to native component stacks and payment predicates.
@@ -108,7 +126,7 @@
 
 ### 简体中文
 
-- 迁移到 Stonecutter 共享源码树与 ModDevGradle（MDG）构建，启用 Minecraft 1.20.1 / Forge 和 1.21.1 / NeoForge 两个节点，均使用 Java 21。26.1.2 节点仍仅预留、未启用。
+- 迁移到 Stonecutter 共享源码树与 ModDevGradle（MDG）构建，启用 Minecraft 1.20.1 / Forge 和 1.21.1 / NeoForge 两个节点。26.1.2 节点仍仅预留、未启用。
 - 发布 JAR 文件名现包含加载器、Minecraft 版本和模组版本：`contentstudio-<加载器>-<Minecraft版本>-<模组版本>.jar`。必需 KineticCore 26.10.3+；可选 JEI 在 Forge 为 15.20+，在 NeoForge 为 19+。
 - 新增 NeoForge 原生物品组件解析与编辑、组件配方材料和产物、`RecipeHolder` 处理及配方 codec。Forge 保留物品 NBT 流程，不提供旧物品 NBT 转换器。
 - NeoForge 战利品适配可重载战利品注册表、带注册表上下文的 codec、原生 `set_components` 与组件补丁移除模式；交易适配原生组件物品堆与支付谓词。

@@ -1,0 +1,45 @@
+// Explicit installed-profile fixture; no validation code is part of any release archive.
+def metadata = layout.buildDirectory.dir('villager-parity-validation')
+def writeMetadata = tasks.register('writeVillagerParityMetadata') {
+    outputs.dir metadata
+    doLast {
+        boolean forge = project.property('loader') == 'forge'
+        File target = new File(metadata.get().asFile, forge ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml')
+        target.parentFile.mkdirs()
+        target.setText('modLoader="javafml"\nloaderVersion="[1,)"\nlicense="LGPLv3"\n[[mods]]\nmodId="contentstudio_parity"\nversion="1.0.0"\ndisplayName="Opt-in villager trade verification"\n[[dependencies.contentstudio_parity]]\nmodId="contentstudio"\n' + (forge ? 'mandatory=true\n' : 'type="required"\n') + 'versionRange="[0,)"\nordering="AFTER"\nside="CLIENT"\n', 'UTF-8')
+        def pack = project.property('minecraft_version').toString().startsWith('26.')
+                ? [description: 'Villager parity fixture', min_format: 84, max_format: 101]
+                : [description: 'Villager parity fixture', pack_format: forge ? 15 : 34]
+        new File(metadata.get().asFile, 'pack.mcmeta').setText(groovy.json.JsonOutput.toJson([pack: pack]), 'UTF-8')
+    }
+}
+def fixture = tasks.register('villagerParityJar', Jar) {
+    group = 'verification'
+    dependsOn 'testClasses', writeMetadata
+    from(sourceSets.test.output) {
+        include 'dev/xyat/contentstudiovalidation/VillagerParity*.class'
+    }
+    from({ configurations.testRuntimeClasspath.findAll {
+        it.name.startsWith('junit-jupiter-api-') || it.name.startsWith('junit-platform-commons-') ||
+        it.name.startsWith('opentest4j-') || it.name.startsWith('apiguardian-api-')
+    }.collect { zipTree(it) } }) {
+        include 'org/junit/**', 'org/opentest4j/**', 'org/apiguardian/**'
+    }
+    from metadata
+    archiveFileName = 'contentstudio-villager-parity.jar'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+}
+if (project.property('loader') == 'forge') {
+    afterEvaluate {
+        def release = tasks.named('reobfJar').get()
+        tasks.register('reobfVillagerParityJar', release.getClass().superclass) {
+            dependsOn fixture
+            input.set(fixture.flatMap { it.archiveFile })
+            libraries.from(release.libraries, sourceSets.main.output)
+            remapOperation.toolType.set(release.remapOperation.toolType)
+            remapOperation.toolClasspath.from(release.remapOperation.toolClasspath)
+            remapOperation.mappings.from(release.remapOperation.mappings)
+            archiveFileName = 'contentstudio-villager-parity-reobf.jar'
+        }
+    }
+}

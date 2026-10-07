@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class VillagerNetwork {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
     private static final int MAX_CONFIG_ENTRIES = 8192;
     private static final int MAX_CONFIG_STRING_LENGTH = 32767;
     private static final int MAX_COMPRESSED_BYTES = 2 * 1024 * 1024;
@@ -32,11 +32,7 @@ public final class VillagerNetwork {
             PROTOCOL_VERSION,
             NetworkVersionPolicy.ANY
     );
-    //? if >=26.1 {
-    /*private static final boolean[] PACKET_REGISTERED = new boolean[9];
-    *///?} else {
-    private static final boolean[] PACKET_REGISTERED = new boolean[8];
-    //?}
+    private static final boolean[] PACKET_REGISTERED = new boolean[12];
     private static boolean initialized;
 
     private VillagerNetwork() {
@@ -57,6 +53,9 @@ public final class VillagerNetwork {
                 () -> registerClientbound(7, FollowItemSaveResultPacket.class, (buffer, packet) -> packet.encode(buffer), FollowItemSaveResultPacket::decode, FollowItemSaveResultPacket::handle),
                 //? if >=26.1
                 /*() -> registerClientbound(8, VanillaTradePreviewsPacket.class, (buffer, packet) -> packet.encode(buffer), VanillaTradePreviewsPacket::decode, VanillaTradePreviewsPacket::handle),*/
+                () -> registerServerbound(9, TradeSourceModePacket.class, (buffer, packet) -> packet.encode(buffer), TradeSourceModePacket::decode, TradeSourceModePacket::handle),
+                () -> registerClientbound(10, TradeSourceModeResultPacket.class, (buffer, packet) -> packet.encode(buffer), TradeSourceModeResultPacket::decode, TradeSourceModeResultPacket::handle),
+                () -> registerClientbound(11, TradeEditorOpenDeniedPacket.class, (buffer, packet) -> packet.encode(buffer), TradeEditorOpenDeniedPacket::decode, TradeEditorOpenDeniedPacket::handle),
                 () -> initialized = allPacketsRegistered()
         );
     }
@@ -86,8 +85,11 @@ public final class VillagerNetwork {
     }
 
     private static boolean allPacketsRegistered() {
-        for (boolean value : PACKET_REGISTERED) {
-            if (!value) return false;
+        for (int index = 0; index < PACKET_REGISTERED.length; index++) {
+            // Packet 8 is reserved for server-provided trade sets on 26.1.
+            //? if <26.1
+            if (index == 8) continue;
+            if (!PACKET_REGISTERED[index]) return false;
         }
         return true;
     }
@@ -105,14 +107,22 @@ public final class VillagerNetwork {
     }
 
     public static void saveTradeConfig(boolean notifySuccess) {
-        VillagerConfig.normalizeTradeLists();
-        CHANNEL.sendToServer(new SaveTradeEditorPacket(
+        saveTradeConfig(
                 VillagerConfig.villagerTradeGroups,
                 VillagerConfig.villagerTradeOffers,
                 VillagerConfig.villagerDefaultTradeOverrides,
                 VillagerConfig.enableVillagerTradeLateOverride,
                 notifySuccess
-        ));
+        );
+    }
+
+    public static void saveTradeConfig(List<String> groups, List<String> offers, List<String> overrides,
+                                       boolean lateOverride, boolean notifySuccess) {
+        CHANNEL.sendToServer(new SaveTradeEditorPacket(groups, offers, overrides, lateOverride, notifySuccess));
+    }
+
+    public static void saveTradeSourceMode(String mode) {
+        CHANNEL.sendToServer(new TradeSourceModePacket(mode));
     }
 
     private static void sendTradeEditor(ServerPlayer player) {
@@ -120,10 +130,11 @@ public final class VillagerNetwork {
         //? if >=26.1
         /*CHANNEL.sendToPlayer(player, VanillaTradePreviewsPacket.collect(player));*/
         CHANNEL.sendToPlayer(player, new OpenTradeEditorPacket(
-                VillagerConfig.villagerTradeGroups,
-                VillagerConfig.villagerTradeOffers,
-                VillagerConfig.villagerDefaultTradeOverrides,
-                VillagerConfig.enableVillagerTradeLateOverride
+                VillagerTradeRegistry.getAuthoritativeTradeGroups(),
+                VillagerTradeRegistry.getAuthoritativeTradeOffers(),
+                VillagerTradeRegistry.getAuthoritativeTradeOverrides(),
+                VillagerTradeRegistry.isActiveTradeLateOverride(),
+                VillagerConfig.getTradeSourceModeValue()
         ));
     }
 
@@ -340,21 +351,24 @@ public final class VillagerNetwork {
         private final List<String> offers;
         private final List<String> overrides;
         private final boolean lateOverride;
+        private final String sourceMode;
 
         public OpenTradeEditorPacket() {
             this(
                     VillagerConfig.villagerTradeGroups,
                     VillagerConfig.villagerTradeOffers,
                     VillagerConfig.villagerDefaultTradeOverrides,
-                    VillagerConfig.enableVillagerTradeLateOverride
+                    VillagerConfig.enableVillagerTradeLateOverride,
+                    VillagerConfig.getTradeSourceModeValue()
             );
         }
 
-        private OpenTradeEditorPacket(List<String> groups, List<String> offers, List<String> overrides, boolean lateOverride) {
+        private OpenTradeEditorPacket(List<String> groups, List<String> offers, List<String> overrides, boolean lateOverride, String sourceMode) {
             this.groups = new ArrayList<>(groups);
             this.offers = new ArrayList<>(offers);
             this.overrides = new ArrayList<>(overrides);
             this.lateOverride = lateOverride;
+            this.sourceMode = sourceMode;
         }
 
         private void encode(NetworkBuffer buffer) {
@@ -362,6 +376,7 @@ public final class VillagerNetwork {
             writeStringList(buffer, offers);
             writeStringList(buffer, overrides);
             buffer.writeBoolean(lateOverride);
+            buffer.writeUtf(sourceMode, 32);
         }
 
         public static OpenTradeEditorPacket decode(NetworkBuffer buffer) {
@@ -369,7 +384,8 @@ public final class VillagerNetwork {
                     readStringList(buffer),
                     readStringList(buffer),
                     readStringList(buffer),
-                    buffer.readBoolean()
+                    buffer.readBoolean(),
+                    buffer.readUtf(32)
             );
         }
 
@@ -378,7 +394,8 @@ public final class VillagerNetwork {
                     packet.groups,
                     packet.offers,
                     packet.overrides,
-                    packet.lateOverride
+                    packet.lateOverride,
+                    packet.sourceMode
             );
         }
     }
@@ -403,9 +420,13 @@ public final class VillagerNetwork {
         }
 
         public static void handle(RequestTradeEditorPacket packet, ServerPacketContext context) {
-            if (packet.request && context.sender().hasPermissions(2)) {
-                sendTradeEditor(context.sender());
-            }
+            if (!packet.request) return;
+            ServerPlayer sender = context.sender();
+            if (!sender.hasPermissions(2)) {
+                CHANNEL.sendToPlayer(sender, new TradeEditorOpenDeniedPacket("permission_denied"));
+            } else if (VillagerTradeRegistry.isSessionUnavailable()) {
+                CHANNEL.sendToPlayer(sender, new TradeEditorOpenDeniedPacket("server_unavailable"));
+            } else sendTradeEditor(sender);
         }
     }
 
@@ -450,39 +471,80 @@ public final class VillagerNetwork {
 
         public static void handle(SaveTradeEditorPacket packet, ServerPacketContext context) {
             ServerPlayer sender = context.sender();
-            boolean success = sender.hasPermissions(2) && VillagerTradeRegistry.applyAndSaveLive(
+            var outcome = !sender.hasPermissions(2)
+                    ? VillagerTradeRegistry.TradeSaveOutcome.failure("permission_denied")
+                    : VillagerTradeRegistry.applyAndSaveLiveDetailed(
                     packet.groups,
                     packet.offers,
                     packet.overrides,
                     packet.lateOverride
             );
-            CHANNEL.sendToPlayer(sender, new TradeSaveResultPacket(success, packet.notifySuccess));
+            CHANNEL.sendToPlayer(sender, new TradeSaveResultPacket(outcome.success(), packet.notifySuccess, outcome.failureCode()));
         }
     }
 
     public static final class TradeSaveResultPacket {
         private final boolean success;
         private final boolean notifySuccess;
+        private final String failureCode;
 
-        private TradeSaveResultPacket(boolean success, boolean notifySuccess) {
+        private TradeSaveResultPacket(boolean success, boolean notifySuccess, String failureCode) {
             this.success = success;
             this.notifySuccess = notifySuccess;
+            this.failureCode = failureCode == null ? "unknown" : failureCode;
         }
 
         private void encode(NetworkBuffer buffer) {
             buffer.writeBoolean(success);
             buffer.writeBoolean(notifySuccess);
+            buffer.writeUtf(failureCode, 64);
         }
 
         public static TradeSaveResultPacket decode(NetworkBuffer buffer) {
-            return new TradeSaveResultPacket(buffer.readBoolean(), buffer.readBoolean());
+            return new TradeSaveResultPacket(buffer.readBoolean(), buffer.readBoolean(), buffer.readUtf(64));
         }
 
         public static void handle(TradeSaveResultPacket packet) {
             dev.xyat.contentstudio.villager.client.VillagerClientActions.handleTradeSaveResult(
                     packet.success,
-                    packet.notifySuccess
+                    packet.notifySuccess,
+                    packet.failureCode
             );
+        }
+    }
+
+    public record TradeSourceModePacket(String mode) {
+        private void encode(NetworkBuffer buffer) { buffer.writeUtf(mode, 32); }
+        public static TradeSourceModePacket decode(NetworkBuffer buffer) { return new TradeSourceModePacket(buffer.readUtf(32)); }
+        public static void handle(TradeSourceModePacket packet, ServerPacketContext context) {
+            ServerPlayer sender = context.sender();
+            var outcome = sender.hasPermissions(2)
+                    ? VillagerTradeRegistry.applyAndSaveTradeSourceMode(packet.mode)
+                    : VillagerTradeRegistry.TradeSaveOutcome.failure("permission_denied");
+            CHANNEL.sendToPlayer(sender, new TradeSourceModeResultPacket(outcome.success(),
+                    VillagerConfig.getTradeSourceModeValue(), outcome.failureCode()));
+        }
+    }
+
+    public record TradeSourceModeResultPacket(boolean success, String mode, String failureCode) {
+        private void encode(NetworkBuffer buffer) {
+            buffer.writeBoolean(success);
+            buffer.writeUtf(mode, 32);
+            buffer.writeUtf(failureCode, 64);
+        }
+        public static TradeSourceModeResultPacket decode(NetworkBuffer buffer) {
+            return new TradeSourceModeResultPacket(buffer.readBoolean(), buffer.readUtf(32), buffer.readUtf(64));
+        }
+        public static void handle(TradeSourceModeResultPacket packet) {
+            dev.xyat.contentstudio.villager.client.VillagerClientActions.handleTradeSourceModeResult(packet.success, packet.mode, packet.failureCode);
+        }
+    }
+
+    public record TradeEditorOpenDeniedPacket(String failureCode) {
+        private void encode(NetworkBuffer buffer) { buffer.writeUtf(failureCode, 64); }
+        public static TradeEditorOpenDeniedPacket decode(NetworkBuffer buffer) { return new TradeEditorOpenDeniedPacket(buffer.readUtf(64)); }
+        public static void handle(TradeEditorOpenDeniedPacket packet) {
+            dev.xyat.contentstudio.villager.client.VillagerClientActions.handleTradeEditorOpenDenied(packet.failureCode);
         }
     }
 }

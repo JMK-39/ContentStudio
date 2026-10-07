@@ -199,6 +199,15 @@ public final class VillagerTradeRuntimeUtil {
 
         boolean hasCustomOffers = VillagerTradeRegistry.hasActiveCustomOffers(cleanOwner, safeLevel);
 
+        if (VillagerConfig.isLocalCustomTradesOnly()) {
+            if (group != null && group.disableLevel()) {
+                return;
+            }
+            int count = group == null ? fallbackCount : group.offerCount;
+            addCustomOffers(target, random, cleanOwner, safeLevel, count);
+            return;
+        }
+
         if (group == null && !hasOverrides && !hasCustomOffers) {
             addVanillaOffers(target, entity, random, cleanOwner, safeLevel, fallbackCount, false);
             return;

@@ -25,11 +25,9 @@ def pGroup = project.findProperty('mod_group_id')?.toString() ?: "dev.xyat.conte
 def pModId = project.findProperty('mod_id')?.toString() ?: "contentstudio"
 def pLoader = project.property('loader').toString()
 def pMinecraft = project.property('minecraft_version').toString()
-// java_version is the Java the node's Minecraft version runs on: it sets the bytecode level and the usable
-// language features and JDK API. Every node is compiled and checked with at least JDK 21, the JDK Gradle
-// itself runs on, so one JDK covers 1.20.1 and 1.21.1.
+// Each node uses its Minecraft Java toolchain and bytecode target; Gradle itself runs on Java 21.
 def pJava = project.property('java_version').toString() as int
-def pToolchain = Math.max(21, pJava)
+def pToolchain = pJava
 
 ext.kineticModId = pModId
 ext.kineticJavaVersion = pToolchain
@@ -44,6 +42,9 @@ base {
 java.toolchain.languageVersion = JavaLanguageVersion.of(pToolchain)
 
 tasks.withType(JavaCompile).configureEach {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(pToolchain)
+    })
     options.release.set(pJava)
 }
 
@@ -285,6 +286,7 @@ tasks.named('test', Test).configure { exclude 'dev/xyat/contentstudiovalidation/
 
 // English and Chinese must expose exactly the same authored translation keys.
 apply from: rootProject.file('gradle/kinetic-language-validation.gradle')
+apply from: rootProject.file('gradle/kinetic-villager-parity-validation.gradle')
 
 // The unit tests boot Minecraft through a stand-in FancyModLoader mod list, which FancyModLoader 11 (26.1) no longer
 // supports; 26.1 nodes build only the in-game fixtures: the runtime validation, which checks the recipe, loot and

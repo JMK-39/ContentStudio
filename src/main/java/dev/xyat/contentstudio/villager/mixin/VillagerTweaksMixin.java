@@ -76,7 +76,7 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
             return;
         }
 
-        if (VillagerConfig.enableVillagerTradeLateOverride) {
+        if (VillagerTradeRegistry.isActiveTradeLateOverride()) {
             contentstudio_villager$offersBeforeLateOverride = new ArrayList<>(this.getOffers());
             return;
         }
@@ -103,7 +103,7 @@ public abstract class VillagerTweaksMixin extends AbstractVillager {
             //? if >=26.1
             /*net.minecraft.server.level.ServerLevel serverLevel,*/
             CallbackInfo ci) {
-        if (!VillagerConfig.enableVillagerTradeLateOverride || VillagerTradeRegistry.isSessionUnavailable()) {
+        if (!VillagerTradeRegistry.isActiveTradeLateOverride() || VillagerTradeRegistry.isSessionUnavailable()) {
             contentstudio_villager$offersBeforeLateOverride = List.of();
             return;
         }

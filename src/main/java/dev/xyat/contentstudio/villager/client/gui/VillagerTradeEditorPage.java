@@ -23,6 +23,7 @@ import dev.xyat.kineticcore.api.runtime.KineticClientRuntime;
 import dev.xyat.kineticcore.api.client.search.KineticSearch;
 import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import dev.xyat.contentstudio.villager.config.VillagerConfig;
+import dev.xyat.contentstudio.villager.client.VillagerClientActions;
 import dev.xyat.contentstudio.villager.network.VillagerNetwork;
 import dev.xyat.contentstudio.villager.util.VillagerTradeRuntimeUtil;
 import net.minecraft.nbt.CompoundTag;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
 
 public class VillagerTradeEditorPage extends KineticPage {
     private static final int BUY_A_LABEL = 0xFFFFFF55;
@@ -53,6 +55,10 @@ public class VillagerTradeEditorPage extends KineticPage {
     private static final int TRADE_SLOT_PANEL_WIDTH = 78;
     // The 36 px count field and buttons start here, keeping 2 px from the slot panel's right line.
     private static final int SLOT_CONTROL_OFFSET = 33;
+    // Fixed menu widths keep translated labels scrolling inside the editor's outer frame.
+    private static final int TRADE_MENU_WIDTH = 180;
+    private static final int PROBLEM_MENU_WIDTH = 260;
+    private static final int MENU_FRAME_INSET = 8;
 
     private static final int MAX_UNDO_STEPS = 10;
 
@@ -86,9 +92,15 @@ public class VillagerTradeEditorPage extends KineticPage {
             boolean levelSettingsActive,
             boolean rewardExp,
             boolean allowRestock,
+            String rawRewardExp,
+            String rawAllowRestock,
             boolean editingDefault,
             int editingVanillaIndex,
             int editingCustomIndex,
+            MerchantOffer editingOriginalVanillaOffer,
+            Map<String, String> loadedFieldValues,
+            OfferFormState loadedOfferFormBaseline,
+            Integer loadedLevelOfferCountBaseline,
             String buyAId,
             String buyBId,
             String sellId,
@@ -108,6 +120,16 @@ public class VillagerTradeEditorPage extends KineticPage {
     ) {
     }
 
+    private record OfferFormState(
+            String buyAId, String buyBId, String sellId,
+            String buyANbt, String buyBNbt, String sellNbt,
+            String buyACount, String buyBCount, String sellCount,
+            String weight, String maxUses, String xp, String price,
+            String demand, String specialPrice, String uses,
+            boolean rewardExp, boolean allowRestock, String rawRewardExp, String rawAllowRestock
+    ) {
+    }
+
     private static String lastProfessionText = "";
     private static String lastTradeSearchText = "";
     private static String lastSelectedOwner = "";
@@ -123,6 +145,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     private final List<KineticControl> editorWidgets = new ArrayList<>();
     private final List<KineticControl> levelWidgets = new ArrayList<>();
     private final List<KineticButton> levelExpandButtons = new ArrayList<>();
+    private final List<KineticControl> toolbarWidgets = new ArrayList<>();
 
     private KineticAutoCompleteField professionBox;
     private KineticTextField tradeSearchBox;
@@ -141,6 +164,26 @@ public class VillagerTradeEditorPage extends KineticPage {
     private KineticToggle restockButton;
     private KineticToggle lateOverrideButton;
     private KineticButton undoButton;
+    private KineticButton tradeSourceButton;
+    private KineticButton previousIssueButton;
+    private KineticButton nextIssueButton;
+    private List<VillagerConfig.TradeValidationIssue> validationIssues = List.of();
+    private boolean validationActive;
+    private final List<VillagerConfig.TradeValidationIssue> problemTargets = new ArrayList<>();
+    private final Map<VillagerConfig.TradeValidationIssue, String> problemRawLines = new java.util.HashMap<>();
+    private int problemCursor = -1;
+    private boolean savePending;
+    private boolean exitAfterSuccessfulSave;
+    private int pendingSavedCount;
+    private int pendingSkippedCount;
+    private boolean pendingHasIssues;
+    private TradeConfigState pendingSavedState;
+    private TradeConfigState pendingDraftState;
+    private TradeConfigState lastServerSavedState;
+    private VillagerConfig.TradeSourceMode pendingTradeSourceMode;
+    private TradeEditorState shortcutSuspendedState;
+    private OfferFormState loadedOfferFormBaseline;
+    private Integer loadedLevelOfferCountBaseline;
     private final Deque<TradeEditorState> undoHistory = new ArrayDeque<>();
     private boolean restoringUndo;
 
@@ -178,6 +221,8 @@ public class VillagerTradeEditorPage extends KineticPage {
     private boolean levelSettingsActive = false;
     private boolean rewardExp = true;
     private boolean allowRestock = true;
+    private String rawRewardExp = "true";
+    private String rawAllowRestock = "true";
     private boolean editingDefault = false;
     private int editingVanillaIndex = -1;
     private int editingCustomIndex = -1;
@@ -203,7 +248,9 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     public VillagerTradeEditorPage() {
         super(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.title"));
-        configureDraft(this::captureTradeConfigState, this::restoreTradeConfigState);
+        lastServerSavedState = captureTradeConfigState();
+        configureStandaloneDraft(this::captureTradeConfigState, state ->
+                restoreTradeConfigState(lastServerSavedState == null ? state : lastServerSavedState));
         // 交易列表按条目滚动：跳回当前选中条目（selectedKey），并同步记忆偏移以免重建时跳回旧位置
         // The trade list scrolls by entry: jump back to the selected entry (selectedKey) and keep the remembered offset
         // in sync so a rebuild does not jump back to the old position.
@@ -262,9 +309,15 @@ public class VillagerTradeEditorPage extends KineticPage {
                 levelSettingsActive,
                 rewardExp,
                 allowRestock,
+                rawRewardExp,
+                rawAllowRestock,
                 editingDefault,
                 editingVanillaIndex,
                 editingCustomIndex,
+                editingOriginalVanillaOffer,
+                Map.copyOf(loadedFieldValues),
+                loadedOfferFormBaseline,
+                loadedLevelOfferCountBaseline,
                 buyAId,
                 buyBId,
                 sellId,
@@ -285,6 +338,10 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void restoreTradeEditorState(TradeEditorState state) {
+        restoreTradeEditorState(state, true);
+    }
+
+    private void restoreTradeEditorState(TradeEditorState state, boolean updateUi) {
         if (state == null) return;
 
         VillagerConfig.replaceTradeLists(state.groups(), state.offers(), state.overrides());
@@ -302,10 +359,16 @@ public class VillagerTradeEditorPage extends KineticPage {
         levelSettingsActive = state.levelSettingsActive();
         rewardExp = state.rewardExp();
         allowRestock = state.allowRestock();
+        rawRewardExp = state.rawRewardExp();
+        rawAllowRestock = state.rawAllowRestock();
         editingDefault = state.editingDefault();
         editingVanillaIndex = state.editingVanillaIndex();
         editingCustomIndex = state.editingCustomIndex();
-        editingOriginalVanillaOffer = null;
+        editingOriginalVanillaOffer = state.editingOriginalVanillaOffer();
+        loadedFieldValues.clear();
+        loadedFieldValues.putAll(state.loadedFieldValues());
+        loadedOfferFormBaseline = state.loadedOfferFormBaseline();
+        loadedLevelOfferCountBaseline = state.loadedLevelOfferCountBaseline();
         buyAId = state.buyAId();
         buyBId = state.buyBId();
         sellId = state.sellId();
@@ -325,6 +388,10 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         lastSelectedOwner = selectedOwner;
         lastSelectedLevel = selectedLevel;
+        if (!updateUi) {
+            invalidateTradeSearchIndex();
+            return;
+        }
         if (professionBox != null) {
             if (selectedOwner.isEmpty()) {
                 suppressProfessionResponder = true;
@@ -344,6 +411,10 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected void build(KineticUi ui) {
+        editorWidgets.clear();
+        levelWidgets.clear();
+        levelExpandButtons.clear();
+        toolbarWidgets.clear();
         setupLayout();
         listScroll.setOffset(lastListScroll);
 
@@ -364,7 +435,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             }
         });
 
-        ui().button(clearButtonX, topY, clearButtonWidth).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip")).onClick(this::clearProfessionSearch).build();
+        toolbarWidgets.add(ui().button(clearButtonX, topY, clearButtonWidth).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip")).onClick(this::clearProfessionSearch).build());
 
         this.tradeSearchBox = ui().textField(leftX + searchLeftPadding, leftY + 6, searchFieldWidth).label(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search")).placeholder(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.placeholder")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.tooltip")).build();
         this.tradeSearchBox.limitTextLength(128);
@@ -376,7 +447,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             refreshEntries();
         });
 
-        ui().button(clearButtonX, leftY + 6, clearButtonWidth).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip")).onClick(this::clearTradeSearch).build();
+        toolbarWidgets.add(ui().button(clearButtonX, leftY + 6, clearButtonWidth).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip")).onClick(this::clearTradeSearch).build());
 
         int gap = 6;
         int backW = 58;
@@ -399,32 +470,36 @@ public class VillagerTradeEditorPage extends KineticPage {
                 .onChange(value -> VillagerConfig.enableVillagerTradeLateOverride = value)
                 .build();
 
-        ui().button(previewX, topY, previewW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed_preview")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed_preview.tooltip")).onClick(this::openRemovedDefaultTradesScreen).build();
+        toolbarWidgets.add(ui().button(previewX, topY, previewW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed_preview")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed_preview.tooltip")).onClick(this::openRemovedDefaultTradesScreen).build());
 
         this.undoButton = ui().button(undoX, topY, undoW).text(undoButtonText()).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.undo.tooltip")).onClick(this::undoLastChange).build();
         updateUndoButtonState();
 
-        ui().button(saveX, topY, saveW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save.tooltip")).onClick(() -> {
-                    syncFieldValues();
-                    if (levelSettingsActive) {
-                        applyCurrentLevelSettings();
-                    }
-                    VillagerConfig.enableCustomVillagerTrades = true;
-                    VillagerConfig.normalizeTradeLists();
-                    VillagerNetwork.saveTradeConfig(true);
-                    commitDraft();
-                    undoHistory.clear();
-                    updateUndoButtonState();
-                    refreshEntries();
-                }).build();
+        toolbarWidgets.add(ui().button(saveX, topY, saveW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save.tooltip")).onClick(this::saveValidTradeConfig).build());
 
-        ui().button(backX, topY, backW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")).onClick(this::close).build();
+        toolbarWidgets.add(ui().button(backX, topY, backW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")).onClick(this::close).build());
+
+        // The footer already has room after the reward/restock controls; keep the toolbar and trade slots fixed.
+        int sourceX = rightX + 246;
+        int sourceY = rightY + 268;
+        tradeSourceButton = ui().button(sourceX, sourceY, 110).compact()
+                .text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.source_mode.button"))
+                .onClick(() -> openTradeSourceMenu(sourceX, sourceY + CONTROL_HEIGHT)).build();
+        previousIssueButton = ui().button(rightX + rightW - 54, rightY + 65, 22).compact()
+                .text(Component.literal("<"))
+                .tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.error.previous.tooltip"))
+                .onClick(() -> navigateProblem(-1)).build();
+        nextIssueButton = ui().button(rightX + rightW - 28, rightY + 65, 22).compact()
+                .text(Component.literal(">"))
+                .tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.error.next.tooltip"))
+                .onClick(() -> navigateProblem(1)).build();
 
         addLevelExpandButtons();
         addLevelFields();
         addEditorFields();
         addEditorButtons();
 
+        Integer pendingLevelCount = levelSettingsActive && loadedLevelOfferCountBaseline != null ? selectedOfferCount : null;
         if (!selectedOwner.isEmpty() && isValidOwner(selectedOwner)) {
             selectedLevel = VillagerConfig.clampTradeLevel(selectedOwner, selectedLevel);
             loadGroupState();
@@ -432,11 +507,403 @@ public class VillagerTradeEditorPage extends KineticPage {
             selectedOwner = "";
             lastSelectedOwner = "";
         }
+        if (pendingLevelCount != null) selectedOfferCount = pendingLevelCount;
         refreshEntries();
         writeFieldsToWidgets();
         applyFieldDefaults();
         setEditorWidgetsVisible(!selectedOwner.isEmpty() && editorActive);
         setLevelWidgetsVisible(!selectedOwner.isEmpty() && levelSettingsActive);
+        updatePendingControls();
+    }
+
+    private void openTradeSourceMenu(int x, int y) {
+        if (savePending || pendingTradeSourceMode != null) return;
+        openTradeMenuInFrame(x, y - 64, List.of(
+                KineticOverlays.MenuItem.choice(tradeSourceModeLabel(VillagerConfig.TradeSourceMode.MERGE_ALL), null,
+                        VillagerConfig.getTradeSourceMode() == VillagerConfig.TradeSourceMode.MERGE_ALL,
+                        () -> requestTradeSourceMode(VillagerConfig.TradeSourceMode.MERGE_ALL)),
+                KineticOverlays.MenuItem.choice(tradeSourceModeLabel(VillagerConfig.TradeSourceMode.LOCAL_ONLY), null,
+                        VillagerConfig.getTradeSourceMode() == VillagerConfig.TradeSourceMode.LOCAL_ONLY,
+                        () -> requestTradeSourceMode(VillagerConfig.TradeSourceMode.LOCAL_ONLY))
+        ), TRADE_MENU_WIDTH);
+    }
+
+    private void openTradeMenuInFrame(int x, int y, List<KineticOverlays.MenuItem> items, int preferredWidth) {
+        int menuWidth = Math.min(preferredWidth, rootW - MENU_FRAME_INSET * 2);
+        int menuX = Math.max(rootX + MENU_FRAME_INSET,
+                Math.min(x, rootX + rootW - MENU_FRAME_INSET - menuWidth));
+        openContextMenu(menuX, Math.max(rootY + MENU_FRAME_INSET, y), items, menuWidth);
+    }
+
+    private Component tradeSourceModeLabel(VillagerConfig.TradeSourceMode mode) {
+        return KineticI18n.translatable("gui.contentstudio.villager.villager.trade.source_mode." + mode.configValue());
+    }
+
+    private void requestTradeSourceMode(VillagerConfig.TradeSourceMode mode) {
+        if (savePending || pendingTradeSourceMode != null || mode == VillagerConfig.getTradeSourceMode()) return;
+        pendingTradeSourceMode = mode;
+        updatePendingControls();
+        VillagerNetwork.saveTradeSourceMode(mode.configValue());
+    }
+
+    private void updateTradeSourceButton() {
+        if (tradeSourceButton == null) return;
+        tradeSourceButton.setEnabled(!isSavePending() && pendingTradeSourceMode == null);
+        tradeSourceButton.setTooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.source_mode.tooltip",
+                tradeSourceModeLabel(VillagerConfig.getTradeSourceMode())));
+    }
+
+    public void handleTradeSourceModeResult(boolean success, String mode, String failureCode) {
+        pendingTradeSourceMode = null;
+        if (success) {
+            VillagerConfig.setTradeSourceMode(mode);
+            invalidateTradeSearchIndex();
+            refreshEntries();
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.source.changed",
+                    tradeSourceModeLabel(VillagerConfig.getTradeSourceMode())));
+        } else {
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.source.save_failed." + failureCode(failureCode)));
+        }
+        updatePendingControls();
+    }
+
+    private static String failureCode(String code) {
+        return code == null || code.isBlank() ? "unknown" : code;
+    }
+
+    private void saveValidTradeConfig() {
+        if (savePending || pendingTradeSourceMode != null) return;
+        syncFieldValues();
+        if (levelSettingsActive) applyCurrentLevelSettings();
+        VillagerConfig.enableCustomVillagerTrades = true;
+        VillagerConfig.TradeValidationResult result = VillagerConfig.validateTradeListsDetailed(
+                VillagerConfig.villagerTradeGroups, VillagerConfig.villagerTradeOffers,
+                VillagerConfig.villagerDefaultTradeOverrides);
+        validationIssues = List.copyOf(result.issues());
+        validationActive = true;
+        rebuildProblemTargets();
+        pendingSavedCount = result.validOffers().size();
+        pendingSkippedCount = result.skippedOfferCount();
+        pendingHasIssues = !validationIssues.isEmpty();
+        pendingDraftState = captureTradeConfigState();
+        // The server normalizes accepted records (including supported 19-field offers). Compare its ACK against
+        // that exact pure canonical form, while keeping the submitted raw draft intact for a partial save.
+        VillagerConfig.TradeValidationResult canonical = VillagerConfig.canonicalizeValidTradeLists(
+                result.validGroups(), result.validOffers(), result.validOverrides());
+        pendingSavedState = new TradeConfigState(List.copyOf(canonical.validGroups()), List.copyOf(canonical.validOffers()),
+                List.copyOf(canonical.validOverrides()), true, VillagerConfig.enableVillagerTradeLateOverride);
+        savePending = true;
+        updatePendingControls();
+        VillagerNetwork.saveTradeConfig(result.validGroups(), result.validOffers(), result.validOverrides(),
+                VillagerConfig.enableVillagerTradeLateOverride, true);
+    }
+
+    public void handleTradeSaveResult(boolean success, String failureCode) {
+        if (!savePending) return;
+        TradeConfigState currentState = captureTradeConfigState();
+        boolean draftUnchanged = Objects.equals(pendingDraftState, currentState);
+        boolean acceptedSubsetVisible = Objects.equals(pendingSavedState, currentState);
+        savePending = false;
+        if (!success) {
+            exitAfterSuccessfulSave = false;
+            updatePendingControls();
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.save_failed." + failureCode(failureCode)));
+            return;
+        }
+        lastServerSavedState = pendingSavedState;
+        if (pendingHasIssues) {
+            exitAfterSuccessfulSave = false;
+            // The integrated server shares these statics with the client and has just applied the valid subset.
+            // Restore only a recognized response state, so a newer external draft is never overwritten.
+            if (draftUnchanged || acceptedSubsetVisible) restoreTradeConfigState(pendingDraftState);
+            updatePendingControls();
+            refreshEntries();
+            KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.saved_partial",
+                    pendingSavedCount, pendingSkippedCount));
+            focusCurrentProblem();
+            return;
+        }
+        if (draftUnchanged || acceptedSubsetVisible) {
+            restoreTradeConfigState(pendingSavedState);
+            commitDraft();
+            undoHistory.clear();
+        } else {
+            exitAfterSuccessfulSave = false;
+        }
+        updatePendingControls();
+        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.saved"));
+        if (exitAfterSuccessfulSave) closeEditorSession(false);
+    }
+
+    private void updatePendingControls() {
+        for (KineticControl widget : toolbarWidgets) widget.setEnabled(!isSavePending());
+        if (professionBox != null) professionBox.setEnabled(!isSavePending());
+        if (tradeSearchBox != null) tradeSearchBox.setEnabled(!isSavePending());
+        if (lateOverrideButton != null) lateOverrideButton.setEnabled(!isSavePending());
+        for (KineticControl widget : editorWidgets) widget.setEnabled(!isSavePending() && widget.controlVisible());
+        for (KineticControl widget : levelWidgets) widget.setEnabled(!isSavePending() && widget.controlVisible());
+        updateUndoButtonState();
+        updateTradeSourceButton();
+        updateProblemButtons();
+    }
+
+    private void rebuildProblemTargets() {
+        problemTargets.clear();
+        problemRawLines.clear();
+        for (VillagerConfig.TradeValidationIssue issue : validationIssues) {
+            boolean duplicate = problemTargets.stream().anyMatch(target -> target.kind() == issue.kind() && target.index() == issue.index());
+            if (!duplicate) {
+                problemTargets.add(issue);
+                List<String> raw = rawProblemList(issue.kind());
+                if (issue.index() >= 0 && issue.index() < raw.size()) problemRawLines.put(issue, raw.get(issue.index()));
+            }
+        }
+        if (problemTargets.isEmpty()) problemCursor = -1;
+        else if (problemCursor < 0 || problemCursor >= problemTargets.size()) problemCursor = 0;
+        updateProblemButtons();
+    }
+
+    private void navigateProblem(int direction) {
+        if (isSavePending() || problemTargets.isEmpty()) return;
+        problemCursor = Math.floorMod(problemCursor + direction, problemTargets.size());
+        focusCurrentProblem();
+    }
+
+    private void focusCurrentProblem() {
+        if (problemCursor < 0 || problemCursor >= problemTargets.size()) return;
+        VillagerConfig.TradeValidationIssue issue = problemTargets.get(problemCursor);
+        clearTradeSearch();
+        if (isValidOwner(issue.owner())) {
+            selectedOwner = issue.owner();
+            lastSelectedOwner = selectedOwner;
+            selectedLevel = VillagerConfig.clampTradeLevel(selectedOwner, issue.level());
+            lastSelectedLevel = selectedLevel;
+            LEVEL_EXPANDED[selectedLevel - 1] = true;
+            setProfessionBoxDisplay(selectedOwner);
+            refreshEntries();
+            boolean selected = false;
+            if (issue.kind() == VillagerConfig.TradeIssueKind.OFFER) {
+                for (TradeEntry entry : entries) {
+                    if (entry.custom() && entry.customIndex() == issue.index()) {
+                        selectEntry(entry);
+                        selected = true;
+                        break;
+                    }
+                }
+            }
+            if (!selected) selectLevelSettings(selectedLevel);
+            int visible = Math.max(1, entries.size() - getMaxListScroll());
+            listScroll.setOffset(selectedEntryIndex() - visible / 2);
+            lastListScroll = listScroll.offset();
+        }
+        showWarningToast(issueComponent(issue));
+        updateProblemButtons();
+    }
+
+    private boolean isProblemCustomIndex(int index) {
+        return validationIssues.stream().anyMatch(issue -> issue.kind() == VillagerConfig.TradeIssueKind.OFFER && issue.index() == index);
+    }
+
+    private VillagerConfig.TradeValidationIssue firstCurrentSlotProblem(int slot) {
+        if (editingCustomIndex < 0) return null;
+        return validationIssues.stream().filter(issue -> issue.kind() == VillagerConfig.TradeIssueKind.OFFER
+                && issue.index() == editingCustomIndex && issue.slot() == slot).findFirst().orElse(null);
+    }
+
+    private Component issueComponent(VillagerConfig.TradeValidationIssue issue) {
+        String value = issue.value() == null ? "" : issue.value();
+        return KineticI18n.translatable(issue.reasonKey(), value);
+    }
+
+    private List<String> rawProblemList(VillagerConfig.TradeIssueKind kind) {
+        return switch (kind) {
+            case GROUP -> VillagerConfig.villagerTradeGroups;
+            case OFFER -> VillagerConfig.villagerTradeOffers;
+            case OVERRIDE -> VillagerConfig.villagerDefaultTradeOverrides;
+        };
+    }
+
+    private List<Component> problemDetails(VillagerConfig.TradeValidationIssue target) {
+        return validationIssues.stream().filter(issue -> issue.kind() == target.kind() && issue.index() == target.index())
+                .map(this::issueComponent).toList();
+    }
+
+    private boolean isProblemStatusHovered(double x, double y) {
+        return !problemTargets.isEmpty() && x >= rightX + 8 && x < rightX + rightW - 62
+                && y >= rightY + 64 && y < rightY + 82;
+    }
+
+    private boolean matchesProblemRawLine(VillagerConfig.TradeValidationIssue issue, String rawLine) {
+        List<String> raw = rawProblemList(issue.kind());
+        return rawLine != null && issue.index() >= 0 && issue.index() < raw.size()
+                && Objects.equals(rawLine, raw.get(issue.index()));
+    }
+
+    private void openProblemMenu(int x, int y) {
+        if (isSavePending() || problemCursor < 0 || problemCursor >= problemTargets.size()) return;
+        VillagerConfig.TradeValidationIssue target = problemTargets.get(problemCursor);
+        String rawLine = problemRawLines.get(target);
+        List<KineticOverlays.MenuItem> menu = new ArrayList<>();
+        for (Component detail : problemDetails(target)) {
+            menu.add(KineticOverlays.MenuItem.disabled(detail, detail));
+        }
+        if (rawLine != null) menu.add(KineticOverlays.MenuItem.disabled(Component.literal(rawLine)));
+        menu.add(KineticOverlays.MenuItem.separator());
+        Component remove = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.error.remove");
+        Component tooltip = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.error.remove.tooltip");
+        menu.add(matchesProblemRawLine(target, rawLine)
+                ? KineticOverlays.MenuItem.danger(remove, tooltip, () -> removeInvalidEntry(target, rawLine))
+                : KineticOverlays.MenuItem.disabled(remove, tooltip));
+        openTradeMenuInFrame(x, rootY + 30, menu, PROBLEM_MENU_WIDTH);
+    }
+
+    private void removeInvalidEntry(VillagerConfig.TradeValidationIssue issue, String rawLine) {
+        if (isSavePending() || !matchesProblemRawLine(issue, rawLine)) return;
+        // A stale popup cannot delete an entry which has since been repaired at the same raw index.
+        boolean stillInvalid = VillagerConfig.validateTradeListsDetailed(VillagerConfig.villagerTradeGroups,
+                VillagerConfig.villagerTradeOffers, VillagerConfig.villagerDefaultTradeOverrides).issues().stream()
+                .anyMatch(current -> current.kind() == issue.kind() && current.index() == issue.index());
+        if (!stillInvalid) return;
+        UndoCheckpoint checkpoint = beginUndoableChange();
+        List<String> groups = new ArrayList<>(VillagerConfig.villagerTradeGroups);
+        List<String> offers = new ArrayList<>(VillagerConfig.villagerTradeOffers);
+        List<String> overrides = new ArrayList<>(VillagerConfig.villagerDefaultTradeOverrides);
+        switch (issue.kind()) {
+            case GROUP -> groups.remove(issue.index());
+            case OFFER -> offers.remove(issue.index());
+            case OVERRIDE -> overrides.remove(issue.index());
+        }
+        VillagerConfig.replaceTradeLists(groups, offers, overrides);
+        validationActive = true;
+        selectedKey = "";
+        editorActive = false;
+        levelSettingsActive = false;
+        editingCustomIndex = -1;
+        editingVanillaIndex = -1;
+        editingOriginalVanillaOffer = null;
+        loadedOfferFormBaseline = null;
+        loadedLevelOfferCountBaseline = null;
+        setEditorWidgetsVisible(false);
+        setLevelWidgetsVisible(false);
+        invalidateTradeSearchIndex();
+        refreshEntries();
+        finishUndoableChange(checkpoint);
+        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.invalid_entry_removed"));
+    }
+
+    private void updateProblemButtons() {
+        boolean visible = !problemTargets.isEmpty();
+        if (previousIssueButton != null) {
+            previousIssueButton.setControlVisible(visible);
+            previousIssueButton.setEnabled(visible && !isSavePending() && problemTargets.size() > 1);
+        }
+        if (nextIssueButton != null) {
+            nextIssueButton.setControlVisible(visible);
+            nextIssueButton.setEnabled(visible && !isSavePending() && problemTargets.size() > 1);
+        }
+    }
+
+    private void renderProblemStatus(KineticGraphics g) {
+        if (problemTargets.isEmpty()) return;
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.error.navigation",
+                problemCursor + 1, problemTargets.size()), rightX + 14, rightY + 69, rightW - 84, 0xFFFF5555, false);
+    }
+
+    private OfferFormState captureOfferFormState() {
+        syncFieldValues();
+        return new OfferFormState(buyAId, buyBId, sellId, buyANbt, buyBNbt, sellNbt, buyACount, buyBCount, sellCount,
+                weight, maxUses, xp, price, demand, specialPrice, uses, rewardExp, allowRestock, rawRewardExp, rawAllowRestock);
+    }
+
+    private void markOfferFormBaseline() {
+        loadedOfferFormBaseline = editorActive ? captureOfferFormState() : null;
+        loadedLevelOfferCountBaseline = null;
+    }
+
+    private void markLevelSettingsBaseline() {
+        loadedOfferFormBaseline = null;
+        loadedLevelOfferCountBaseline = levelSettingsActive ? currentOfferCountValue() : null;
+    }
+
+    private boolean hasPendingOfferFormEdits() {
+        return editorActive && loadedOfferFormBaseline != null && !Objects.equals(loadedOfferFormBaseline, captureOfferFormState());
+    }
+
+    private boolean hasPendingLevelSettingsEdits() {
+        return levelSettingsActive && loadedLevelOfferCountBaseline != null && loadedLevelOfferCountBaseline != currentOfferCountValue();
+    }
+
+    private boolean hasPendingTradeChanges() {
+        return hasUnsavedEdits() || hasPendingOfferFormEdits() || hasPendingLevelSettingsEdits() || !validationIssues.isEmpty();
+    }
+
+    @Override
+    protected boolean onCloseRequested() {
+        if (savePending || pendingTradeSourceMode != null) return true;
+        if (!hasPendingTradeChanges()) {
+            closeEditorSession(false);
+            return true;
+        }
+        openTradeMenuInFrame(rootX + rootW - MENU_FRAME_INSET - TRADE_MENU_WIDTH, rootY + 30, List.of(
+                KineticOverlays.MenuItem.action(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.exit.save"), this::saveAndExit),
+                KineticOverlays.MenuItem.action(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.exit.discard"), () -> closeEditorSession(true)),
+                KineticOverlays.MenuItem.action(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.exit.cancel"), () -> { })
+        ), TRADE_MENU_WIDTH);
+        return true;
+    }
+
+    private void saveAndExit() {
+        if (savePending || pendingTradeSourceMode != null) return;
+        if (hasPendingOfferFormEdits()) {
+            saveCurrentOffer();
+            if (hasPendingOfferFormEdits()) return;
+        }
+        if (hasPendingLevelSettingsEdits()) applyCurrentLevelSettings();
+        exitAfterSuccessfulSave = true;
+        saveValidTradeConfig();
+    }
+
+    private void closeEditorSession(boolean discardChanges) {
+        exitAfterSuccessfulSave = false;
+        shortcutSuspendedState = null;
+        if (discardChanges) {
+            discardDraft();
+            // After a partial ACK the retained raw draft can equal Core's original baseline, so Core may skip
+            // its restore callback. Discard still returns to the latest snapshot actually accepted by the server.
+            restoreTradeConfigState(lastServerSavedState);
+        }
+        undoHistory.clear();
+        VillagerClientActions.onTradeEditorSessionClosed(this);
+        navigateBack();
+    }
+
+    public boolean isSavePending() {
+        return savePending || pendingTradeSourceMode != null;
+    }
+
+    public void suspendForShortcut() {
+        if (!isSavePending()) {
+            shortcutSuspendedState = captureTradeEditorState();
+            // Keep rejected/unsaved rows only in this suspended session, not in the shared client configuration.
+            restoreTradeConfigState(lastServerSavedState);
+        }
+    }
+
+    public void resumeFromShortcut() {
+        if (shortcutSuspendedState != null) {
+            // Core releases a standalone draft on navigateBack, even when this page's host is reused.
+            // Its first capture must be the accepted baseline; subsequent captures see the suspended edits.
+            boolean[] firstCapture = {true};
+            configureStandaloneDraft(() -> {
+                if (firstCapture[0]) {
+                    firstCapture[0] = false;
+                    return lastServerSavedState;
+                }
+                return captureTradeConfigState();
+            }, state -> restoreTradeConfigState(lastServerSavedState == null ? state : lastServerSavedState));
+            restoreTradeEditorState(shortcutSuspendedState, false);
+            shortcutSuspendedState = null;
+        }
     }
 
     private void setupLayout() {
@@ -533,7 +1000,11 @@ public class VillagerTradeEditorPage extends KineticPage {
                 .value(rewardExp)
                 .labels(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.reward.on"), KineticI18n.translatable("gui.contentstudio.villager.villager.trade.reward.off"))
                 .tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.reward.tooltip"))
-                .onChange(value -> rewardExp = value)
+                .onChange(value -> {
+                    rewardExp = value;
+                    rawRewardExp = Boolean.toString(value);
+                    updateBoolButtons();
+                })
                 .build();
         addEditorWidget(this.rewardButton);
 
@@ -542,7 +1013,11 @@ public class VillagerTradeEditorPage extends KineticPage {
                 .value(allowRestock)
                 .labels(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.restock.on"), KineticI18n.translatable("gui.contentstudio.villager.villager.trade.restock.off"))
                 .tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.restock.tooltip"))
-                .onChange(value -> allowRestock = value)
+                .onChange(value -> {
+                    allowRestock = value;
+                    rawAllowRestock = Boolean.toString(value);
+                    updateBoolButtons();
+                })
                 .build();
         addEditorWidget(this.restockButton);
     }
@@ -553,6 +1028,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void clearTradeItemSlot(int slot) {
+        if (isSavePending()) return;
         if (slot == 0) {
             buyAId = "minecraft:air";
             buyACount = "1";
@@ -567,6 +1043,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             sellNbt = "";
         }
         writeFieldsToWidgets();
+        KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.slot_cleared"));
     }
 
     private KineticNumberField addSmallNumberBox(
@@ -661,14 +1138,14 @@ public class VillagerTradeEditorPage extends KineticPage {
     private void setEditorWidgetsVisible(boolean visible) {
         for (KineticControl widget : editorWidgets) {
             widget.setControlVisible(visible);
-            widget.setEnabled(visible);
+            widget.setEnabled(visible && !isSavePending());
         }
     }
 
     private void setLevelWidgetsVisible(boolean visible) {
         for (KineticControl widget : levelWidgets) {
             widget.setControlVisible(visible);
-            widget.setEnabled(visible);
+            widget.setEnabled(visible && !isSavePending());
         }
     }
 
@@ -679,6 +1156,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected void onTick() {
+        if (isSavePending()) return;
         syncFieldValues();
         syncSelectedOwnerFromBox();
         updateUndoButtonState();
@@ -690,6 +1168,9 @@ public class VillagerTradeEditorPage extends KineticPage {
         KineticTheme.panel(g, rootX, rootY, rootW, rootH);
         KineticTheme.panelAlt(g, leftX, leftY, leftW, leftPanelHeight);
         KineticTheme.panelAlt(g, rightX, rightY, rightW, rightPanelHeight);
+        if (!problemTargets.isEmpty()) {
+            KineticTheme.panelAlt(g, rightX + 8, rightY + 64, rightW - 16, 18);
+        }
         if (!selectedOwner.isEmpty() && editorActive && !levelSettingsActive) {
             renderTradeSlotPanels(g);
         }
@@ -706,6 +1187,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         renderLeftPanel(g, mx, my);
         renderRightPanel(g, mx, my);
         renderProfessionSearchHint(g);
+        renderProblemStatus(g);
     }
 
     private void renderProfessionSearchHint(KineticGraphics g) {
@@ -787,7 +1269,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                     button.moveControlY(y + 3);
                     button.setText(levelExpandText(entry.level()));
                     button.setControlVisible(true);
-                    button.setEnabled(true);
+                    button.setEnabled(!isSavePending());
                 }
             }
             y += h;
@@ -817,6 +1299,9 @@ public class VillagerTradeEditorPage extends KineticPage {
                 hover,
                 false
         );
+        if (entry.custom() && isProblemCustomIndex(entry.customIndex())) {
+            g.outline(listX + 4, y, listW - 16, h - 2, 0xFFFF5555);
+        }
 
         if (entry.header()) {
             Component left = KineticI18n.translatable("gui.contentstudio.villager.villager.trade.trade_list.level", entry.level(), modeName(entry.mode()));
@@ -1008,9 +1493,11 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         int noticeX = rightX + 8;
         int noticeY = rightY + 64;
-        KineticTheme.panelAlt(g, noticeX, noticeY, rightW - 16, 18);
+        KineticTheme.panelAlt(g, noticeX, noticeY, rightW - (problemTargets.isEmpty() ? 16 : 76), 18);
         Component state = editingDefault ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.editing_default") : (editingCustomIndex >= 0 ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.editing_custom") : KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.creating"));
-        g.scrollingText(state, noticeX + 6, noticeY + 5, rightW - 28, 0xFFFF55FF, false);
+        if (problemTargets.isEmpty()) {
+            g.scrollingText(state, noticeX + 6, noticeY + 5, rightW - 28, 0xFFFF55FF, false);
+        }
 
         renderTradeSlots(g, mx, my);
 
@@ -1029,6 +1516,8 @@ public class VillagerTradeEditorPage extends KineticPage {
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.demand"), metaX, labelY2, labelWidth, 0xFFFFFFFF, false);
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.special_price"), metaX + fieldGap, labelY2, labelWidth, 0xFFFFFFFF, false);
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.uses"), metaX + fieldGap * 2, labelY2, labelWidth, 0xFFFFFFFF, false);
+        if (!isRawBoolean(rawRewardExp)) g.outline(metaX - 1, metaY2 + 33, 112, CONTROL_HEIGHT + 2, 0xFFFF5555);
+        if (!isRawBoolean(rawAllowRestock)) g.outline(metaX + 115, metaY2 + 33, 112, CONTROL_HEIGHT + 2, 0xFFFF5555);
     }
 
     private void renderLevelSettingsPanel(KineticGraphics g) {
@@ -1048,7 +1537,9 @@ public class VillagerTradeEditorPage extends KineticPage {
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.offer_count.label"), countX, buttonY, buttonX - countX - TEXT_GAP, 0xFFFFFF55, false);
         // The settings title shares its row with the bottom of the action controls.
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.title"), rightX + 8, rightY + 48, summaryWidth, 0xFFFFFF55, false);
-        g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.tip"), rightX + 8, rightY + 64, rightW - 20, 0xFFFFFFFF, false);
+        if (problemTargets.isEmpty()) {
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.tip"), rightX + 8, rightY + 64, rightW - 20, 0xFFFFFFFF, false);
+        }
 
         KineticTheme.stateOutline(g, countX - 8, buttonY - 4, buttonW + 82, 52, false, false, false);
     }
@@ -1102,6 +1593,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         int labelColor = slot == 0 ? BUY_A_LABEL : slot == 1 ? BUY_B_LABEL : SELL_LABEL;
         g.scrollingText(label, x, y, TRADE_SLOT_PANEL_WIDTH - 6 - TEXT_GAP, labelColor, false);
         renderInsetSlot(g, x, slotY, isHoverSlot(mx, my, slot));
+        if (firstCurrentSlotProblem(slot) != null) g.outline(x, slotY, 24, 24, 0xFFFF5555);
         if (!stack.isEmpty()) {
             g.item(stack, x + 4, slotY + 4);
             g.itemDecorations(stack, x + 4, slotY + 4);
@@ -1126,22 +1618,42 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected void renderTooltips(int smx, int smy) {
+        if (isProblemStatusHovered(smx, smy) && problemCursor >= 0 && problemCursor < problemTargets.size()) {
+            List<Component> details = new ArrayList<>(problemDetails(problemTargets.get(problemCursor)));
+            details.add(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.error.details.tooltip"));
+            showTooltip(details);
+            return;
+        }
         if (hoveredLevelExpandButton(smx, smy) != null) {
             showTooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.arrow.tooltip"));
             return;
         }
         int hoverSlot = hoveredSlot(smx, smy);
         if (hoverSlot >= 0) {
+            List<Component> issues = validationIssues.stream().filter(issue -> issue.kind() == VillagerConfig.TradeIssueKind.OFFER
+                    && issue.index() == editingCustomIndex && issue.slot() == hoverSlot).map(this::issueComponent).toList();
+            if (!issues.isEmpty()) {
+                showTooltip(issues);
+                return;
+            }
             String key = hoverSlot == 0 ? "gui.contentstudio.villager.villager.trade.slot.buy_a.tooltip" : hoverSlot == 1 ? "gui.contentstudio.villager.villager.trade.slot.buy_b.tooltip" : "gui.contentstudio.villager.villager.trade.slot.sell.tooltip";
             showTooltip(KineticI18n.translatable(key));
             return;
+        }
+        TradeEntry hoveredEntry = findEntryAt(smx, smy);
+        if (hoveredEntry != null && hoveredEntry.custom()) {
+            List<Component> issues = validationIssues.stream().filter(issue -> issue.kind() == VillagerConfig.TradeIssueKind.OFFER
+                    && issue.index() == hoveredEntry.customIndex()).map(this::issueComponent).toList();
+            if (!issues.isEmpty()) {
+                showTooltip(issues);
+                return;
+            }
         }
         ItemStack hoveredListStack = findHoveredLeftListStack(smx, smy);
         if (!hoveredListStack.isEmpty()) {
             showItemTooltip(hoveredListStack);
             return;
         }
-        TradeEntry hoveredEntry = findEntryAt(smx, smy);
         if (hoveredEntry != null && hoveredEntry.header()) {
             showTooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.row.tooltip"));
         }
@@ -1214,9 +1726,14 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected boolean onMouseClickCapture(MouseInput input) {
+        if (isSavePending()) return true;
         // 原 canvasMouseClicked 全部在控件之前处理 / The old canvasMouseClicked handled all of this before controls.
         double mx = input.x();
         double my = input.y();
+        if ((input.isLeft() || input.isRight()) && isProblemStatusHovered(mx, my)) {
+            openProblemMenu((int) mx, (int) my);
+            return true;
+        }
         updateMainListScrollRange();
 
         if (listScroll.beginDrag(
@@ -1244,6 +1761,13 @@ public class VillagerTradeEditorPage extends KineticPage {
         if (handleListClick(mx, my, input)) {
             return true;
         }
+        if (input.isRight()) {
+            int slot = hoveredSlot((int) mx, (int) my);
+            if (slot >= 0) {
+                clearTradeItemSlot(slot);
+                return true;
+            }
+        }
         return input.isLeft() && handleSlotClick(mx, my);
     }
 
@@ -1254,6 +1778,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected boolean onMouseDrag(MouseDragInput input) {
+        if (isSavePending()) return true;
         double my = input.y();
         if (listScroll.drag(
                 my,
@@ -1271,6 +1796,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected boolean onMouseScroll(ScrollInput input) {
+        if (isSavePending()) return true;
         double mx = input.x();
         double my = input.y();
         double delta = input.deltaY();
@@ -1291,6 +1817,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected boolean onKeyPress(KeyInput input) {
+        if (isSavePending()) return true;
         if (input.is(KineticKeyBindings.Key.Z) && KineticClientRuntime.controlModifierDown()) {
             if (!undoHistory.isEmpty()) {
                 undoLastChange();
@@ -1305,6 +1832,11 @@ public class VillagerTradeEditorPage extends KineticPage {
             return true;
         }
         return false;
+    }
+
+    @Override
+    protected boolean onCharTyped(dev.xyat.kineticcore.api.client.gui.input.CharInput input) {
+        return isSavePending();
     }
 
     private boolean handleListClick(double mx, double my, MouseInput input) {
@@ -1532,6 +2064,11 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void refreshEntries() {
+        if (!isSavePending() && validationActive) {
+            validationIssues = List.copyOf(VillagerConfig.validateTradeListsDetailed(VillagerConfig.villagerTradeGroups,
+                    VillagerConfig.villagerTradeOffers, VillagerConfig.villagerDefaultTradeOverrides).issues());
+            rebuildProblemTargets();
+        }
         String keepKey = selectedKey;
         entries.clear();
 
@@ -1557,6 +2094,14 @@ public class VillagerTradeEditorPage extends KineticPage {
             return;
         }
 
+        // Invalid offers stay visible above collapsed levels so a partial save can be repaired in place.
+        int ownerMaxLevel = VillagerConfig.isWanderingTrader(selectedOwner) ? 2 : 5;
+        for (int level = 1; level <= ownerMaxLevel; level++) {
+            for (VillagerConfig.TradeOfferData data : getEditorOffers(selectedOwner, level)) {
+                if (isProblemCustomIndex(data.index())) entries.add(TradeEntry.custom(selectedOwner, data));
+            }
+        }
+
         int maxLevel = VillagerConfig.isWanderingTrader(selectedOwner) ? 2 : 5;
         for (int level = 1; level <= maxLevel; level++) {
             VillagerConfig.TradeGroup group = VillagerConfig.getTradeGroup(selectedOwner, level);
@@ -1572,7 +2117,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             }
 
             int vanillaCount = VillagerTradeRuntimeUtil.vanillaTradeCount(selectedOwner, level);
-            if (vanillaCount > 0) {
+            if (!VillagerConfig.isLocalCustomTradesOnly() && vanillaCount > 0) {
                 for (int i = 0; i < vanillaCount; i++) {
                     MerchantOffer offer = VillagerTradeRuntimeUtil.createPreviewOffer(selectedOwner, level, i);
                     if (offer != null && VillagerConfig.isVanillaTradeEnabled(selectedOwner, level, i)) {
@@ -1587,8 +2132,8 @@ public class VillagerTradeEditorPage extends KineticPage {
                 }
             }
 
-            for (VillagerConfig.TradeOfferData data : VillagerConfig.getTradeOffers(selectedOwner, level)) {
-                entries.add(TradeEntry.custom(selectedOwner, data));
+            for (VillagerConfig.TradeOfferData data : getEditorOffers(selectedOwner, level)) {
+                if (!isProblemCustomIndex(data.index())) entries.add(TradeEntry.custom(selectedOwner, data));
             }
         }
 
@@ -1609,7 +2154,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             int maxLevel = VillagerConfig.isWanderingTrader(owner) ? 2 : 5;
             for (int level = 1; level <= maxLevel; level++) {
                 int vanillaCount = VillagerTradeRuntimeUtil.vanillaTradeCount(owner, level);
-                if (vanillaCount > 0) {
+                if (!VillagerConfig.isLocalCustomTradesOnly() && vanillaCount > 0) {
                     for (int i = 0; i < vanillaCount; i++) {
                         if (!VillagerConfig.isVanillaTradeEnabled(owner, level, i)) {
                             continue;
@@ -1629,7 +2174,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                     }
                 }
 
-                for (VillagerConfig.TradeOfferData data : VillagerConfig.getTradeOffers(owner, level)) {
+                for (VillagerConfig.TradeOfferData data : getEditorOffers(owner, level)) {
                     TradeEntry entry = TradeEntry.custom(owner, data);
                     tradeSearchSource.add(new TradeSearchEntry(entry, buildTradeSearchText(entry)));
                 }
@@ -1642,6 +2187,9 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     private String buildTradeSearchText(TradeEntry entry) {
         StringBuilder text = new StringBuilder();
+        if (entry.customIndex() >= 0 && entry.customIndex() < VillagerConfig.villagerTradeOffers.size()) {
+            text.append(VillagerConfig.villagerTradeOffers.get(entry.customIndex())).append(' ');
+        }
         String ownerName = getProfessionName(entry.owner());
         text.append(entry.owner()).append(' ')
                 .append(ownerName).append(' ')
@@ -1740,7 +2288,19 @@ public class VillagerTradeEditorPage extends KineticPage {
 
 
     private int countCustomOffers(String owner, int level) {
-        return VillagerConfig.getTradeOffers(owner, level).size();
+        return getEditorOffers(owner, level).size();
+    }
+
+    private List<VillagerConfig.TradeOfferData> getEditorOffers(String owner, int level) {
+        List<VillagerConfig.TradeOfferData> offers = new ArrayList<>();
+        List<String> rawOffers = new ArrayList<>(VillagerConfig.villagerTradeOffers);
+        for (int rawIndex = 0; rawIndex < rawOffers.size(); rawIndex++) {
+            // Runtime caches deliberately reject invalid rows. The editor needs their tolerant form and raw index
+            // so issue navigation, in-place repair and deletion still refer to the original config record.
+            VillagerConfig.TradeOfferData data = VillagerConfig.TradeOfferData.parse(rawOffers.get(rawIndex), rawIndex);
+            if (data != null && data.matches(owner, level)) offers.add(data);
+        }
+        return offers;
     }
 
     private void selectLevelSettings(int level) {
@@ -1753,6 +2313,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         setEditorWidgetsVisible(false);
         setLevelWidgetsVisible(true);
         writeFieldsToWidgets();
+        markLevelSettingsBaseline();
     }
 
     private void applyCurrentLevelSettings() {
@@ -1762,9 +2323,9 @@ public class VillagerTradeEditorPage extends KineticPage {
         selectedOfferCount = currentOfferCountValue();
         selectedMode = "replace_level";
         VillagerConfig.setTradeGroup(new VillagerConfig.TradeGroup(selectedOwner, selectedLevel, selectedMode, selectedOfferCount));
-        VillagerConfig.normalizeTradeLists();
         refreshEntries();
         writeFieldsToWidgets();
+        markLevelSettingsBaseline();
     }
 
     private void beginNewTradeFromLevel() {
@@ -1801,6 +2362,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             editingCustomIndex = entry.customIndex();
             editingOriginalVanillaOffer = null;
             updateBoolButtons();
+            markOfferFormBaseline();
             return;
         }
         if (!entry.custom() && entry.offer() != null) {
@@ -1810,6 +2372,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             editingCustomIndex = -1;
             editingOriginalVanillaOffer = entry.offer();
             updateBoolButtons();
+            markOfferFormBaseline();
         }
     }
 
@@ -1844,8 +2407,31 @@ public class VillagerTradeEditorPage extends KineticPage {
         uses = String.valueOf(data.uses());
         rewardExp = data.rewardExp();
         allowRestock = data.allowRestock();
+        rawRewardExp = Boolean.toString(rewardExp);
+        rawAllowRestock = Boolean.toString(allowRestock);
+        List<String> rawOffers = VillagerConfig.villagerTradeOffers;
+        if (data.index() >= 0 && data.index() < rawOffers.size()) {
+            List<String> parts = VillagerConfig.splitConfigLine(rawOffers.get(data.index()));
+            if (parts.size() >= 19) {
+                // The tolerant parser supplies a safe preview. Editing must display the actual saved text,
+                // including out-of-range counts and malformed booleans, until the user explicitly repairs it.
+                buyACount = parts.get(3);
+                buyBCount = parts.get(6);
+                sellCount = parts.get(9);
+                maxUses = parts.get(11);
+                xp = parts.get(12);
+                price = parts.get(13);
+                demand = parts.get(14);
+                specialPrice = parts.get(15);
+                rawRewardExp = parts.get(16);
+                uses = parts.get(17);
+                rawAllowRestock = parts.get(18);
+                weight = parts.size() > 19 ? parts.get(19) : "1";
+            }
+        }
         writeFieldsToWidgets();
         captureLoadedFieldValues();
+        markOfferFormBaseline();
     }
 
     private void loadOffer(MerchantOffer offer, int entryWeight) {
@@ -1874,6 +2460,8 @@ public class VillagerTradeEditorPage extends KineticPage {
         uses = String.valueOf(offer.getUses());
         rewardExp = offer.shouldRewardExp();
         allowRestock = true;
+        rawRewardExp = Boolean.toString(rewardExp);
+        rawAllowRestock = "true";
         editingDefault = true;
         writeFieldsToWidgets();
         captureLoadedFieldValues();
@@ -1903,8 +2491,12 @@ public class VillagerTradeEditorPage extends KineticPage {
         uses = "0";
         rewardExp = true;
         allowRestock = true;
+        rawRewardExp = "true";
+        rawAllowRestock = "true";
         writeFieldsToWidgets();
         captureLoadedFieldValues();
+        if (levelSettingsActive) markLevelSettingsBaseline();
+        else markOfferFormBaseline();
     }
 
     private void clearSelectionToNewOffer() {
@@ -1967,7 +2559,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     private void updateUndoButtonState() {
         if (undoButton == null) return;
         undoButton.setText(undoButtonText());
-        undoButton.setEnabled(!undoHistory.isEmpty());
+        undoButton.setEnabled(!isSavePending() && !undoHistory.isEmpty());
     }
 
     private void syncFieldValues() {
@@ -2041,50 +2633,66 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void writeFieldsToWidgets() {
-        if (buyACountBox != null) {
-            buyACountBox.setTextValue(buyACount);
-        }
-        if (buyBCountBox != null) {
-            buyBCountBox.setTextValue(buyBCount);
-        }
-        if (sellCountBox != null) {
-            sellCountBox.setTextValue(sellCount);
-        }
-        if (weightBox != null) {
-            weightBox.setTextValue(weight);
-        }
+        writeNumberField(buyACountBox, buyACount, false, false, 3);
+        writeNumberField(buyBCountBox, buyBCount, false, false, 3);
+        writeNumberField(sellCountBox, sellCount, false, false, 3);
+        writeNumberField(weightBox, weight, false, false, 10);
         if (offerCountBox != null) {
             offerCountBox.setTextValue(String.valueOf(selectedOfferCount));
         }
-        if (maxUsesBox != null) {
-            maxUsesBox.setTextValue(maxUses);
-        }
-        if (xpBox != null) {
-            xpBox.setTextValue(xp);
-        }
-        if (priceBox != null) {
-            priceBox.setTextValue(price);
-        }
-        if (demandBox != null) {
-            demandBox.setTextValue(demand);
-        }
-        if (specialPriceBox != null) {
-            specialPriceBox.setTextValue(specialPrice);
-        }
-        if (usesBox != null) {
-            usesBox.setTextValue(uses);
-        }
+        writeNumberField(maxUsesBox, maxUses, false, false, 10);
+        writeNumberField(xpBox, xp, false, false, 10);
+        writeNumberField(priceBox, price, true, false, 10);
+        writeNumberField(demandBox, demand, false, true, 10);
+        writeNumberField(specialPriceBox, specialPrice, false, true, 10);
+        writeNumberField(usesBox, uses, false, false, 10);
         updateBoolButtons();
     }
 
+    private void writeNumberField(KineticNumberField field, String value, boolean decimal, boolean negative, int limit) {
+        if (field == null) return;
+        String raw = value == null ? "" : value;
+        // Public setters obey the numeric syntax filter too. Temporarily allow the saved invalid text to be
+        // displayed, then restore the same integer/decimal typing policy while retaining Core range validation.
+        field.limitTextLength(Math.max(limit, raw.length()));
+        field.filterText(ignored -> true);
+        field.setTextValue(raw);
+        String pattern = decimal ? (negative ? "-?(?:\\d+(?:\\.\\d*)?|\\.\\d*)" : "(?:\\d+(?:\\.\\d*)?|\\.\\d*)")
+                : (negative ? "-?\\d*" : "\\d*");
+        field.filterText(text -> text != null && (text.isEmpty() || text.matches(pattern)));
+    }
+
+    private static boolean isRawBoolean(String value) {
+        return value != null && (value.trim().equalsIgnoreCase("true") || value.trim().equalsIgnoreCase("false"));
+    }
+
+    private List<VillagerConfig.TradeValidationIssue> currentOfferFormIssues() {
+        List<String> parts = List.of(selectedOwner, String.valueOf(selectedLevel), buyAId, buyACount, buyANbt,
+                buyBId, buyBCount, buyBNbt, sellId, sellCount, sellNbt, maxUses, xp, price, demand, specialPrice,
+                rawRewardExp, uses, rawAllowRestock, weight);
+        String line = String.join("|", parts.stream().map(VillagerConfig::escapeConfigPart).toList());
+        return VillagerConfig.validateTradeListsDetailed(List.of(), List.of(line), List.of()).issues();
+    }
+
     private void saveCurrentOffer() {
+        if (isSavePending()) return;
         syncFieldValues();
         if (selectedOwner.isEmpty() || !editorActive) {
             KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.no_profession"));
             return;
         }
         if (hasInvalidNbt()) {
+//? if >=1.21 {
+/*            showWarningToast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.invalid_components"));
+*///?} else {
             showWarningToast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.invalid_nbt"));
+//?}
+            return;
+        }
+
+        List<VillagerConfig.TradeValidationIssue> formIssues = currentOfferFormIssues();
+        if (!formIssues.isEmpty()) {
+            showWarningToast(issueComponent(formIssues.get(0)));
             return;
         }
 
@@ -2097,6 +2705,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                 ensureControlledGroup();
                 refreshEntries();
                 finishUndoableChange(checkpoint);
+                markOfferFormBaseline();
                 KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.default_disabled"));
                 return;
             }
@@ -2106,6 +2715,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                 ensureControlledGroup();
                 refreshEntries();
                 finishUndoableChange(checkpoint);
+                markOfferFormBaseline();
                 KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.default_saved"));
                 return;
             }
@@ -2124,6 +2734,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             ensureControlledGroup();
             refreshEntries();
             finishUndoableChange(checkpoint);
+            markOfferFormBaseline();
             KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.default_converted"));
             return;
         }
@@ -2143,6 +2754,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         ensureControlledGroup();
         refreshEntries();
         finishUndoableChange(checkpoint);
+        markOfferFormBaseline();
         KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.villager.villager.trade.offer_saved"));
     }
 
@@ -2185,9 +2797,33 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private boolean hasInvalidNbt() {
+//? if >=1.21 {
+/*        return isInvalidComponents(buyAId, buyANbt, true)
+                || isInvalidComponents(buyBId, buyBNbt, true)
+                || isInvalidComponents(sellId, sellNbt, false);
+*///?} else {
         return isInvalidNbt(buyANbt) || isInvalidNbt(buyBNbt) || isInvalidNbt(sellNbt);
+//?}
     }
 
+//? if >=1.21 {
+/*    private boolean isInvalidComponents(String id, String data, boolean payment) {
+        String text = data == null ? "" : data.trim();
+        if (id == null || id.isBlank() || id.equals("minecraft:air") || id.equals("air")) {
+            return !(text.isEmpty() || text.equals("[]"));
+        }
+        if (!dev.xyat.contentstudio.item.ItemData.validConstraint(id, text)) return true;
+        if (payment && dev.xyat.contentstudio.item.ItemData.hasWorldContext()) {
+            try {
+                return dev.xyat.contentstudio.villager.util.TradeItemData.cost(
+                        dev.xyat.contentstudio.item.ItemData.compile(id, text)) == null;
+            } catch (RuntimeException invalid) {
+                return true;
+            }
+        }
+        return false;
+    }
+*///?} else {
     private boolean isInvalidNbt(String nbt) {
         String text = nbt == null ? "" : nbt.trim();
         if (text.isEmpty() || text.equals("{}")) {
@@ -2200,6 +2836,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             return true;
         }
     }
+//?}
 
     private void showWarningToast(Component message) {
         KineticOverlays.toast("villager_trade_warning", message, KineticOverlays.Position.BOTTOM_CENTER, 5000, 0, -30);
@@ -2333,7 +2970,6 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         int defaultOfferCount = VillagerTradeRuntimeUtil.getDefaultOfferCount(selectedOwner, safeLevel);
         VillagerConfig.setTradeGroup(new VillagerConfig.TradeGroup(selectedOwner, safeLevel, "replace_level", defaultOfferCount));
-        VillagerConfig.normalizeTradeLists();
 
         selectedMode = "replace_level";
         selectedOfferCount = defaultOfferCount;
@@ -2354,7 +2990,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void openRemovedDefaultTradesScreen() {
-        if (!isAttached()) {
+        if (!isAttached() || isSavePending()) {
             return;
         }
         if (selectedOwner.isEmpty()) {
@@ -2365,7 +3001,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void openItemSelector(int slot) {
-        if (!isAttached()) {
+        if (!isAttached() || isSavePending()) {
             return;
         }
         syncFieldValues();
@@ -2382,22 +3018,26 @@ public class VillagerTradeEditorPage extends KineticPage {
         String nbt = VillagerConfig.stackNbt(stack);
         String count = String.valueOf(stack == null || stack.isEmpty() ? 0 : Math.max(1, stack.getCount()));
         if (slot == 0) {
+            boolean replacingExistingItem = buyAId != null && !buyAId.isBlank() && !buyAId.equals("minecraft:air");
             buyAId = id;
-            buyACount = count.equals("0") ? "1" : count;
+            if (!replacingExistingItem) buyACount = count.equals("0") ? "1" : count;
             buyANbt = nbt;
         } else if (slot == 1) {
+            boolean replacingExistingItem = buyBId != null && !buyBId.isBlank() && !buyBId.equals("minecraft:air");
             buyBId = id;
-            buyBCount = count;
+            if (!replacingExistingItem) buyBCount = count;
             buyBNbt = nbt;
         } else {
+            boolean replacingExistingItem = sellId != null && !sellId.isBlank() && !sellId.equals("minecraft:air");
             sellId = id;
-            sellCount = count.equals("0") ? "1" : count;
+            if (!replacingExistingItem) sellCount = count.equals("0") ? "1" : count;
             sellNbt = nbt;
         }
         writeFieldsToWidgets();
     }
 
     private void openNbtEditor(int slot) {
+        if (isSavePending()) return;
         syncFieldValues();
         String initial = slot == 0 ? buyANbt : slot == 1 ? buyBNbt : sellNbt;
         {
@@ -2463,10 +3103,16 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     private void updateBoolButtons() {
         if (rewardButton != null) {
-            rewardButton.setText(rewardText());
+            rewardButton.setValue(rewardExp);
+            rewardButton.setTooltip(isRawBoolean(rawRewardExp)
+                    ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.reward.tooltip")
+                    : KineticI18n.translatable("msg.contentstudio.villager.villager.trade.error.reward", rawRewardExp));
         }
         if (restockButton != null) {
-            restockButton.setText(restockText());
+            restockButton.setValue(allowRestock);
+            restockButton.setTooltip(isRawBoolean(rawAllowRestock)
+                    ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.restock.tooltip")
+                    : KineticI18n.translatable("msg.contentstudio.villager.villager.trade.error.restock", rawAllowRestock));
         }
     }
 
@@ -2812,7 +3458,6 @@ public class VillagerTradeEditorPage extends KineticPage {
             restoreLevelModeIfDisabled(entry.level());
 
             VillagerConfig.enableCustomVillagerTrades = true;
-            VillagerConfig.normalizeTradeLists();
 
             refreshRemovedEntries();
             parentScreen.loadGroupState();
@@ -2839,7 +3484,6 @@ public class VillagerTradeEditorPage extends KineticPage {
             }
 
             VillagerConfig.enableCustomVillagerTrades = true;
-            VillagerConfig.normalizeTradeLists();
 
             refreshRemovedEntries();
             parentScreen.loadGroupState();
@@ -2888,7 +3532,6 @@ public class VillagerTradeEditorPage extends KineticPage {
             });
 
             VillagerConfig.enableCustomVillagerTrades = true;
-            VillagerConfig.normalizeTradeLists();
 
             listScroll.reset();
             refreshRemovedEntries();
@@ -2953,7 +3596,13 @@ public class VillagerTradeEditorPage extends KineticPage {
         }
 
         static TradeEntry custom(String owner, VillagerConfig.TradeOfferData data) {
-            return new TradeEntry(owner, false, true, data.level(), "", 0, 0, -1, data.index(), data.weight(), data.maxUses(), data.xp(), data.allowRestock(), data.createOffer(), data);
+            MerchantOffer preview;
+            try {
+                preview = data.createOffer();
+            } catch (RuntimeException invalidPreview) {
+                preview = null;
+            }
+            return new TradeEntry(owner, false, true, data.level(), "", 0, 0, -1, data.index(), data.weight(), data.maxUses(), data.xp(), data.allowRestock(), preview, data);
         }
     }
 }

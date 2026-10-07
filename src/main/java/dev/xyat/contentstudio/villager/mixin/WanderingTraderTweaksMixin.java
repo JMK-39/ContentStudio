@@ -35,7 +35,7 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
             return;
         }
 
-        if (VillagerConfig.enableVillagerTradeLateOverride) {
+        if (VillagerTradeRegistry.isActiveTradeLateOverride()) {
             return;
         }
 
@@ -68,7 +68,7 @@ public abstract class WanderingTraderTweaksMixin extends AbstractVillager {
             //? if >=26.1
             /*net.minecraft.server.level.ServerLevel serverLevel,*/
             CallbackInfo ci) {
-        if (!VillagerConfig.enableVillagerTradeLateOverride || VillagerTradeRegistry.isSessionUnavailable()) {
+        if (!VillagerTradeRegistry.isActiveTradeLateOverride() || VillagerTradeRegistry.isSessionUnavailable()) {
             return;
         }
 
