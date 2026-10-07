@@ -1,5 +1,15 @@
 # Changelog / 更新日志
 
+## 2026-10-08 — Recipe removal list spacing / 配方移除列表间距
+
+### English
+
+- In the recipe removal impact list, item icons keep a gap from the row frames instead of touching them.
+
+### 简体中文
+
+- 配方移除影响列表的物品图标与行边框保留间距，不再紧贴边框。
+
 ## 2026-10-07 — Trade sources and editor drafts / 交易来源与编辑草稿
 
 ### English
