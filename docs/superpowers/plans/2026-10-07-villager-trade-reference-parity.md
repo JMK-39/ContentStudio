@@ -33,10 +33,10 @@
 
 3. **Verification and delivery**
    - [x] BuildAll offline, language parity, architecture, Mixin targets, reobf refs and relevant JUnit checks all pass. Inspect actual release archives for bytecode61/65/69, refmaps and no fixture.
-   - [ ] Final installed Forge fixture: currently blocked before fixture initialization by Windows commit-memory exhaustion with the unchanged8GiB heap. Earlier Forge runs passed48 checks but preceded the final fixes and are not the final acceptance result.
+   - [x] Final installed Forge fixture passes100 checks and16 English/Chinese854/1920 captures in the existing full modpack with unchanged8GiB heap and Core26.10.8. Its obsolete deduplication option is removed; all other log settings are preserved. Earlier startup memory/deadlock failures no longer block final acceptance.
    - [x] NeoForge1.21.1 and26.1.2 fixtures each pass100 checks and16 English/Chinese854/1920 captures; actual integrated-server saves, source isolation, canonical partial ACK, unchanged-original draft discard/suspension and all menu bounds pass. Exact latest config bytes and touched options are restored. Dedicated-server sessions and simulated disk-write failures were not exercised.
    - [x] Output release artifacts to D:/NEWMODS; deploy loader-matched releases into existing full Forge pack and existing Neo profiles, hash-check. No standalone Minecraft download; remove owned temporary fixture jars afterward.
-   - [x] Independent final code review; no unresolved source issues. Runtime limits are recorded in docs/villager-trade-20261007-verification.md. Local commit/integration follows the final evidence check; no push.
+   - [x] Independent final code review; no unresolved source issues. Verification results and untested dedicated-server/failure scenarios are recorded in docs/villager-trade-20261007-verification.md. Local commit/integration completed; no push.
 
 ## Review focus
 
