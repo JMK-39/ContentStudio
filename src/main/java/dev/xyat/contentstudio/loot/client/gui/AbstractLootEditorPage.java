@@ -427,7 +427,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         groupEntryEditButtons = new KineticButton[GROUP_BUTTON_SLOTS];
         for (int i = 0; i < GROUP_BUTTON_SLOTS; i++) {
             int slot = i;
-            groupArrowButtons[i] = ui().button(RIGHT_X + 10, -1000, 18).text(KineticI18n.translatable("gui.contentstudio.common.expand_symbol")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.expand")).onClick(() -> toggleGroupedPool(slot)).build();
+            groupArrowButtons[i] = ui().button(RIGHT_X + 11, -1000, 18).text(KineticI18n.translatable("gui.contentstudio.common.expand_symbol")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.expand")).onClick(() -> toggleGroupedPool(slot)).build();
             groupAddButtons[i] = ui().button(GROUP_POOL_ACTION_X, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add_reward")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward")).onClick(() -> addGroupedReward(slot)).build();
             groupPoolEditButtons[i] = ui().button(RIGHT_X + RIGHT_W - 93, -1000, 36).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.edit")).onClick(() -> editGroupedPool(slot)).build();
             groupPoolDeleteButtons[i] = ui().button(RIGHT_X + RIGHT_W - 53, -1000, 36).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(() -> confirmGroupedPoolDelete(slot)).build();
@@ -2210,17 +2210,18 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             }
             if (row.isPool()) {
                 groupArrowButtons[slot].setControlVisible(true);
-                groupArrowButtons[slot].moveControlY(row.y + 2);
+                // 3 px inside the pool row frame, keeping 2 px from its lines.
+                groupArrowButtons[slot].moveControlY(row.y + 3);
                 groupArrowButtons[slot].setText(KineticI18n.translatable(expandedPools.contains(row.poolIndex)
                         ? "gui.contentstudio.common.collapse_symbol"
                         : "gui.contentstudio.common.expand_symbol"));
                 groupAddButtons[slot].setControlVisible(true);
-                groupAddButtons[slot].moveControlY(row.y + 2);
+                groupAddButtons[slot].moveControlY(row.y + 3);
                 groupPoolEditButtons[slot].setControlVisible(true);
-                groupPoolEditButtons[slot].moveControlY(row.y + 2);
+                groupPoolEditButtons[slot].moveControlY(row.y + 3);
                 groupPoolDeleteButtons[slot].setControlVisible(true);
                 groupPoolDeleteButtons[slot].setEnabled(poolCountForGroupedLayout() > 0);
-                groupPoolDeleteButtons[slot].moveControlY(row.y + 2);
+                groupPoolDeleteButtons[slot].moveControlY(row.y + 3);
             } else {
                 groupEntryDeleteButtons[slot].setControlVisible(true);
                 groupEntryDeleteButtons[slot].moveControlY(row.y + 5);

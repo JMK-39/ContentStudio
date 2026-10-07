@@ -23,7 +23,9 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
         // 原 setParentScreen(新建的配置索引)：v2 容器页无法指定返回目标，返回到打开时的当前界面（见迁移报告）
         // Former setParentScreen(a fresh config index): v2 container pages cannot set a back target, so Back returns
         // to the screen current when the hub opened (see the migration report).
-        setImageSize(460, 250);
+        // As tall as its workbench buttons need: a 42 px top, rows of 38 px buttons 10 px apart, then the bottom buttons.
+        int rows = (RecipeRegistry.EditorType.values().length + 2) / 3;
+        setImageSize(460, 42 + rows * 48 - 10 + 16 + 20 + 14);
         setTitleLabelPosition(8, 10);
         setInventoryLabelPosition(8, 1000);
     }

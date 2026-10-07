@@ -1,5 +1,4 @@
-//? if >=1.21 {
-/*package dev.xyat.contentstudiovalidation;
+package dev.xyat.contentstudiovalidation;
 
 import dev.xyat.kineticcore.api.client.event.KineticClientEvents;
 import dev.xyat.kineticcore.api.client.gui.KineticGui;
@@ -27,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/^** Uses the existing client and unsaved page drafts. Never clicks or saves editor changes. *^/
+/*** Uses the existing client and unsaved page drafts. Never clicks or saves editor changes. */
 public final class GuiLongTextValidation {
     private static final Logger LOG=LoggerFactory.getLogger(GuiLongTextValidation.class);
     private static final String ROOT=System.getProperty("contentstudio.guiValidation.output","D:/IDEAWork/ContentStudio/.gradle/gui-long-text-20261004/");
@@ -101,7 +100,14 @@ public final class GuiLongTextValidation {
         screenshot=false;due=System.currentTimeMillis()+1000;
         LOG.info("CONTENT_GUI_OPEN phase={} case={} page={}",phase,NAMES[page],KineticGui.currentPage()!=null?KineticGui.currentPage().getClass().getName():String.valueOf(Minecraft.getInstance().screen));
     }
-    private static MerchantOffer offer(){return new MerchantOffer(new ItemCost(Items.EMERALD,2),new ItemStack(Items.BREAD,3),16,2,0.05F);}
+    //? if >=1.21 {
+    /*private static MerchantOffer offer(){return new MerchantOffer(new ItemCost(Items.EMERALD,2),new ItemStack(Items.BREAD,3),16,2,0.05F);}
+    private static void editItemData(boolean valid){dev.xyat.contentstudio.item.ItemData.edit("minecraft:diamond_sword",valid?"[damage=1]":"[invalid=]",value->{});}
+    *///?} else {
+    private static MerchantOffer offer(){return new MerchantOffer(new ItemStack(Items.EMERALD,2),new ItemStack(Items.BREAD,3),16,2,0.05F);}
+    // Forge edits item NBT in the same Core editor that 1.21 uses for components.
+    private static void editItemData(boolean valid){dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.openNbtEditor(valid?"{Damage:1}":"{invalid:",value->{});}
+    //?}
     private static VillagerTradeEditorPage trade(boolean level)throws Exception {
         var p=new VillagerTradeEditorPage();KineticGui.open(p);
         invoke(p,"trySelectOwnerFromText","minecraft:farmer");
@@ -173,7 +179,7 @@ public final class GuiLongTextValidation {
             }
             case 16 -> KineticGui.open((KineticPage)construct("dev.xyat.contentstudio.recipe.client.gui.RecipeTypeFilterPage",removal(),Map.of(ResourceLocation.parse("minecraft:crafting"),123L,ResourceLocation.parse("example:a_deliberately_long_type_identifier_for_scrolling"),4L),null));
             case 17 -> KineticGui.open(new RecipeTagSelectionPage(value->{}));
-            case 18,19 -> dev.xyat.contentstudio.item.ItemData.edit("minecraft:diamond_sword",index==18?"[damage=1]":"[invalid=]",value->{});
+            case 18,19 -> editItemData(index==18);
             case 20,21 -> {
                 var rule=new TooltipManager.TooltipRule();rule.text="Read-only GUI validation text";rule.mode=0;rule.line=2;
                 TooltipClientHandlers.clientData=new HashMap<>(Map.of("minecraft:diamond_sword",new ArrayList<>(List.of(rule))));
@@ -257,4 +263,3 @@ public final class GuiLongTextValidation {
         @Override public net.minecraft.util.FormattedCharSequence getVisualOrder(net.minecraft.network.chat.FormattedText text){return delegate.getVisualOrder(text);}
     }
 }
-*///?}

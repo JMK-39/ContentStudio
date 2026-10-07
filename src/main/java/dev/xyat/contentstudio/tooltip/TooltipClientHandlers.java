@@ -652,6 +652,7 @@ public class TooltipClientHandlers {
     }
 
     public static class TooltipEditPage extends KineticPage {
+        private static final int SWATCH_PITCH = 18;
         private final TooltipHubPage parent;
         private String itemId;
         private ItemStack itemStack;
@@ -757,19 +758,20 @@ public class TooltipClientHandlers {
                 widgets.add(w);
             }
 
-            int curX = backBtnX - (8 * 16) - 15;
+            // 16 px swatches 18 px apart (2 px gaps), then the reset button, which ends 4 px before Back.
+            int curX = backBtnX - (8 * SWATCH_PITCH - 2) - 4 - 15 - 4;
             // The color palette is the first control beside both item information lines.
             infoTextWidth = curX - (infoX + 30) - HEADER_GAP;
             for (int i = 0; i < COLORS.length; i++) {
                 final String c = "§" + CODES[i];
                 int col = i % 8;
                 int row = i / 8;
-                ui.colorSwatch(curX + col * 16, btnY - 2 + row * 16, COLORS[i])
+                ui.colorSwatch(curX + col * SWATCH_PITCH, btnY - 2 + row * SWATCH_PITCH, COLORS[i])
                         .tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.color.insert", c))
                         .onClick(() -> insertCode(c))
                         .build();
             }
-            ui().button(curX + 8 * 16, btnY + 4, 15).text(Component.literal("R")).tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.color.reset")).onClick(() -> insertCode("§r")).build();
+            ui().button(curX + 8 * SWATCH_PITCH - 2 + 4, btnY + 4, 15).text(Component.literal("R")).tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.color.reset")).onClick(() -> insertCode("§r")).build();
 
             updateWidgetPositions();
         }

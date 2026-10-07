@@ -30,19 +30,18 @@ import java.util.Set;
 
 public final class VillagerFollowItemEditorPage extends KineticPage {
     private static final int PANEL_X = 42;
-    private static final int PANEL_Y = 18;
     private static final int PANEL_WIDTH = 556;
-    private static final int PANEL_HEIGHT = 330;
     private static final int GRID_X = 69;
-    private static final int GRID_Y = 60;
     private static final int SLOT_SIZE = 18;
     private static final int SLOT_GAP = 1;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
     private static final int COLUMNS = 27;
-    private static final int ROWS_VISIBLE = 13;
     private static final int GRID_WIDTH = COLUMNS * CELL_SIZE - SLOT_GAP;
-    private static final int GRID_HEIGHT = ROWS_VISIBLE * CELL_SIZE - SLOT_GAP;
     private static final int SCROLL_X = GRID_X + GRID_WIDTH + 6;
+    // The grid shows the rows its items need plus one free row (4 to 13), and the panel sits in the middle of the canvas.
+    private static final int MIN_ROWS = 4;
+    private static final int MAX_ROWS = 13;
+    private int panelY, panelHeight, gridY, rowsVisible = MAX_ROWS, gridHeight;
 
     private final List<String> items = new ArrayList<>();
     private final Map<String, ItemStack> previewCache = new HashMap<>();
@@ -65,7 +64,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         }
         scroll.bindSelection(
                 () -> lastClickedIndex < items.size() ? lastClickedIndex : -1,
-                index -> index / COLUMNS - ROWS_VISIBLE / 2
+                index -> index / COLUMNS - rowsVisible / 2
         );
     }
 
@@ -75,11 +74,28 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
 
     @Override
     protected void build(KineticUi ui) {
+        rowsVisible = wantedRows();
+        gridHeight = rowsVisible * CELL_SIZE - SLOT_GAP;
+        // Title row, the grid, the buttons and their margins.
+        panelHeight = 42 + gridHeight + 10 + 20 + 12;
+        panelY = Math.max(0, (height() - panelHeight) / 2);
+        gridY = panelY + 42;
         updateScrollRange();
 
-        ui().button(70, 316, 130).text(KineticI18n.translatable("gui.kineticcore.items.list_editor.add")).onClick(this::openSelector).build();
-        ui().button(255, 316, 130).text(KineticI18n.translatable("gui.kineticcore.config.back")).onClick(this::close).build();
-        ui().button(440, 316, 130).text(KineticI18n.translatable("gui.kineticcore.hud_editor.save")).onClick(this::save).build();
+        int buttonY = gridY + gridHeight + 10;
+        ui().button(70, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.items.list_editor.add")).onClick(this::openSelector).build();
+        ui().button(255, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.config.back")).onClick(this::close).build();
+        ui().button(440, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.hud_editor.save")).onClick(this::save).build();
+    }
+
+    private int wantedRows() {
+        return Math.max(MIN_ROWS, Math.min(MAX_ROWS, totalRows() + 1));
+    }
+
+    // The window grows or shrinks when an added or removed item changes the row count.
+    private void refreshLayout() {
+        if (isAttached() && wantedRows() != rowsVisible) rebuild();
+        else updateScrollRange();
     }
 
     private void openSelector() {
@@ -101,7 +117,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         String value = id.toString();
         if (!items.contains(value)) {
             items.add(value);
-            updateScrollRange();
+            refreshLayout();
         }
     }
 
@@ -110,7 +126,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
     }
 
     private void updateScrollRange() {
-        scroll.update(totalRows(), ROWS_VISIBLE);
+        scroll.update(totalRows(), rowsVisible);
     }
 
     private int totalRows() {
@@ -123,17 +139,18 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             int mouseY,
             float partialTick
     ) {
-        KineticTheme.panel(graphics, PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT);
-        graphics.scrollingTextCentered(title(), width() / 2, 30, PANEL_WIDTH - 16, 0xFFFFAA00, true);
-        KineticTheme.panel(graphics, GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT);
+        KineticTheme.panel(graphics, PANEL_X, panelY, PANEL_WIDTH, panelHeight);
+        graphics.scrollingTextCentered(title(), width() / 2, panelY + 12, PANEL_WIDTH - 16, 0xFFFFAA00, true);
+        // The frame sits 3 px outside the slots so no slot lies on its lines.
+        KineticTheme.panel(graphics, GRID_X - 3, gridY - 3, GRID_WIDTH + 6, gridHeight + 6);
         renderItems(graphics, mouseX, mouseY);
         scroll.render(graphics,
                 mouseX,
                 mouseY,
                 SCROLL_X,
-                GRID_Y,
+                gridY,
                 4,
-                GRID_HEIGHT,
+                gridHeight,
                 18
         );
     }
@@ -145,7 +162,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             float partialTick
     ) {
         if (items.isEmpty()) {
-            graphics.scrollingTextCentered(KineticI18n.translatable("gui.kineticcore.items.list_editor.empty"), GRID_X + GRID_WIDTH / 2, GRID_Y + GRID_HEIGHT / 2 - KineticText.lineHeight() / 2, GRID_WIDTH - 8, 0xFFAAAAAA, true);
+            graphics.scrollingTextCentered(KineticI18n.translatable("gui.kineticcore.items.list_editor.empty"), GRID_X + GRID_WIDTH / 2, gridY + gridHeight / 2 - KineticText.lineHeight() / 2, GRID_WIDTH - 8, 0xFFAAAAAA, true);
         }
     }
 
@@ -154,15 +171,15 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         int baseRow = scroll.smoothIndexOffset();
         int visualShift = scroll.visualShift(CELL_SIZE);
         int first = baseRow * COLUMNS;
-        int last = Math.min(items.size(), first + (ROWS_VISIBLE + 2) * COLUMNS);
+        int last = Math.min(items.size(), first + (rowsVisible + 2) * COLUMNS);
 
-        graphics.scissor(GRID_X, GRID_Y, GRID_X + GRID_WIDTH, GRID_Y + GRID_HEIGHT);
+        graphics.scissor(GRID_X, gridY, GRID_X + GRID_WIDTH, gridY + gridHeight);
         for (int index = first; index < last; index++) {
             int visible = index - first;
             int column = visible % COLUMNS;
             int row = visible / COLUMNS;
             int x = GRID_X + column * CELL_SIZE;
-            int y = GRID_Y + row * CELL_SIZE - visualShift;
+            int y = gridY + row * CELL_SIZE - visualShift;
             boolean hovered = index == hoveredIndex;
 
             KineticTheme.itemSlot(graphics, x, y, SLOT_SIZE, 4, hovered);
@@ -196,15 +213,15 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
     }
 
     private int indexAt(double mouseX, double mouseY) {
-        if (!KineticTheme.hovering(mouseX, mouseY, GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT)) {
+        if (!KineticTheme.hovering(mouseX, mouseY, GRID_X, gridY, GRID_WIDTH, gridHeight)) {
             return -1;
         }
         int localX = (int) (mouseX - GRID_X);
         int visualShift = scroll.visualShift(CELL_SIZE);
-        int localY = (int) Math.floor(mouseY - GRID_Y + visualShift);
+        int localY = (int) Math.floor(mouseY - gridY + visualShift);
         int column = localX / CELL_SIZE;
         int row = localY / CELL_SIZE;
-        if (column >= COLUMNS || row > ROWS_VISIBLE) return -1;
+        if (column >= COLUMNS || row > rowsVisible) return -1;
         if (localX % CELL_SIZE == SLOT_SIZE || localY % CELL_SIZE == SLOT_SIZE) return -1;
         int index = (scroll.smoothIndexOffset() + row) * COLUMNS + column;
         return index >= 0 && index < items.size() ? index : -1;
@@ -220,9 +237,9 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
                 mouseY,
                 input.button(),
                 SCROLL_X,
-                GRID_Y,
+                gridY,
                 6,
-                GRID_HEIGHT,
+                gridHeight,
                 18,
                 2
         )) {
@@ -235,7 +252,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
                 items.remove(index);
                 if (lastClickedIndex == index) lastClickedIndex = -1;
                 else if (lastClickedIndex > index) lastClickedIndex--;
-                updateScrollRange();
+                refreshLayout();
                 return true;
             }
         }
@@ -249,7 +266,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
     @Override
     protected boolean onMouseDrag(MouseDragInput input) {
         double mouseY = input.y();
-        return scroll.drag(mouseY, GRID_Y, GRID_HEIGHT, 18);
+        return scroll.drag(mouseY, gridY, gridHeight, 18);
     }
 
     @Override
@@ -262,7 +279,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         double mouseX = input.x();
         double mouseY = input.y();
         double delta = input.deltaY();
-        return KineticTheme.hovering(mouseX, mouseY, GRID_X, GRID_Y, GRID_WIDTH + 12, GRID_HEIGHT)
+        return KineticTheme.hovering(mouseX, mouseY, GRID_X, gridY, GRID_WIDTH + 12, gridHeight)
                 && scroll.scroll(delta);
     }
 

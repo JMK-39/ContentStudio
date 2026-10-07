@@ -1,5 +1,19 @@
 # Changelog / 更新日志
 
+## 2026-10-06 — Windows fit their content / 窗口按内容大小显示
+
+### English
+
+- The villager lure item editor shows as many item rows as its items need plus one free row (4 to 13) and sits in the middle of the window, growing as items are added, instead of a fixed full-height grid around two or three items. The grid frame keeps 3 px clear of the slots instead of running along their edges.
+- The recipe hub is only as tall as its workbench buttons need, without the large empty area between them and the bottom buttons.
+- In the villager trade editor, the level arrows are drawn once instead of twice 1 px apart on 1.20.1 and 1.21.1, and the arrows, the Late Override switch and the item slot buttons keep 2 px from their row and panel frames and from the Clear button. In the loot editors the pool row buttons keep 2 px inside the row frame, and the tooltip editor's colour swatches are 2 px apart with the reset button clear of Back.
+
+### 简体中文
+
+- 村民引诱物品编辑器按物品数量显示所需行数并多留一行空行（4 至 13 行），位于窗口中央，添加物品时随之增长，不再是固定整高的网格里只放两三个物品。网格边框与物品格保持 3 像素，不再压在格子边缘上。
+- 配方中心的高度按工作台按钮所需决定，按钮与底部按钮之间不再留下一大片空白。
+- 村民交易编辑器中，等级箭头在 1.20.1 与 1.21.1 上只绘制一次，不再错开 1 像素重复显示；箭头、"延迟覆盖"开关与物品格按钮同行边框、面板边框以及清除按钮保持 2 像素。战利品编辑器中奖池行的按钮与行边框保持 2 像素；提示编辑器的颜色色块之间留 2 像素，重置按钮不再紧贴返回按钮。
+
 ## 2026-10-05 — Tooltip rules and match mode / 提示规则与匹配模式
 
 ### English

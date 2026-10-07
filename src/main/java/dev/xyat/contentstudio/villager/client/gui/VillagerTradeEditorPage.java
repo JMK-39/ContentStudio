@@ -51,6 +51,8 @@ public class VillagerTradeEditorPage extends KineticPage {
     private static final int TEXT_GAP = 4;
     private static final int META_FIELD_GAP = 88;
     private static final int TRADE_SLOT_PANEL_WIDTH = 78;
+    // The 36 px count field and buttons start here, keeping 2 px from the slot panel's right line.
+    private static final int SLOT_CONTROL_OFFSET = 33;
 
     private static final int MAX_UNDO_STEPS = 10;
 
@@ -385,7 +387,8 @@ public class VillagerTradeEditorPage extends KineticPage {
         int saveX = backX - gap - saveW;
         int undoX = saveX - gap - undoW;
         int previewX = undoX - gap - previewW;
-        int lateOverrideW = 80;
+        // 76 px keeps 4 px between this toggle and the search Clear button to its left.
+        int lateOverrideW = 76;
         int lateOverrideX = previewX - gap - lateOverrideW;
 
         this.lateOverrideButton = ui().toggle(lateOverrideX, topY, lateOverrideW)
@@ -500,15 +503,15 @@ public class VillagerTradeEditorPage extends KineticPage {
         int bX = contentX + 112;
         int sellX = contentX + 270;
 
-        buyACountBox = addSmallNumberBox(contentX + 34, previewY + 18, buyACount, "gui.contentstudio.villager.villager.trade.count.buy_a.tooltip", 1);
-        addNbtButton(0, contentX + 34, previewY + 40);
-        addClearSlotButton(0, contentX + 34, previewY + 61);
-        buyBCountBox = addSmallNumberBox(bX + 34, previewY + 18, buyBCount, "gui.contentstudio.villager.villager.trade.count.buy_b.tooltip", 0);
-        addNbtButton(1, bX + 34, previewY + 40);
-        addClearSlotButton(1, bX + 34, previewY + 61);
-        sellCountBox = addSmallNumberBox(sellX + 34, previewY + 18, sellCount, "gui.contentstudio.villager.villager.trade.count.sell.tooltip", 1);
-        addNbtButton(2, sellX + 34, previewY + 40);
-        addClearSlotButton(2, sellX + 34, previewY + 61);
+        buyACountBox = addSmallNumberBox(contentX + SLOT_CONTROL_OFFSET, previewY + 18, buyACount, "gui.contentstudio.villager.villager.trade.count.buy_a.tooltip", 1);
+        addNbtButton(0, contentX + SLOT_CONTROL_OFFSET, previewY + 40);
+        addClearSlotButton(0, contentX + SLOT_CONTROL_OFFSET, previewY + 61);
+        buyBCountBox = addSmallNumberBox(bX + SLOT_CONTROL_OFFSET, previewY + 18, buyBCount, "gui.contentstudio.villager.villager.trade.count.buy_b.tooltip", 0);
+        addNbtButton(1, bX + SLOT_CONTROL_OFFSET, previewY + 40);
+        addClearSlotButton(1, bX + SLOT_CONTROL_OFFSET, previewY + 61);
+        sellCountBox = addSmallNumberBox(sellX + SLOT_CONTROL_OFFSET, previewY + 18, sellCount, "gui.contentstudio.villager.villager.trade.count.sell.tooltip", 1);
+        addNbtButton(2, sellX + SLOT_CONTROL_OFFSET, previewY + 40);
+        addClearSlotButton(2, sellX + SLOT_CONTROL_OFFSET, previewY + 61);
 
         int metaX = rightX + 14;
         int metaY = rightY + 196;
@@ -780,7 +783,8 @@ public class VillagerTradeEditorPage extends KineticPage {
                 if (index >= 0 && index < levelExpandButtons.size()) {
                     KineticButton button = levelExpandButtons.get(index);
                     button.moveControlX(listX + 8);
-                    button.moveControlY(y + 4);
+                    // 3 px inside the 22 px row frame, 2 px clear of its lines.
+                    button.moveControlY(y + 3);
                     button.setText(levelExpandText(entry.level()));
                     button.setControlVisible(true);
                     button.setEnabled(true);
@@ -828,11 +832,14 @@ public class VillagerTradeEditorPage extends KineticPage {
             int rightWidth = rightTextEnd - leftTextX - minGap - leftWidth;
             g.scrollingText(left, leftTextX, y + 7, leftWidth, 0xFFFFFF55, false);
             g.scrollingTextRight(right, rightTextEnd, y + 7, rightWidth, 0xFFFFFFFF, false);
-            // The row surface covers the expand button, so the row draws its arrow; the button only takes the click.
+            //? if >=26.1 {
+            /*// On 26.1 the row surface covers the expand button, so the row draws its arrow; the button only takes the
+            // click. Earlier versions show the button label, so drawing it here too would double the arrow.
             if (!isTradeSearching()) {
                 g.scrollingTextCentered(levelExpandText(entry.level()), listX + 8 + LEVEL_BUTTON_SIZE / 2, y + 7,
                         LEVEL_BUTTON_SIZE - 4, 0xFFFFFFFF, true);
             }
+            *///?}
             return;
         }
 
