@@ -298,25 +298,25 @@ if (pMinecraft.startsWith('26.')) {
     tasks.named('test').configure { enabled = false }
 }
 
-// Forge 1.20.1: the GUI capture fixture as a reobfuscated mod, for running inside an installed modpack.
-if (project.property('loader') == 'forge') {
+// Opt-in GUI fixture for the existing installed profiles; never part of a release JAR.
+if (pLoader in ['forge', 'neoforge']) {
     def captureMetadata = layout.buildDirectory.dir('gui-capture-validation')
     def writeCaptureMetadata = tasks.register('writeGuiCaptureValidationMetadata') {
         outputs.dir captureMetadata
         doLast {
-            File target = new File(captureMetadata.get().asFile, 'META-INF/mods.toml')
+            File target = new File(captureMetadata.get().asFile, pLoader == 'forge' ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml')
             target.parentFile.mkdirs()
             target.setText('modLoader="javafml"\nloaderVersion="[1,)"\nlicense="LGPLv3"\n[[mods]]\nmodId="contentstudio_gui_capture"\nversion="1.0.0"\ndisplayName="ContentStudio GUI capture"\n', 'UTF-8')
-            new File(captureMetadata.get().asFile, 'pack.mcmeta').setText('{"pack":{"description":"Opt-in GUI capture fixture","pack_format":15}}', 'UTF-8')
+            if (pLoader == 'forge') new File(captureMetadata.get().asFile, 'pack.mcmeta').setText('{"pack":{"description":"Opt-in GUI capture fixture","pack_format":15}}', 'UTF-8')
         }
     }
     def captureJar = tasks.register('guiCaptureValidationJar', Jar) {
         dependsOn 'testClasses', writeCaptureMetadata
-        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class' }
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class' }
         from captureMetadata
         archiveFileName = 'contentstudio-gui-capture.jar'
     }
-    afterEvaluate {
+    if (pLoader == 'forge') afterEvaluate {
         def shipped = tasks.named('reobfJar').get()
         tasks.register('reobfGuiCaptureValidationJar', shipped.getClass().superclass) {
             dependsOn captureJar
