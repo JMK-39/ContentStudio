@@ -202,7 +202,8 @@ public final class GuiLongTextValidation {
                 for (int i = 0; i < 90; i++) {
                     var record = new dev.xyat.contentstudio.recipe.RecipeRecord();
                     record.editorType = "CRAFTING";
-                    record.output = new ItemStack(i % 2 == 0 ? Items.EMERALD : Items.DIAMOND_SWORD, i % 2 == 0 ? 64 : 1);
+                    int count = new int[]{2, 16, 64, 128}[(i / 2) % 4];
+                    record.output = new ItemStack(i % 2 == 0 ? Items.EMERALD : Items.DIAMOND_SWORD, i % 2 == 0 ? count : 1);
                     record.invalidConfig = i % 7 == 0;
                     records.add(record);
                 }

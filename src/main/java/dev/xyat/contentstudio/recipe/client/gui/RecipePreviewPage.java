@@ -35,7 +35,9 @@ public class RecipePreviewPage extends KineticPage {
     private static final int SLOT_GAP = 2;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
     private static final float ITEM_SCALE = 1.0F;
-    private static final int COUNT_COLOR = 0xFF55FF55;
+    private static final int COUNT_COLOR = 0xFFFFFFFF;
+    // One pixel of frame plus two pixels of clearance for the count and its shadow.
+    private static final int COUNT_INSET = 3;
     private static final int SCISSOR_MARGIN = 2;
 
     // 原 parent != null：打开时是否存在父界面 / Former parent != null: whether a parent screen existed when opened.
@@ -460,7 +462,7 @@ public class RecipePreviewPage extends KineticPage {
                     false
             );
 
-            renderGreenCount(
+            renderStackCount(
                     graphics,
                     record.output,
                     x,
@@ -578,7 +580,7 @@ public class RecipePreviewPage extends KineticPage {
         return left.uuid != null && left.uuid.equals(right.uuid);
     }
 
-    private void renderGreenCount(
+    private void renderStackCount(
             KineticGraphics graphics,
             net.minecraft.world.item.ItemStack stack,
             int x,
@@ -589,8 +591,15 @@ public class RecipePreviewPage extends KineticPage {
         }
 
         String countText = String.valueOf(stack.getCount());
-        graphics.scrollingTextRight(Component.literal(countText), x + SLOT_SIZE - 4,
-                y + SLOT_SIZE - KineticText.lineHeight() - 4, SLOT_SIZE - 8, COUNT_COLOR, true);
+        int textWidth = KineticText.width(countText);
+        float scale = Math.min(1.0F, (SLOT_SIZE - COUNT_INSET * 2.0F) / (textWidth + 1));
+        graphics.push();
+        graphics.raise(1);
+        graphics.translate(x + SLOT_SIZE - COUNT_INSET - textWidth * scale,
+                y + SLOT_SIZE - 2 - KineticText.lineHeight() * scale);
+        graphics.scale(scale, scale);
+        graphics.text(countText, 0, 0, COUNT_COLOR, true);
+        graphics.pop();
     }
 
     private int recordIndexAt(double mouseX, double mouseY) {

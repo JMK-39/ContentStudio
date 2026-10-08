@@ -6,11 +6,13 @@
 
 - Vanilla workstation screens and JEI recipe layouts retain their original backgrounds, slots and item positions. The custom recipe browser keeps KineticCore's checkerboard item slots; recipe removal previews use native slot textures.
 - Keep item icons inside their frames and separate neighboring loot and custom recipe-list slots. Small icons in custom editors retain clear item backgrounds.
+- Recipe browser stack counts appear in the bottom-right corner in white with a dark shadow, making them easier to read over item icons.
 
 ### 简体中文
 
 - 原版工作台和 JEI 配方界面保留原有背景、槽位与物品位置；自绘配方浏览列表保留 KineticCore 的棋盘格物品背景，配方移除预览使用原版槽位贴图。
 - 物品图标与边框保留间距，战利品和自绘配方列表的相邻格子不再紧贴；自绘编辑器中的小图标也有清晰的物品背景。
+- 配方浏览列表的物品数量显示在右下角，使用白字与深色阴影，便于在物品图标上辨认。
 
 ## 2026-10-08 — Recipe removal list spacing / 配方移除列表间距
 
