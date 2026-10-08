@@ -5,6 +5,7 @@
 Content Studio gives pack authors and server administrators in-game editors for recipes, loot tables, villager trades, and item tooltips.
 
 - Recipe creation, removal rules, previews, and an impact list.
+- Search mod/workstation entries and edit clickable native recipe previews without requiring JEI, preserving custom fields.
 - Entity, block, and container loot; villager and wandering-trader offers.
 - Trade-source selection, validation and resumable editing drafts.
 - Searchable item selection, version-specific item data, and native client tooltips.
@@ -13,13 +14,14 @@ Supports Minecraft **1.20.1 / Forge 47.4.2+** with **Java 17**, and **1.21.1 / N
 
 Optional: **JEI 15.20+ on Forge, JEI 19+ on NeoForge 1.21.1, JEI 29+ on 26.1.2**, EMI, and REI. Tooltips need no KubeJS. Press **F6** to open KineticCore's configuration center; editing requires server permission level **2**. Forge item data uses `{...}` NBT; NeoForge uses native `[...]` components without an old item-NBT converter.
 
-See the [English Wiki tutorial](https://github.com/JMK-39/ContentStudio/wiki/Tutorial) for detailed instructions (pages prepared locally; publication pending).
+See the [English Wiki tutorial](https://github.com/JMK-39/ContentStudio/wiki/Tutorial) for detailed instructions.
 
 ## 简体中文
 
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
 
 - 配方创建、移除规则、预览与影响列表。
+- 按模组与工作台搜索入口，直接编辑独立配方预览，无需 JEI，并保留专有字段。
 - 实体、方块和容器战利品，以及村民和流浪商人交易。
 - 交易来源选择、校验与可恢复的编辑草稿。
 - 可搜索物品选择、分版本物品数据与原生客户端提示。
@@ -28,7 +30,7 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 
 可选：**Forge 使用 JEI 15.20+，NeoForge 1.21.1 使用 JEI 19+，26.1.2 使用 JEI 29+**，以及 EMI、REI。物品提示无需 KubeJS。按 **F6** 打开 KineticCore 配置中心；编辑需要服务端 **2 级权限**。Forge 物品数据使用 `{...}` NBT，NeoForge 使用原生 `[...]` 组件，不提供旧物品 NBT 转换器。
 
-详细用法见[中文 Wiki 教程](https://github.com/JMK-39/ContentStudio/wiki/使用教程)（页面已在本地整理，待上线）。
+详细用法见[中文 Wiki 教程](https://github.com/JMK-39/ContentStudio/wiki/使用教程)。
 
 [GitHub project / 项目仓库](https://github.com/JMK-39/ContentStudio) · [CurseForge](https://www.curseforge.com/minecraft/mc-mods/contentstudio)
 

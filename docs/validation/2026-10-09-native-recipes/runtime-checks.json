@@ -1,0 +1,118 @@
+[
+    {
+        "node":  "forge",
+        "pass":  173,
+        "unverified":  23,
+        "failed":  0,
+        "markers":  [
+                        {
+                            "log":  "045839-stdout.log",
+                            "line":  "[02:57:39] [Render thread/INFO] [de.xy.co.NativeRecipeValidation/]: CONTENT_NATIVE_PASS stages=14 thirdParty=true recipe=farmersdelight:cutting/acacia_log"
+                        },
+                        {
+                            "log":  "045839-stdout.log",
+                            "line":  "[02:59:10] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=7 captures=42 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "055618-stdout.log",
+                            "line":  "[05:42:02] [Render thread/INFO] [de.xy.co.NativeRecipeValidation/]: CONTENT_NATIVE_PASS stages=15 thirdParty=true recipe=farmersdelight:cutting/acacia_log"
+                        },
+                        {
+                            "log":  "055618-stdout.log",
+                            "line":  "[05:46:00] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=32 captures=128 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "060852-stdout.log",
+                            "line":  "[05:57:08] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS fluid=true chemicalPresent=true"
+                        },
+                        {
+                            "log":  "060852-stdout.log",
+                            "line":  "[05:58:07] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=5 captures=20 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "stdout.log",
+                            "line":  "[06:09:42] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS water=true lava=true chemicalPresent=true"
+                        },
+                        {
+                            "log":  "stdout.log",
+                            "line":  "[06:10:34] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=4 captures=16 failures=0 userSettingsRestored=true"
+                        }
+                    ]
+    },
+    {
+        "node":  "neo21",
+        "pass":  200,
+        "unverified":  30,
+        "failed":  0,
+        "markers":  [
+                        {
+                            "log":  "055850-stdout.log",
+                            "line":  "[05:47:24] [Render thread/INFO] [de.xy.co.NativeRecipeValidation/]: CONTENT_NATIVE_PASS stages=15 thirdParty=true recipe=farmersdelight:cutting/acacia_log"
+                        },
+                        {
+                            "log":  "055850-stdout.log",
+                            "line":  "[05:51:28] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=33 captures=132 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "061052-stdout.log",
+                            "line":  "[05:59:28] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS fluid=true chemicalPresent=true"
+                        },
+                        {
+                            "log":  "061052-stdout.log",
+                            "line":  "[06:00:30] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=5 captures=20 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "stdout.log",
+                            "line":  "[06:11:30] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS water=true lava=true chemicalPresent=true"
+                        },
+                        {
+                            "log":  "stdout.log",
+                            "line":  "[06:12:26] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=4 captures=16 failures=0 userSettingsRestored=true"
+                        }
+                    ]
+    },
+    {
+        "node":  "neo26",
+        "pass":  45,
+        "unverified":  6,
+        "failed":  0,
+        "markers":  [
+                        {
+                            "log":  "055254-stdout.log",
+                            "line":  "[05:38:52] [Render thread/INFO] [de.xy.co.NativeRecipeValidation/]: CONTENT_NATIVE_PASS stages=15 thirdParty=false recipe=minecraft:stick"
+                        },
+                        {
+                            "log":  "055254-stdout.log",
+                            "line":  "[05:40:16] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=11 captures=44 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "060219-stdout.log",
+                            "line":  "[05:56:03] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=11 captures=44 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "060705-stdout.log",
+                            "line":  "[06:05:56] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS fluid=true chemicalPresent=false"
+                        },
+                        {
+                            "log":  "060705-stdout.log",
+                            "line":  "[06:06:35] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=4 captures=16 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "061321-stdout.log",
+                            "line":  "[06:08:00] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS water=true lava=true chemicalPresent=false"
+                        },
+                        {
+                            "log":  "061321-stdout.log",
+                            "line":  "[06:08:39] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=4 captures=16 failures=0 userSettingsRestored=true"
+                        },
+                        {
+                            "log":  "stdout.log",
+                            "line":  "[06:14:14] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_NATIVE_SPRITES_PASS water=true lava=true chemicalPresent=false"
+                        },
+                        {
+                            "log":  "stdout.log",
+                            "line":  "[06:14:53] [Render thread/INFO] [de.xy.co.GuiLongTextValidation/]: CONTENT_GUI_PASS pages=4 captures=16 failures=0 userSettingsRestored=true"
+                        }
+                    ]
+    }
+]

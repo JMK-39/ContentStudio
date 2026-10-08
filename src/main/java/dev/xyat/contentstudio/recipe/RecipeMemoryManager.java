@@ -73,6 +73,7 @@ public final class RecipeMemoryManager {
     private static final Map<RecipeManager, ICondition.IContext> RELOAD_CONDITIONS = new java.util.WeakHashMap<>();
     // The recipe manager reading datapack recipes on this thread; its recipe JSON arrives in ModifyRecipeJsonsEvent.
     private static final ThreadLocal<RecipeScan> SCAN = new ThreadLocal<>();
+    private static final Map<RecipeManager, ConditionalOps<JsonElement>> NATIVE_OPS = new java.util.WeakHashMap<>();
     private static long nextCatalogVersion;
     private static boolean registered;
 
@@ -100,6 +101,16 @@ public final class RecipeMemoryManager {
                 .toList();
     }
 
+    public static synchronized RecipeHolder<?> decodeNative(RecipeManager manager, ResourceLocation id, JsonObject json) {
+        var ops = NATIVE_OPS.get(manager);
+        if (ops == null) throw new IllegalArgumentException("Recipe registry is not ready");
+        var parsed = Recipe.CONDITIONAL_CODEC.parse(ops, json).getOrThrow();
+        if (parsed.isEmpty()) throw new IllegalArgumentException("Recipe conditions are inactive");
+        return new RecipeHolder<>(ResourceKey.create(Registries.RECIPE, id), parsed.get().carrier());
+    }
+    public static boolean containsRuntimeRecipe(RecipeManager manager, ResourceLocation id) {
+        return manager.getRecipes().stream().anyMatch(recipe -> recipe.id().identifier().equals(id));
+    }
     private RecipeMemoryManager() {
     }
 
@@ -148,7 +159,7 @@ public final class RecipeMemoryManager {
 
     private static void applySnapshot(
             RecipeManager recipeManager,
-            RecipeConfigStore.Snapshot snapshot
+            RecipeConfigStore.Snapshot snapshot, ResourceManager resources
     ) {
         HolderLookup.Provider registries;
         synchronized (RecipeMemoryManager.class) {
@@ -172,6 +183,21 @@ public final class RecipeMemoryManager {
             }
         }
 
+        try {
+            var overrides = dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.load(resources);
+            for (var entry : overrides.entrySet()) {
+                try {
+                    var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
+                    configuredRecipes.put(recipe.id(), recipe);
+                    added++;
+                } catch (Exception e) {
+                    skippedConfigured++;
+                    LOGGER.warn("Skipping invalid native recipe {}: {}", entry.getKey(), safeMessage(e));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
+        }
         Map<ResourceKey<Recipe<?>>, RecipeHolder<?>> recipes = new LinkedHashMap<>();
         int skippedBaseline = 0;
 
@@ -215,6 +241,7 @@ public final class RecipeMemoryManager {
         synchronized (RecipeMemoryManager.class) {
             RELOAD_REGISTRIES.put(manager, registries);
             RELOAD_CONDITIONS.put(manager, conditionContext);
+            NATIVE_OPS.put(manager, conditions);
         }
         final RecipeConfigStore.Snapshot snapshot;
         try {
@@ -368,7 +395,7 @@ public final class RecipeMemoryManager {
                     conditions = RELOAD_CONDITIONS.get(recipeManager);
                 }
                 RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager, registries, conditions);
-                applySnapshot(recipeManager, snapshot);
+                applySnapshot(recipeManager, snapshot, resourceManager);
             } catch (Exception e) {
                 LOGGER.error(
                         "Failed to load RecipeModule datapack resource {}; keeping recipes loaded by Minecraft unchanged",
@@ -612,6 +639,7 @@ public final class RecipeMemoryManager {
     private static final Map<RecipeManager, HolderLookup.Provider> RELOAD_REGISTRIES = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, Long> CATALOG_VERSIONS = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, ICondition.IContext> RELOAD_CONDITIONS = new java.util.WeakHashMap<>();
+    private static final Map<RecipeManager, ConditionalOps<JsonElement>> NATIVE_OPS = new java.util.WeakHashMap<>();
     private static long nextCatalogVersion;
     private static boolean registered;
 
@@ -630,6 +658,16 @@ public final class RecipeMemoryManager {
                 .toList();
     }
 
+    public static synchronized RecipeHolder<?> decodeNative(RecipeManager manager, ResourceLocation id, JsonObject json) {
+        var ops = NATIVE_OPS.get(manager);
+        if (ops == null) throw new IllegalArgumentException("Recipe registry is not ready");
+        var parsed = Recipe.CONDITIONAL_CODEC.parse(ops, json).getOrThrow();
+        if (parsed.isEmpty()) throw new IllegalArgumentException("Recipe conditions are inactive");
+        return new RecipeHolder<>(id, parsed.get().carrier());
+    }
+    public static boolean containsRuntimeRecipe(RecipeManager manager, ResourceLocation id) {
+        return manager.getRecipes().stream().anyMatch(recipe -> recipe.id().equals(id));
+    }
     private RecipeMemoryManager() {
     }
 
@@ -658,7 +696,7 @@ public final class RecipeMemoryManager {
 
     private static void applySnapshot(
             RecipeManager recipeManager,
-            RecipeConfigStore.Snapshot snapshot
+            RecipeConfigStore.Snapshot snapshot, ResourceManager resources
     ) {
         Map<ResourceLocation, RecipeHolder<?>> configuredRecipes = new LinkedHashMap<>();
         int added = 0;
@@ -678,6 +716,21 @@ public final class RecipeMemoryManager {
             }
         }
 
+        try {
+            var overrides = dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.load(resources);
+            for (var entry : overrides.entrySet()) {
+                try {
+                    var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
+                    configuredRecipes.put(recipe.id(), recipe);
+                    added++;
+                } catch (Exception e) {
+                    skippedConfigured++;
+                    LOGGER.warn("Skipping invalid native recipe {}: {}", entry.getKey(), safeMessage(e));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
+        }
         Map<ResourceLocation, RecipeHolder<?>> recipes = new LinkedHashMap<>();
         int skippedBaseline = 0;
 
@@ -721,6 +774,7 @@ public final class RecipeMemoryManager {
         synchronized (RecipeMemoryManager.class) {
             RELOAD_REGISTRIES.put(manager, registries);
             RELOAD_CONDITIONS.put(manager, conditionContext);
+            NATIVE_OPS.put(manager, conditions);
         }
         final RecipeConfigStore.Snapshot snapshot;
         try {
@@ -835,7 +889,7 @@ public final class RecipeMemoryManager {
                     conditions = RELOAD_CONDITIONS.get(recipeManager);
                 }
                 RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager, registries, conditions);
-                applySnapshot(recipeManager, snapshot);
+                applySnapshot(recipeManager, snapshot, resourceManager);
             } catch (Exception e) {
                 LOGGER.error(
                         "Failed to load RecipeModule datapack resource {}; keeping recipes loaded by Minecraft unchanged",
@@ -1057,6 +1111,7 @@ public final class RecipeMemoryManager {
     private static final Map<RecipeManager, OriginalRecipeCatalog> CATALOGS = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, RegistryAccess> RELOAD_REGISTRIES = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, Long> CATALOG_VERSIONS = new java.util.WeakHashMap<>();
+    private static final Map<RecipeManager, ICondition.IContext> NATIVE_OPS = new java.util.WeakHashMap<>();
     private static long nextCatalogVersion;
     private static boolean registered;
 
@@ -1075,6 +1130,21 @@ public final class RecipeMemoryManager {
                 .toList();
     }
 
+    public static synchronized Recipe<?> decodeNative(RecipeManager manager, ResourceLocation id, JsonObject json) {
+        var conditions = NATIVE_OPS.get(manager);
+        if (conditions == null) throw new IllegalArgumentException("Recipe registry is not ready");
+        if (!CraftingHelper.processConditions(json, "conditions", conditions))
+            throw new IllegalArgumentException("Recipe conditions are inactive");
+        var recipe = RecipeManager.fromJson(id, json, conditions);
+        // Some legacy serializers derive their ID from editable fields instead of honoring the supplied ID.
+        // Reject that draft before persistence: replacing it by the derived ID could overwrite another recipe.
+        if (!recipe.getId().equals(id)) throw new IllegalArgumentException("DERIVED_ID:" + recipe.getId());
+        dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeCompat.initialize(recipe);
+        return recipe;
+    }
+    public static boolean containsRuntimeRecipe(RecipeManager manager, ResourceLocation id) {
+        return manager.getRecipes().stream().anyMatch(recipe -> recipe.getId().equals(id));
+    }
     private RecipeMemoryManager() {
     }
 
@@ -1103,7 +1173,7 @@ public final class RecipeMemoryManager {
 
     private static void applySnapshot(
             RecipeManager recipeManager,
-            RecipeConfigStore.Snapshot snapshot
+            RecipeConfigStore.Snapshot snapshot, ResourceManager resources
     ) {
         Map<ResourceLocation, Recipe<?>> configuredRecipes = new LinkedHashMap<>();
         int added = 0;
@@ -1123,6 +1193,21 @@ public final class RecipeMemoryManager {
             }
         }
 
+        try {
+            var overrides = dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.load(resources);
+            for (var entry : overrides.entrySet()) {
+                try {
+                    var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
+                    configuredRecipes.put(recipe.getId(), recipe);
+                    added++;
+                } catch (Exception e) {
+                    skippedConfigured++;
+                    LOGGER.warn("Skipping invalid native recipe {}: {}", entry.getKey(), safeMessage(e));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
+        }
         Map<ResourceLocation, Recipe<?>> recipes = new LinkedHashMap<>();
         int skippedBaseline = 0;
 
@@ -1160,6 +1245,7 @@ public final class RecipeMemoryManager {
                                            Map<ResourceLocation, JsonElement> source,
                                            ResourceManager resources,
                                            ICondition.IContext conditions) {
+        synchronized (RecipeMemoryManager.class) { NATIVE_OPS.put(manager, conditions); }
         final RecipeConfigStore.Snapshot snapshot;
         try {
             snapshot = RecipeConfigStore.load(resources);
@@ -1255,7 +1341,7 @@ public final class RecipeMemoryManager {
         public void onResourceManagerReload(@Nonnull ResourceManager resourceManager) {
             try {
                 RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager);
-                applySnapshot(recipeManager, snapshot);
+                applySnapshot(recipeManager, snapshot, resourceManager);
             } catch (Exception e) {
                 LOGGER.error(
                         "Failed to load RecipeModule datapack resource {}; keeping recipes loaded by Minecraft unchanged",

@@ -22,6 +22,7 @@ public final class RecipeModule {
         RecipeRegistry.register();
         RecipeMemoryManager.register();
         RecipeNetwork.register();
+        dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeNetwork.register();
         KineticPlatform.runOnClient(() -> () -> {
             RecipeEditorSetup.register();
             RecipeConfigGui.load();

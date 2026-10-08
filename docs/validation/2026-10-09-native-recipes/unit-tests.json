@@ -1,0 +1,254 @@
+[
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocumentTest",
+        "tests":  8,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeLayoutTest",
+        "tests":  14,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStoreTest",
+        "tests":  2,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.OriginalRecipeFilterTest",
+        "tests":  4,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RecipeViewerCategoryFilterTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalDisplayStateTest",
+        "tests":  5,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalImpactFlowTest",
+        "tests":  5,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalRuleEvaluatorTest",
+        "tests":  4,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalRulePrunerTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalRuleValidatorTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalSaveTransferTest",
+        "tests":  6,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RuleImpactDraftTest",
+        "tests":  6,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.SimpleRemovalActionsTest",
+        "tests":  2,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.recipe.RemovalConfigCompatibilityTest",
+        "tests":  3,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.villager.VillagerTradeSourceModeTest",
+        "tests":  2,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.20.1-forge",
+        "suite":  "dev.xyat.contentstudio.villager.VillagerTradeValidationTest",
+        "tests":  9,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.loot.client.gui.LootJsonComponentsTest",
+        "tests":  4,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.loot.GlobalRemoveRuleComponentsTest",
+        "tests":  4,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.ComponentRecipeMigrationTest",
+        "tests":  11,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocumentTest",
+        "tests":  8,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeLayoutTest",
+        "tests":  14,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStoreTest",
+        "tests":  2,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.OriginalRecipeFilterTest",
+        "tests":  4,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RecipeViewerCategoryFilterTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalDisplayStateTest",
+        "tests":  5,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalImpactFlowTest",
+        "tests":  5,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalRuleEvaluatorTest",
+        "tests":  4,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalRulePrunerTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalRuleValidatorTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RemovalSaveTransferTest",
+        "tests":  6,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.RuleImpactDraftTest",
+        "tests":  6,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.removal.SimpleRemovalActionsTest",
+        "tests":  2,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.recipe.RemovalConfigCompatibilityTest",
+        "tests":  3,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.villager.TradeOfferComponentsTest",
+        "tests":  1,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.villager.VillagerTradeSourceModeTest",
+        "tests":  2,
+        "failures":  0,
+        "errors":  0
+    },
+    {
+        "node":  "1.21.1-neoforge",
+        "suite":  "dev.xyat.contentstudio.villager.VillagerTradeValidationTest",
+        "tests":  9,
+        "failures":  0,
+        "errors":  0
+    }
+]

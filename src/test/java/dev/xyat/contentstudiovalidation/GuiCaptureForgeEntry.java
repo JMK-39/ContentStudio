@@ -5,7 +5,11 @@ package dev.xyat.contentstudiovalidation;
 @net.minecraftforge.fml.common.Mod("contentstudio_gui_capture")
 public final class GuiCaptureForgeEntry {
     public GuiCaptureForgeEntry() {
-        if (Boolean.getBoolean("contentstudio.guiValidation")) {
+        if (Boolean.getBoolean("contentstudio.nativeRecipeMatrix")) {
+            dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> NativeRecipeMatrixValidation::install);
+        } else if (Boolean.getBoolean("contentstudio.nativeRecipeValidation")) {
+            dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> NativeRecipeValidation::install);
+        } else if (Boolean.getBoolean("contentstudio.guiValidation")) {
             dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> GuiLongTextValidation::install);
         }
     }

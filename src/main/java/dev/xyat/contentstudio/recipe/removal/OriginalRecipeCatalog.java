@@ -39,14 +39,26 @@ public final class OriginalRecipeCatalog {
     }
 
     private final Map<ResourceLocation, Entry> entries;
+    private final Map<ResourceLocation, JsonElement> sources;
+    private final java.util.Set<ResourceLocation> originalIds;
 
-    private OriginalRecipeCatalog(Map<ResourceLocation, Entry> entries) {
+    private OriginalRecipeCatalog(Map<ResourceLocation, Entry> entries, Map<ResourceLocation, JsonElement> sources, java.util.Set<ResourceLocation> originalIds) {
+        this.originalIds = java.util.Set.copyOf(originalIds);
+        this.sources = Map.copyOf(sources);
         this.entries = Map.copyOf(entries);
     }
 
     public static OriginalRecipeCatalog empty() {
-        return new OriginalRecipeCatalog(Map.of());
+        return new OriginalRecipeCatalog(Map.of(), Map.of(), java.util.Set.of());
     }
+
+    public Map<ResourceLocation, JsonElement> sources() {
+        Map<ResourceLocation, JsonElement> copy = new LinkedHashMap<>();
+        sources.forEach((id, json) -> copy.put(id, json.deepCopy()));
+        return copy;
+    }
+
+    public java.util.Set<ResourceLocation> originalIds() { return originalIds; }
 
     public Map<ResourceLocation, Entry> entries() {
         return entries;
@@ -55,20 +67,23 @@ public final class OriginalRecipeCatalog {
     /^** Inspect first and mutate only after a complete snapshot has been evaluated. *^/
     public static OriginalRecipeCatalog filter(Map<ResourceLocation, JsonElement> source,
                                                List<RemovalEntry> rules, Inspector inspector) {
+        var originalIds = java.util.Set.copyOf(source.keySet());
         Map<ResourceLocation, Entry> catalog = new LinkedHashMap<>();
+        Map<ResourceLocation, JsonElement> originals = new LinkedHashMap<>();
         for (var sourceEntry : source.entrySet()) {
             ResourceLocation id = sourceEntry.getKey();
             if (id.getPath().startsWith("_")) continue;
-            Optional<InspectedRecipe> inspected = inspector.inspect(id, sourceEntry.getValue());
+            Optional<InspectedRecipe> inspected = inspector.inspect(id, sourceEntry.getValue().deepCopy());
             if (inspected.isEmpty()) continue;
             InspectedRecipe value = inspected.get();
             List<RemovalEntry> blocking = RemovalRuleEvaluator.blockingRules(value.candidate(), rules);
             catalog.put(id, new Entry(value.candidate(), value.recipe(), blocking));
+            if (value.recipe().isPresent()) originals.put(id, sourceEntry.getValue().deepCopy());
         }
         catalog.forEach((id, entry) -> {
             if (entry.removed()) source.remove(id);
         });
-        return new OriginalRecipeCatalog(catalog);
+        return new OriginalRecipeCatalog(catalog, originals, originalIds);
     }
 }
 
@@ -111,14 +126,26 @@ public final class OriginalRecipeCatalog {
     }
 
     private final Map<ResourceLocation, Entry> entries;
+    private final Map<ResourceLocation, JsonElement> sources;
+    private final java.util.Set<ResourceLocation> originalIds;
 
-    private OriginalRecipeCatalog(Map<ResourceLocation, Entry> entries) {
+    private OriginalRecipeCatalog(Map<ResourceLocation, Entry> entries, Map<ResourceLocation, JsonElement> sources, java.util.Set<ResourceLocation> originalIds) {
+        this.originalIds = java.util.Set.copyOf(originalIds);
+        this.sources = Map.copyOf(sources);
         this.entries = Map.copyOf(entries);
     }
 
     public static OriginalRecipeCatalog empty() {
-        return new OriginalRecipeCatalog(Map.of());
+        return new OriginalRecipeCatalog(Map.of(), Map.of(), java.util.Set.of());
     }
+
+    public Map<ResourceLocation, JsonElement> sources() {
+        Map<ResourceLocation, JsonElement> copy = new LinkedHashMap<>();
+        sources.forEach((id, json) -> copy.put(id, json.deepCopy()));
+        return copy;
+    }
+
+    public java.util.Set<ResourceLocation> originalIds() { return originalIds; }
 
     public Map<ResourceLocation, Entry> entries() {
         return entries;
@@ -127,20 +154,23 @@ public final class OriginalRecipeCatalog {
     /** Inspect first and mutate only after a complete snapshot has been evaluated. */
     public static OriginalRecipeCatalog filter(Map<ResourceLocation, JsonElement> source,
                                                List<RemovalEntry> rules, Inspector inspector) {
+        var originalIds = java.util.Set.copyOf(source.keySet());
         Map<ResourceLocation, Entry> catalog = new LinkedHashMap<>();
+        Map<ResourceLocation, JsonElement> originals = new LinkedHashMap<>();
         for (var sourceEntry : source.entrySet()) {
             ResourceLocation id = sourceEntry.getKey();
             if (id.getPath().startsWith("_")) continue;
-            Optional<InspectedRecipe> inspected = inspector.inspect(id, sourceEntry.getValue());
+            Optional<InspectedRecipe> inspected = inspector.inspect(id, sourceEntry.getValue().deepCopy());
             if (inspected.isEmpty()) continue;
             InspectedRecipe value = inspected.get();
             List<RemovalEntry> blocking = RemovalRuleEvaluator.blockingRules(value.candidate(), rules);
             catalog.put(id, new Entry(value.candidate(), value.recipe(), blocking));
+            if (value.recipe().isPresent()) originals.put(id, sourceEntry.getValue().deepCopy());
         }
         catalog.forEach((id, entry) -> {
             if (entry.removed()) source.remove(id);
         });
-        return new OriginalRecipeCatalog(catalog);
+        return new OriginalRecipeCatalog(catalog, originals, originalIds);
     }
 }
 

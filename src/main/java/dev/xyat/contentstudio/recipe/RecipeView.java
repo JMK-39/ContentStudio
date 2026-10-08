@@ -30,6 +30,21 @@ public final class RecipeView {
         return display == null ? ItemStack.EMPTY : display.result().resolveForFirstStack(context(registries));
     }
 
+    /^** Runtime save validation: template codecs can accept counts that cannot produce a legal stack. ^/
+    public static void validateOutput(Recipe<?> recipe) {
+        for(var display:recipe.display())validateOutput(display.result());
+    }
+    private static void validateOutput(SlotDisplay slot) {
+        if(slot instanceof SlotDisplay.ItemStackSlotDisplay stack && stack.stack().create().isEmpty())
+            throw new IllegalArgumentException("Invalid native result stack");
+        if(slot instanceof SlotDisplay.Composite composite)composite.contents().forEach(RecipeView::validateOutput);
+    }
+
+    public static ItemStack station(Recipe<?> recipe, HolderLookup.Provider registries) {
+        RecipeDisplay display=firstDisplay(recipe);
+        return display==null?ItemStack.EMPTY:display.craftingStation().resolveForFirstStack(context(registries));
+    }
+
     /^*
      * The item a recipe makes, without building a stack. While datapacks reload, items have no components and tags
      * are not bound yet, so neither stacks nor tag-based displays can be resolved; null when the display shows no

@@ -1,0 +1,950 @@
+[
+    {
+        "node":  "forge",
+        "file":  "[农夫乐事] FarmersDelight.jar",
+        "source":  "local",
+        "sha256":  "34f03eb671ea1ca579b00c98e4541404cb96d1a292014aed9cc5eb45ad8afbce",
+        "mods":  [
+                     {
+                         "id":  "farmersdelight",
+                         "version":  "1.20.1-1.3.4"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[永恒枪械工坊：零] tacz.jar",
+        "source":  "local",
+        "sha256":  "9ed8ada1283ed7a793a70cc1b51c4a340f367ce84707e1a7b8cf21ee3d288d77",
+        "mods":  [
+                     {
+                         "id":  "tacz",
+                         "version":  "1.1.8-hotfix"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[动作库]player-animation-lib.jar",
+        "source":  "local",
+        "sha256":  "90d9965cb9efdbda29fdc5610be3914cf7008bf5c392ff34f7ab25f96a852691",
+        "mods":  [
+                     {
+                         "id":  "playeranimator",
+                         "version":  "1.0.2-rc1+1.20"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[机械动力]create.jar",
+        "source":  "local",
+        "sha256":  "6fbb910c367dbce8e4fc7e5bf64b6edd4de980906ed00af8e47e4af843c0d9b0",
+        "mods":  [
+                     {
+                         "id":  "create",
+                         "version":  "6.0.8"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[饰品核心]curios.jar",
+        "source":  "local",
+        "sha256":  "1e817919a35b37cf30524aaec73f0ca5130452f23f168f844854df282eb8e51f",
+        "mods":  [
+                     {
+                         "id":  "curios",
+                         "version":  "5.14.1+1.20.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[诡厄巫法] goety.jar",
+        "source":  "local",
+        "sha256":  "d4a824dd64c6e0cf36ca29e3609582369c26bce3a8fd3ce38e1c35c367dd9db0",
+        "mods":  [
+                     {
+                         "id":  "goety",
+                         "version":  "2.5.52.2"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[铁魔法前置]irons_patreon_lib.jar",
+        "source":  "local",
+        "sha256":  "db4c7cc853c0ffb1d36a0f19af22c224a8608b2a55c747adc70fb44455baf097",
+        "mods":  [
+                     {
+                         "id":  "irons_lib",
+                         "version":  "1.20.1-2.1.0"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[车万女仆] touhoulittlemaid.jar",
+        "source":  "local",
+        "sha256":  "8c341567e57aa3c006f9fa85c7a5e3bc36a53b1cca4e3538c3db705eeeea1bbc",
+        "mods":  [
+                     {
+                         "id":  "touhou_little_maid",
+                         "version":  "1.5.3-forge+mc1.20.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[模型动画引擎]geckolib.jar",
+        "source":  "local",
+        "sha256":  "c04abba4fd354dd8c0e8a732f1f05f4dca893d2e1d962b2ab128bbd411478747",
+        "mods":  [
+                     {
+                         "id":  "geckolib",
+                         "version":  "4.8.4"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[灾变前置]lionfishapi.jar",
+        "source":  "local",
+        "sha256":  "d2fdaf7e9bc53fde7da4a86ab17018a3ed6c16fc2d46de5054e5a83e2bef7871",
+        "mods":  [
+                     {
+                         "id":  "lionfishapi",
+                         "version":  "3.0"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[铁魔法]irons_spellbooks.jar",
+        "source":  "local",
+        "sha256":  "54b5aaa52887c38f570fbd820288171234d8541c17a5e953f9271189fdd480fb",
+        "mods":  [
+                     {
+                         "id":  "irons_spellbooks",
+                         "version":  "1.20.1-3.16.3"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "[灾变]L_Enders_Cataclysm.jar",
+        "source":  "local",
+        "sha256":  "c786603ecc395d3e35f174b6313b835afb3abd4491acc7887b0dfcabdae82d58",
+        "mods":  [
+                     {
+                         "id":  "cataclysm",
+                         "version":  "3.28"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "titanium-1.20.1-3.8.35.jar",
+        "source":  "modrinth",
+        "sha256":  "c7851205ace26b28afe332b9257f0f13d9ac52a89e4ae79a76156a8c91e7a282",
+        "mods":  [
+                     {
+                         "id":  "titanium",
+                         "version":  "3.8.35"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "appliedenergistics2-forge-15.4.11.jar",
+        "source":  "modrinth",
+        "sha256":  "f2ff9ee5122b037d4e93537425ab9fbe49860fc9c3977db13b20a50ca7d30f9e",
+        "mods":  [
+                     {
+                         "id":  "ae2",
+                         "version":  "15.4.11"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "kaleidoscopetavern-1.2.0-forge+mc1.20.1.jar",
+        "source":  "modrinth",
+        "sha256":  "eea7862d767b5457f5cf17446053e58a68c883f96b1e13d7304bd5e7ef2cd803",
+        "mods":  [
+                     {
+                         "id":  "kaleidoscope_tavern",
+                         "version":  "1.2.0-forge+mc1.20.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "Mekanism-1.20.1-10.4.16.80.jar",
+        "source":  "modrinth",
+        "sha256":  "3b0d191fa4a45e662f9725991d76a30192f30186abb2ba694b873b5f7b9358d2",
+        "mods":  [
+                     {
+                         "id":  "mekanism",
+                         "version":  "10.4.16"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "guideme-20.1.15.jar",
+        "source":  "modrinth",
+        "sha256":  "cf8052ab3da121012efc59a20e731c24bfe7488dfa556c9b88809f42dea3b24a",
+        "mods":  [
+                     {
+                         "id":  "guideme",
+                         "version":  "20.1.15"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "kaleidoscopecookery-1.6.0-forge+mc1.20.1.jar",
+        "source":  "modrinth",
+        "sha256":  "0eee5579b36746825d6586c65051d9e68fc84178a19dec4372fc9d64b8629d62",
+        "mods":  [
+                     {
+                         "id":  "kaleidoscope_cookery",
+                         "version":  "1.6.0-forge+mc1.20.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "Re-Avaritia-forge-1.20.1-1.4.2-release.jar",
+        "source":  "modrinth",
+        "sha256":  "e8c1e6db0448e450ee21acfd1fabfd9e9be8d1a95bbb46268ca2f8a98b172475",
+        "mods":  [
+                     {
+                         "id":  "avaritia",
+                         "version":  "1.4.2"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "CodeChickenLib-1.20.1-4.4.0.528-universal.jar",
+        "source":  "modrinth",
+        "sha256":  "754240e1cd05caaf511a808ddf6fc74ece68a8fca7d94548d9ac967287f7960d",
+        "mods":  [
+                     {
+                         "id":  "codechickenlib",
+                         "version":  "4.4.0.528"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "Cucumber-1.20.1-7.0.16.jar",
+        "source":  "modrinth",
+        "sha256":  "b586a3cd1de362c365f923e5c325273916822f4b3a792c0d9ff6747d7deb2be6",
+        "mods":  [
+                     {
+                         "id":  "cucumber",
+                         "version":  "7.0.16"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "eidolon_repraised-1.20.1-0.3.8.15.jar",
+        "source":  "modrinth",
+        "sha256":  "79db1627123a92de0b3155fb4611f8b99ec1f8d503eace0a304d2362ca16d229",
+        "mods":  [
+                     {
+                         "id":  "eidolon",
+                         "version":  "0.3.8.15"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "letsdo-farm_and_charm-forge-1.0.14.jar",
+        "source":  "modrinth",
+        "sha256":  "2311790589a58678640cb788de13bebd40efe3ed92f03e82a8fa871850a382eb",
+        "mods":  [
+                     {
+                         "id":  "farm_and_charm",
+                         "version":  "1.0.14"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "spore_1.20.1_2.2.0j.jar",
+        "source":  "modrinth",
+        "sha256":  "d20c4be6606f9752ecfd964eba625363eb76a28e327d67fe6dda4be748401489",
+        "mods":  [
+                     {
+                         "id":  "spore",
+                         "version":  "2.2.0j"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "citadel-2.6.3-1.20.1.jar",
+        "source":  "modrinth",
+        "sha256":  "56c7ab87348a5292583aac787b6cf11b5193e77f02af1d17ea75a96f8640b3ce",
+        "mods":  [
+                     {
+                         "id":  "citadel",
+                         "version":  "2.6.3"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "ImmersiveEngineering-1.20.1-10.2.0-183.jar",
+        "source":  "modrinth",
+        "sha256":  "061dd0e8e066dc39277736d5607a47a18fee4aff428de3363882f96e5c405aaa",
+        "mods":  [
+                     {
+                         "id":  "immersiveengineering",
+                         "version":  "1.20.1-10.2.0-183"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "ExtendedCrafting-1.20.1-6.0.10.jar",
+        "source":  "modrinth",
+        "sha256":  "45f383531d72a4a933333c5c80eae9d2d920a4cb3d71936e21e436be81e9a84f",
+        "mods":  [
+                     {
+                         "id":  "extendedcrafting",
+                         "version":  "6.0.10"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "architectury-9.2.14-forge.jar",
+        "source":  "modrinth",
+        "sha256":  "218b471d0b8a1f6cda14cfc1beb9eeb0df54304500acc6c5613d9b88ec65d9af",
+        "mods":  [
+                     {
+                         "id":  "architectury",
+                         "version":  "9.2.14"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "MysticalAgriculture-1.20.1-7.0.24.jar",
+        "source":  "modrinth",
+        "sha256":  "f9c5f8ac46d354e00b8ec0d5abfc3a224a78d15c521928f788b21bbe7792206d",
+        "mods":  [
+                     {
+                         "id":  "mysticalagriculture",
+                         "version":  "7.0.24"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "industrial-foregoing-1.20.1-3.5.22.jar",
+        "source":  "modrinth",
+        "sha256":  "9220ddde2c259c8dfa5c05ad23b26650dc9b2f3048c4aca3b1d9d6f4cd211f3d",
+        "mods":  [
+                     {
+                         "id":  "industrialforegoing",
+                         "version":  "3.5.22"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "alloy_smelter-forge-1.20.1-1.2.2.jar",
+        "source":  "modrinth",
+        "sha256":  "bc02df67f89eb83e7864112af3482c7692281bdc7cdf125eaab90ee555456fe1",
+        "mods":  [
+                     {
+                         "id":  "alloy_smelter",
+                         "version":  "1.2.2"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "ars_nouveau-1.20.1-4.12.7-all.jar",
+        "source":  "modrinth",
+        "sha256":  "1f1debc282a0c379c1141f2840ea294eede6f6b544c589663f40bbe17b59a1af",
+        "mods":  [
+                     {
+                         "id":  "ars_nouveau",
+                         "version":  "4.12.7"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "iceandfire-2.1.13-1.20.1-beta-5.jar",
+        "source":  "modrinth",
+        "sha256":  "2b80245fc9b7d6fdc61d71f9892f4c6114eb7f303f65634845aaab25f84d1e82",
+        "mods":  [
+                     {
+                         "id":  "iceandfire",
+                         "version":  "2.1.13-1.20.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "Draconic-Evolution-1.20.1-3.1.2.621-universal.jar",
+        "source":  "modrinth",
+        "sha256":  "06ae009929799d7f912adcf83498b83328395bd53c90e4e03eb07d710b40441a",
+        "mods":  [
+                     {
+                         "id":  "draconicevolution",
+                         "version":  "3.1.2.621"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "EnderIO-1.20.1-6.2.18-beta-all.jar",
+        "source":  "modrinth",
+        "sha256":  "9d1471e6d4562d0a50f0564bc46573b87fd738bd440fe19397d31847da20f172",
+        "mods":  [
+                     {
+                         "id":  "enderio",
+                         "version":  "6.2.18-beta"
+                     }
+                 ]
+    },
+    {
+        "node":  "forge",
+        "file":  "BrandonsCore-1.20.1-3.2.1.302-universal.jar",
+        "source":  "modrinth",
+        "sha256":  "79eb172fea57b1fa6424fda1c773aefb13c4e11277b810bb4c7577ed8c5f8ca6",
+        "mods":  [
+                     {
+                         "id":  "brandonscore",
+                         "version":  "3.2.1.302"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "Patchouli-1.21.1-93-NEOFORGE.jar",
+        "source":  "modrinth",
+        "sha256":  "959af52ed6640c316c3a8469203420be4aeea11ad6603890ba83bf48f5d9f993",
+        "mods":  [
+                     {
+                         "id":  "patchouli",
+                         "version":  "1.21.1-93-NEOFORGE"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "Mekanism-1.21.1-10.7.19.85.jar",
+        "source":  "modrinth",
+        "sha256":  "004dbc9f3106f4d192aeaa1ee1190dd16ec9ca8059ed3d093b80034f4c574f43",
+        "mods":  [
+                     {
+                         "id":  "mekanism",
+                         "version":  "10.7.19"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "ImmersiveEngineering-1.21.1-12.4.2-194.jar",
+        "source":  "modrinth",
+        "sha256":  "45942985a4a4aebf265b8e22a0c54a96208637471f36f2532ff5d4911322debc",
+        "mods":  [
+                     {
+                         "id":  "immersiveengineering",
+                         "version":  "12.4.2-194"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "Cucumber-1.21.1-8.0.16.jar",
+        "source":  "modrinth",
+        "sha256":  "371f9551c676b76a39d5580be28f5cfeff364e131ad138fbf7108aeb2712f43f",
+        "mods":  [
+                     {
+                         "id":  "cucumber",
+                         "version":  "8.0.16"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "ConfluenceOtherworld-1.2.4-260226.jar",
+        "source":  "modrinth",
+        "sha256":  "b86bf2ef565760127d7c1e0e8e7fce0b71e3f7c08056066c2dd6ad56f1e4d0b6",
+        "mods":  [
+                     {
+                         "id":  "confluence",
+                         "version":  "1.2.4"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "FarmersDelight-1.21.1-1.3.4.jar",
+        "source":  "modrinth",
+        "sha256":  "139ad7696462c89c03eea463f805abffa552526c5dadaadae221dd9624cb197c",
+        "mods":  [
+                     {
+                         "id":  "farmersdelight",
+                         "version":  "1.3.4"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "goety-3.2.0.jar",
+        "source":  "modrinth",
+        "sha256":  "edeeb623f626bc85bd26df6458dbb440fd4b044f34f3de78ee715cbc01e692d8",
+        "mods":  [
+                     {
+                         "id":  "goety",
+                         "version":  "3.2.0"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "enderio-8.2.12-beta.jar",
+        "source":  "modrinth",
+        "sha256":  "5fe098153dddc2e7ccd9d38b0341dbc61f3072150958c916e5ef63f395e4eab1",
+        "mods":  [
+                     {
+                         "id":  "enderio",
+                         "version":  "8.2.12-beta"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "irons_spellbooks-1.21.1-3.16.3.jar",
+        "source":  "modrinth",
+        "sha256":  "55a290db9b966e0c5d2f5c051d50775f3db6375cdb52730c4da528bcf5d5daa0",
+        "mods":  [
+                     {
+                         "id":  "irons_spellbooks",
+                         "version":  "1.21.1-3.16.3"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "architectury-13.0.11-neoforge.jar",
+        "source":  "modrinth",
+        "sha256":  "9cc92f2c09533fc5482c60f993bd891c655a0e32b637037cdcb7c2b23adedeeb",
+        "mods":  [
+                     {
+                         "id":  "architectury",
+                         "version":  "13.0.11"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "ExtendedCrafting-1.21.1-7.0.9.jar",
+        "source":  "modrinth",
+        "sha256":  "8f40db51bbd946709c17614eca2e661c32141480ea6942d332154c9b3545cbaf",
+        "mods":  [
+                     {
+                         "id":  "extendedcrafting",
+                         "version":  "7.0.9"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "eidolon_repraised-1.21.1-0.5.0.5.jar",
+        "source":  "modrinth",
+        "sha256":  "8c614cb4ada2c1f47891d6719c2a7a353aeb60d4136be030e684231a399b9ff3",
+        "mods":  [
+                     {
+                         "id":  "eidolon_repraised",
+                         "version":  "0.5.0.5"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "irons_lib-1.21.1-2.2.0.jar",
+        "source":  "modrinth",
+        "sha256":  "9e086a4d449147baad6468b11fd34924a905d9cb6818c962676aa0c4589dcc3c",
+        "mods":  [
+                     {
+                         "id":  "irons_lib",
+                         "version":  "1.21.1-2.2.0"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "spore_1.21.1_2.2.0j_neo.jar",
+        "source":  "modrinth",
+        "sha256":  "0cdb027eb53e6872bdb8de601dc52c176fcb6ddd33a0a2e20a66392937c3d5fe",
+        "mods":  [
+                     {
+                         "id":  "spore",
+                         "version":  "2.2.0j"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "letsdo-farm_and_charm-neoforge-1.1.27.jar",
+        "source":  "modrinth",
+        "sha256":  "b2e4a0d034aa9c88f6690a41af49d8ff08632bc291a5d12a6f8ed8dfae59c23f",
+        "mods":  [
+                     {
+                         "id":  "farm_and_charm",
+                         "version":  "1.1.27"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "BrandonsCore-1.21.1-3.2.1.309.jar",
+        "source":  "modrinth",
+        "sha256":  "076b44de51c606e6cdd89694ac0a879fc028d4f0103880ef44f47dbcc69f1d23",
+        "mods":  [
+                     {
+                         "id":  "brandonscore",
+                         "version":  "3.2.1.309"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "touhoulittlemaid-1.5.3-neoforge+mc1.21.1.jar",
+        "source":  "modrinth",
+        "sha256":  "f6db04195820c8508704277ea76d63723804ff236a7b780369ba59ebe5cd9c27",
+        "mods":  [
+                     {
+                         "id":  "touhou_little_maid",
+                         "version":  "1.5.3-neoforge+mc1.21.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "industrialforegoing-1.21-3.6.27.jar",
+        "source":  "modrinth",
+        "sha256":  "7612f456e00244786184a50f98af48a797ac63c9149b2b33cf29f20a9963beb2",
+        "mods":  [
+                     {
+                         "id":  "industrialforegoing",
+                         "version":  "1.21-3.6.27"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "L_Ender\u0027s Cataclysm 1.21.1-3.33.jar",
+        "source":  "modrinth",
+        "sha256":  "371956d0c2e3b56729ee93b955e936875d210e372fe734cdb74326d89ef79875",
+        "mods":  [
+                     {
+                         "id":  "cataclysm",
+                         "version":  "3.33"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "MysticalAgriculture-1.21.1-8.0.28.jar",
+        "source":  "modrinth",
+        "sha256":  "49c2d56c4100618c35c6885487a39aa47e7364ca32ae9f96bcf24f5756347d1a",
+        "mods":  [
+                     {
+                         "id":  "mysticalagriculture",
+                         "version":  "8.0.28"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "player-animation-lib-forge-2.0.4+1.21.1.jar",
+        "source":  "modrinth",
+        "sha256":  "dbe5de45f5cd60c0e5e47af14e6d564534a98456e973cf670cb881f6938eee92",
+        "mods":  [
+                     {
+                         "id":  "playeranimator",
+                         "version":  "2.0.4+1.21.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "ars_nouveau-1.21.1-5.13.3.jar",
+        "source":  "modrinth",
+        "sha256":  "45c1b6022d8e63464177c1f822bda22c3d6fb66970857fd7677e4e3ccffd259f",
+        "mods":  [
+                     {
+                         "id":  "ars_nouveau",
+                         "version":  "5.13.3"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "alloy_smelter-neoforge-1.21.1-1.2.2.jar",
+        "source":  "modrinth",
+        "sha256":  "ed2f9e7b90bf19effcb9eb9874f9af2c785531d7140920b86ea2c9736d5c0c77",
+        "mods":  [
+                     {
+                         "id":  "alloy_smelter",
+                         "version":  "1.2.2"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "lionfishapi-3.1.jar",
+        "source":  "modrinth",
+        "sha256":  "aeebf0692650afbbc78259c0d4e3d5b7edf037707e8ae5d56045066d83a19cf6",
+        "mods":  [
+                     {
+                         "id":  "lionfishapi",
+                         "version":  "3.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "kaleidoscopecookery-1.6.0-neoforge+mc1.21.1.jar",
+        "source":  "modrinth",
+        "sha256":  "e93784a3f17e546ebfa7c449572933bf67c6b694c01cb26b83ad120c40452b33",
+        "mods":  [
+                     {
+                         "id":  "kaleidoscope_cookery",
+                         "version":  "1.6.0-neoforge+mc1.21.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "create-1.21.1-6.0.10.jar",
+        "source":  "modrinth",
+        "sha256":  "ef87fe5709f1ba1f5b8bb20a2925b5afb4669e178fd6d8bf10c167759eefe37a",
+        "mods":  [
+                     {
+                         "id":  "create",
+                         "version":  "6.0.10"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "titanium-1.21-4.0.50.jar",
+        "source":  "modrinth",
+        "sha256":  "e2b5d14ba68ce366164d9a69e5eee434d22fac3373df33a2e977161ef5f69ec1",
+        "mods":  [
+                     {
+                         "id":  "titanium",
+                         "version":  "4.0.50"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "Re-Avaritia-neoforge-1.21.1-1.4.2-release.jar",
+        "source":  "modrinth",
+        "sha256":  "abb5b3dbaf7c9aef73673041851a3246ac6c3f18a2e2b2aa329e57e927c25df1",
+        "mods":  [
+                     {
+                         "id":  "avaritia",
+                         "version":  "1.4.2"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "CodeChickenLib-1.21.1-4.6.1.529.jar",
+        "source":  "modrinth",
+        "sha256":  "8c453d5c49092860e9d7a692eb858ea54c15d0f9598daae524f9590f8edf276f",
+        "mods":  [
+                     {
+                         "id":  "codechickenlib",
+                         "version":  "4.6.1.529"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "curios-neoforge-9.5.1+1.21.1.jar",
+        "source":  "modrinth",
+        "sha256":  "a45df2125c26219974aba7507ffc9afe7b83acc941a386af3faacb1cc0056fde",
+        "mods":  [
+                     {
+                         "id":  "curios",
+                         "version":  "9.5.1+1.21.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "kaleidoscopetavern-1.2.0-neoforge+mc1.21.1.jar",
+        "source":  "modrinth",
+        "sha256":  "03f35e1e614953b22cd1f5e34345613f3a6a283bf1b1c99659b57d58970edeff",
+        "mods":  [
+                     {
+                         "id":  "kaleidoscope_tavern",
+                         "version":  "1.2.0-neoforge+mc1.21.1"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "guideme-21.1.19.jar",
+        "source":  "modrinth",
+        "sha256":  "2ce254edb931c3c3cf81d69abaf8f4ce5b871bf85e64984f366bf044173bd66a",
+        "mods":  [
+                     {
+                         "id":  "guideme",
+                         "version":  "21.1.19"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "Draconic-Evolution-1.21.1-3.1.4.633.jar",
+        "source":  "modrinth",
+        "sha256":  "e89f3a23a5478e35099905d7c08f9f6a2ff70289e964904e91f06a7ceeed39b5",
+        "mods":  [
+                     {
+                         "id":  "draconicevolution",
+                         "version":  "3.1.4.633"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "appliedenergistics2-19.2.18.jar",
+        "source":  "modrinth",
+        "sha256":  "df15a07f86ca1ca93aa66373f9d5d84dd3d4586631fceb38f4fbc85dad591e39",
+        "mods":  [
+                     {
+                         "id":  "ae2",
+                         "version":  "19.2.18"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo21",
+        "file":  "justdirethings-1.5.7.jar",
+        "source":  "curseforge",
+        "sha256":  "6e5f7dd7091cc271fee66b0df62bde2250e8b52397b51dd911f79c088eb22d2f",
+        "mods":  [
+                     {
+                         "id":  "justdirethings",
+                         "version":  "1.5.7"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "guideme-26.1.15-beta.jar",
+        "source":  "modrinth",
+        "sha256":  "17acb84bff9320b237340b280415029ba950640895343fb2f9c35b7b4416e7d5",
+        "mods":  [
+                     {
+                         "id":  "guideme",
+                         "version":  "26.1.15-beta"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "ExtendedCrafting-26.1.2-8.0.3.jar",
+        "source":  "modrinth",
+        "sha256":  "9d0ceb832c9e315490263128e524a659aa73e2522f8b1538e911ae7dec9909dc",
+        "mods":  [
+                     {
+                         "id":  "extendedcrafting",
+                         "version":  "8.0.3"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "justdirethings-1.6.11.jar",
+        "source":  "curseforge",
+        "sha256":  "27d26abcba9607b0c069de316541c781aebbbb167b1553aea6ca6934d3219436",
+        "mods":  [
+                     {
+                         "id":  "justdirethings",
+                         "version":  "1.6.11"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "MysticalAgriculture-26.1.2-9.0.10.jar",
+        "source":  "modrinth",
+        "sha256":  "f237f8b80852e75f8137e89dc5833f455b8af198536919f0e5f6f467633211ee",
+        "mods":  [
+                     {
+                         "id":  "mysticalagriculture",
+                         "version":  "9.0.10"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "enderio-9.0.6-alpha.jar",
+        "source":  "modrinth",
+        "sha256":  "166b8ae6f86b7bd9f7c1ebb48ca80ff4e4ee12e910db3dc29f09ea87e94bcb0d",
+        "mods":  [
+                     {
+                         "id":  "enderio",
+                         "version":  "9.0.6-alpha"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "Cucumber-26.1.2-9.0.6.jar",
+        "source":  "modrinth",
+        "sha256":  "ad82d0a19f97086b8913029f2fbf10ad25ff591de4ac11e0776caa6dd1e8f9ed",
+        "mods":  [
+                     {
+                         "id":  "cucumber",
+                         "version":  "9.0.6"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "Re-Avaritia-neoforge-26.1.2-1.4.2-release.jar",
+        "source":  "modrinth",
+        "sha256":  "0d07934862789779a5c8698dbade5c631a6564fa5fa14fa781a246abc3ec570a",
+        "mods":  [
+                     {
+                         "id":  "avaritia",
+                         "version":  "1.4.2"
+                     }
+                 ]
+    },
+    {
+        "node":  "neo26",
+        "file":  "appliedenergistics2-26.1.13-beta.jar",
+        "source":  "modrinth",
+        "sha256":  "6474119c645a21f509da518845ab42bff84d496f80a86ce5e551d7a4745b4893",
+        "mods":  [
+                     {
+                         "id":  "ae2",
+                         "version":  "26.1.13-beta"
+                     }
+                 ]
+    }
+]

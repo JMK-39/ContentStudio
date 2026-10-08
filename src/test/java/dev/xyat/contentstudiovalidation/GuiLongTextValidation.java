@@ -30,18 +30,92 @@ import org.slf4j.LoggerFactory;
 public final class GuiLongTextValidation {
     private static final Logger LOG=LoggerFactory.getLogger(GuiLongTextValidation.class);
     private static final String ROOT=System.getProperty("contentstudio.guiValidation.output","D:/IDEAWork/ContentStudio/.gradle/gui-long-text-20261004/");
-    private static final String[] NAMES={"villager-offer","villager-level","villager-removed","villager-follow-empty","villager-follow",
+    private static String[] NAMES={"villager-offer","villager-level","villager-removed","villager-follow-empty","villager-follow",
         "loot-entity","loot-block","loot-entry-entity","loot-entry-block","loot-pool","loot-chest","loot-chest-remove","loot-chest-exclude",
         "recipe-removal","recipe-impact","recipe-preview","recipe-types","recipe-tags","components","components-invalid","tooltip-hub","tooltip-editor","tooltip-wide-left","tooltip-wide-right","tooltip-wrapped-edge","tooltip-tall",
-        "recipe-hub","recipe-crafting","recipe-furnace","recipe-blast","recipe-smoker","recipe-smithing","recipe-stonecutter","shared-item-selector","recipe-browser","recipe-jei"};
+        "recipe-hub","recipe-crafting","recipe-furnace","recipe-blast","recipe-smoker","recipe-smithing","recipe-stonecutter","shared-item-selector","recipe-browser","recipe-jei",
+        "native-recipe-browser","native-recipe-fields","native-recipe-nested","native-recipe-item","native-recipe-add-field",
+        "native-workstations","vanilla-workstations","native-visual","native-visual-slot"};
     private static final BitSet capturedPages = new BitSet();
-    private static boolean installed,started,screenshot,finished,originalFullscreen;
+    private static boolean installed,started,screenshot,finished,originalFullscreen,nativeNavigationChecked;
     private static String originalLanguage;
     private static int originalScale,originalWidth,originalHeight,phase=-1,page=-1,captures,failures;
     private static long due;
     private static CompletableFuture<Void> reload;
     private static Language stressOriginal;
     private static Map<String,List<TooltipManager.TooltipRule>> originalTooltipData;
+    private static List<com.google.gson.JsonObject> nativeSamples=List.of();
+
+    static void prepareOwnedWorld() {
+        var mc=Minecraft.getInstance();
+        if(mc.level==null && mc.screen!=null && mc.screen.getClass()==net.minecraft.client.gui.screens.ConfirmScreen.class
+                && mc.gameDirectory.getName().startsWith(".codex-native-recipes-")) {
+            LOG.info("CONTENT_NATIVE_OWNED_COPY_CONFIRM {}",mc.screen.getTitle().getString());
+            try {((it.unimi.dsi.fastutil.booleans.BooleanConsumer)field(mc.screen,"callback")).accept(true);}
+            catch(Exception error){throw new AssertionError(error);}
+            return;
+        }
+        if(mc.level==null && mc.screen instanceof net.minecraft.client.gui.screens.BackupConfirmScreen
+                && mc.gameDirectory.getName().startsWith(".codex-native-recipes-")) {
+            for(var child:mc.screen.children())if(child instanceof net.minecraft.client.gui.components.Button button
+                    && button.getMessage().getString().equals(Component.translatable("selectWorld.backupJoinSkipButton").getString())) {
+                //? if >=26.1 {
+                /*button.onPress(null);
+                *///?} else {
+                button.onPress();
+                //?}
+                LOG.info("CONTENT_NATIVE_OWNED_COPY_UPGRADE_CONFIRMED");break;
+            }
+        }
+    }
+
+    public static void installNativeSamples(List<com.google.gson.JsonObject> samples) {
+        try {
+            var reader=Class.forName("dev.xyat.contentstudio.recipe.client.gui.NativeRecipeStacks").getDeclaredMethod("read",com.google.gson.JsonElement.class);
+            reader.setAccessible(true);
+            var nested=(List<?>)reader.invoke(null,com.google.gson.JsonParser.parseString("{\"item\":{\"item\":\"minecraft:diamond\"},\"count\":8}"));
+            if(nested.isEmpty() || ((ItemStack)nested.get(0)).getCount()!=8)throw new AssertionError("Nested native ingredient quantity lost");
+            var fluid=(List<?>)reader.invoke(null,com.google.gson.JsonParser.parseString("{\"FluidName\":\"minecraft:water\",\"Amount\":1000}"));
+            if(fluid.isEmpty() || !((ItemStack)fluid.get(0)).is(Items.WATER_BUCKET))throw new AssertionError("Native cauldron fluid preview lost");
+            var spriteReader=Class.forName("dev.xyat.contentstudio.recipe.client.gui.NativeRecipeVisuals").getDeclaredMethod("read",com.google.gson.JsonElement.class);
+            spriteReader.setAccessible(true);
+            var waterSprite=spriteReader.invoke(null,com.google.gson.JsonParser.parseString("{\"id\":\"minecraft:water\",\"amount\":1000}"));
+            if(waterSprite==null)throw new AssertionError("Native fluid sprite missing");
+            var tintReader=waterSprite.getClass().getDeclaredMethod("tint");tintReader.setAccessible(true);
+            if((int)tintReader.invoke(waterSprite)==0xFFFFFFFF)throw new AssertionError("Native water tint missing");
+            if(spriteReader.invoke(null,com.google.gson.JsonParser.parseString("{\"id\":\"minecraft:lava\",\"amount\":1000}"))==null)
+                throw new AssertionError("Native untinted fluid sprite missing");
+            var chemicalId=dev.xyat.kineticcore.api.resource.KineticResourceIds.parse("mekanism:polonium");
+            boolean chemical=java.util.stream.Stream.of("gas","chemical").anyMatch(registry->
+                    dev.xyat.kineticcore.api.registry.KineticRegistries.custom(dev.xyat.kineticcore.api.resource.KineticResourceIds.of("mekanism",registry))
+                            .filter(view->view.contains(chemicalId)).isPresent());
+            if(chemical && spriteReader.invoke(null,com.google.gson.JsonParser.parseString("{\"gas\":\"mekanism:polonium\",\"amount\":10}"))==null)
+                throw new AssertionError("Native chemical sprite missing");
+            LOG.info("CONTENT_GUI_NATIVE_SPRITES_PASS water=true lava=true chemicalPresent={}",chemical);
+            //? if <1.21 {
+            var entity=(List<?>)reader.invoke(null,com.google.gson.JsonParser.parseString("{\"type\":\"minecraft:item\",\"nbt\":{\"Item\":{\"id\":\"minecraft:diamond\",\"Count\":4}}}"));
+            if(entity.isEmpty() || !((ItemStack)entity.get(0)).is(Items.DIAMOND) || ((ItemStack)entity.get(0)).getCount()!=4)throw new AssertionError("Native item-entity output preview lost");
+            //?}
+            LOG.info("CONTENT_GUI_NATIVE_STACKS_PASS nestedQuantity=8");
+            var browser=new NativeRecipeBrowserPage();KineticGui.open(browser);browser.close();
+            var previous=KineticGui.currentPage();var delayed=samples.get(0).deepCopy();delayed.addProperty("action","open");
+            invoke(browser,"accept",new dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeNetwork.Response(0,true,delayed.toString()));
+            if(KineticGui.currentPage()!=previous)throw new AssertionError("Delayed reply reopened abandoned browser");
+            for(String draft:List.of(
+                    "{\"type\":\"minecraft:crafting_shaped\",\"pattern\":[\"A\",{}],\"key\":{\"A\":\"minecraft:stone\"}}",
+                    "{\"type\":\"create:sequenced_assembly\",\"sequence\":{}}")) {
+                var invalid=samples.get(0).deepCopy();invalid.add("recipe",com.google.gson.JsonParser.parseString(draft));
+                KineticGui.open(new NativeRecipeEditorPage(invalid,()->{}));
+            }
+            LOG.info("CONTENT_GUI_NATIVE_DRAFT_NAVIGATION_PASS");
+        }catch(Exception error){throw new AssertionError(error);}
+        nativeSamples=List.copyOf(samples);var names=new ArrayList<>(List.of(NAMES));var pages=new ArrayList<String>(List.of("26","41","42"));
+        for(int i=0;i<samples.size();i++) {
+            var body=samples.get(i);names.add("native-mod-"+body.get("recipe").getAsJsonObject().get("type").getAsString().replace(':','-'));
+            pages.add(String.valueOf(45+i));
+        }
+        NAMES=names.toArray(String[]::new);System.setProperty("contentstudio.guiValidation.pages",String.join(",",pages));System.setProperty("contentstudio.guiValidation.phases","4");install();
+    }
 
     public static void install() { if(installed)return;installed=true;KineticClientEvents.onTick(KineticClientEvents.TickPhase.END,GuiLongTextValidation::tick); }
     private static void tick() {
@@ -68,7 +142,29 @@ public final class GuiLongTextValidation {
                 nextPage();return;
             }
             long now=System.currentTimeMillis();
-            if(!screenshot && now>=due) { capture("start");screenshot=true;due=now+(phase==4?3400:550);return; }
+            if(!screenshot && now>=due) {
+                if(Boolean.getBoolean("contentstudio.nativeRecipeMatrix.captureOnly") && (page==26 || page==41)) {
+                    var current=KineticGui.currentPage();var menu=field(current,page==26?"stations":"menu");
+                    if(((List<?>)field(menu,"cards")).isEmpty()) {
+                        if(now>due+30_000)throw new AssertionError("Workstation navigation never loaded");
+                        return;
+                    }
+                    if(page==41 && phase==0 && !nativeNavigationChecked) {
+                        nativeNavigationChecked=true;
+                        var cards=(List<?>)field(menu,"cards");
+                        String mod=cards.stream().map(card->{try{return (String)field(card,"key");}catch(Exception e){throw new AssertionError(e);}})
+                                .filter(key->key.equals("create")).findFirst().orElse("ae2");
+                        var query=menu.getClass().getDeclaredField("query");query.setAccessible(true);query.set(menu,mod);invoke(menu,"search");
+                        cards=(List<?>)field(menu,"cards");if(cards.size()!=1)throw new AssertionError("Mod search failed: "+mod);
+                        ((Runnable)field(cards.get(0),"click")).run();
+                        var child=KineticGui.currentPage();if(!(child instanceof NativeRecipeStationsPage))throw new AssertionError("Mod entry did not open workstation types");
+                        var types=(List<?>)field(field(child,"menu"),"cards");
+                        if(types.isEmpty() || mod.equals("create") && types.size()!=2)throw new AssertionError("Workstation hierarchy missing");
+                        LOG.info("CONTENT_GUI_NATIVE_HIERARCHY_PASS mod={} cards={}",mod,types.size());openPage(page);due=now+1000;return;
+                    }
+                }
+                capture("start");screenshot=true;due=now+(phase==4?3400:550);return;
+            }
             if(screenshot && now>=due) {
                 if(phase==4)capture("scroll");
                 nextPage();
@@ -81,7 +177,7 @@ public final class GuiLongTextValidation {
     private static void nextPhase() {
         if(stressOriginal!=null){Language.inject(stressOriginal);stressOriginal=null;}
         phase++;page=-1;
-        if(phase>=5){finish();return;}
+        if(phase>=Integer.getInteger("contentstudio.guiValidation.phases",5)){finish();return;}
         var mc=Minecraft.getInstance();
         mc.setScreen(null);
         String lang=phase==2 || phase==3?"zh_cn":"en_us";
@@ -132,7 +228,48 @@ public final class GuiLongTextValidation {
     }
     @SuppressWarnings("unchecked")
     private static void openPage(int index)throws Exception {
+        if(index>=45) {
+            var body=nativeSamples.get(index-45);var preview=new NativeRecipeEditorPage(body,()->{});KineticGui.open(preview);
+            var path=body.getAsJsonArray("testPath").asList().stream().map(com.google.gson.JsonElement::getAsString).toList();
+            invoke(preview,"edit",path,body.get("testValue").getAsString());
+            var document=(dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocument)field(field(preview,"session"),"document");
+            if(!document.json().equals(body.get("testDraft")))throw new AssertionError("GUI edit lost native data: "+body.get("id"));
+            var slots=(List<dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeLayout.Slot>)field(preview,"slots");
+            int selected=-1;
+            for(int i=0;i<slots.size();i++)if(path.size()>=slots.get(i).path().size() && path.subList(0,slots.get(i).path().size()).equals(slots.get(i).path())){selected=i;break;}
+            var selection=preview.getClass().getDeclaredField("selected");selection.setAccessible(true);selection.setInt(preview,selected);invoke(preview,"rebuild");return;
+        }
         switch(index) {
+            case 41 -> KineticGui.open(new NativeRecipeStationsPage());
+            case 42 -> KineticGui.open(new VanillaRecipeHubPage());
+            case 43 -> KineticGui.open(new NativeRecipeEditorPage(NativeRecipeValidation.preview,()->{}));
+            case 44 -> {
+                var p=new NativeRecipeEditorPage(NativeRecipeValidation.preview,()->{});KineticGui.open(p);
+                var selected=p.getClass().getDeclaredField("selected");selected.setAccessible(true);selected.setInt(p,2);invoke(p,"rebuild");
+            }
+            case 36 -> {
+                var p=new NativeRecipeBrowserPage();
+                KineticGui.open(p);
+                var search=p.getClass().getDeclaredField("query");search.setAccessible(true);
+                search.set(p,Boolean.getBoolean("contentstudio.nativeRecipeValidation.thirdParty")?"farmersdelight:":"minecraft:");
+                p.refresh();
+            }
+            case 37,38,39,40 -> {
+                var p=new NativeRecipeFieldsPage(NativeRecipeValidation.preview,()->{});
+                KineticGui.open(p);
+                if(index>=38) {
+                    var session=field(p,"session");
+                    var json=NativeRecipeValidation.preview.getAsJsonObject("recipe");
+                    String key=json.has("result")?"result":json.has("ingredients")?"ingredients":"key";
+                    List<String> path=new ArrayList<>(List.of(key));
+                    if(index==39 && json.get(key).isJsonArray()) {
+                        path.add("0");var result=json.getAsJsonArray(key).get(0).getAsJsonObject();
+                        if(result.has("item") && result.get("item").isJsonObject())path.add("item");
+                    }
+                    if(index==40) KineticGui.open((KineticPage)construct("dev.xyat.contentstudio.recipe.client.gui.NativeRecipeAddFieldPage",field(session,"document"),List.of()));
+                    else KineticGui.open((KineticPage)construct("dev.xyat.contentstudio.recipe.client.gui.NativeRecipeFieldsPage",session,path));
+                }
+            }
             case 0 -> trade(false);
             case 1 -> trade(true);
             case 2 -> {

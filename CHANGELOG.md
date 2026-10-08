@@ -1,5 +1,25 @@
 # Changelog / 更新日志
 
+## 2026-10-09 — Third-party recipe editor / 第三方配方编辑器
+
+### English
+
+- Add a searchable, scrollable recipe hub grouped into Vanilla and installed mods, with workstation icons and separate Create processing/assembly groups.
+- Add an independent clickable recipe preview editor with native workstation textures, input/output slots and adjacent parameters; JEI is optional.
+- Show native fluid and Mekanism chemical sprites in recipe slots, retaining their original colors and editable quantities.
+- Add a searchable editor for installed mods' datapack recipes. Edit native item, tag, quantity, chance, time and other fields while retaining unedited custom data.
+- Expand nested fields, add optional fields and array members, duplicate or remove members, and copy recipes to unused IDs. Save and reload directly, or restore the original recipe.
+- Validate drafts with the installed recipe serializer before saving and reject stale drafts or conflicting copy IDs. Keep the existing workstation layouts and recipe-removal behavior.
+
+### 简体中文
+
+- 配方主页增加搜索和滚动浏览，按原版与模组分组，以工作台图标进入；机械动力分为基础工艺与序列组装。
+- 新增独立的可点击配方预览编辑，使用原生工作台贴图、材料与产物槽位，并在旁边修改参数，无需安装 JEI。
+- 配方槽位显示原生液体与通用机械化学物质图标，保留原有颜色，并可修改对应数量。
+- 新增已安装模组的数据包配方搜索与字段编辑，可修改原生物品、标签、数量、概率、时间等字段，并保留未修改的专有数据。
+- 支持展开嵌套字段、新增可选字段与数组成员、复制或移除成员，以及复制配方到新的 ID；可直接保存重载或恢复原配方。
+- 保存前使用已安装模组的配方解析器校验，拒绝过期草稿与重复的复制 ID；保留原有工作台布局和配方移除行为。
+
 ## 2026-10-08 — Recipe appearance and item previews / 配方界面与物品预览
 
 ### English

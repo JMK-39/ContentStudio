@@ -303,16 +303,25 @@ if (pLoader in ['forge', 'neoforge']) {
     def captureMetadata = layout.buildDirectory.dir('gui-capture-validation')
     def writeCaptureMetadata = tasks.register('writeGuiCaptureValidationMetadata') {
         outputs.dir captureMetadata
+        inputs.property 'minecraft', pMinecraft
         doLast {
             File target = new File(captureMetadata.get().asFile, pLoader == 'forge' ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml')
             target.parentFile.mkdirs()
             target.setText('modLoader="javafml"\nloaderVersion="[1,)"\nlicense="LGPLv3"\n[[mods]]\nmodId="contentstudio_gui_capture"\nversion="1.0.0"\ndisplayName="ContentStudio GUI capture"\n', 'UTF-8')
             if (pLoader == 'forge') new File(captureMetadata.get().asFile, 'pack.mcmeta').setText('{"pack":{"description":"Opt-in GUI capture fixture","pack_format":15}}', 'UTF-8')
+            File disabled = new File(captureMetadata.get().asFile, "data/contentstudio/${pMinecraft == '1.20.1' ? 'recipes' : 'recipe'}/_native_validation_reserved.json")
+            disabled.parentFile.mkdirs()
+            disabled.setText(groovy.json.JsonOutput.toJson([
+                type: 'minecraft:crafting_shapeless',
+                ingredients: [pMinecraft == '1.20.1' ? [item:'minecraft:stone'] : 'minecraft:stone'],
+                result: pMinecraft == '1.20.1' ? [item:'minecraft:stone'] : [id:'minecraft:stone'],
+                (pLoader == 'forge' ? 'conditions' : 'neoforge:conditions'): [[type: pLoader == 'forge' ? 'forge:false' : 'neoforge:false']]
+            ]), 'UTF-8')
         }
     }
     def captureJar = tasks.register('guiCaptureValidationJar', Jar) {
         dependsOn 'testClasses', writeCaptureMetadata
-        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class' }
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class', 'dev/xyat/contentstudiovalidation/NativeRecipeValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeMatrixValidation*.class' }
         from captureMetadata
         archiveFileName = 'contentstudio-gui-capture.jar'
     }

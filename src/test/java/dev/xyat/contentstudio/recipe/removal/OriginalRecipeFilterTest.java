@@ -14,6 +14,14 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OriginalRecipeFilterTest {
+    @Test void inactiveAndUnsupportedDatapackIdsRemainReservedWithoutEnteringEditableSources() {
+        var disabled=id("example:disabled");var helper=id("example:_helper");
+        var source=new HashMap<ResourceLocation,JsonElement>(Map.of(disabled,json(),helper,json()));
+        var catalog=OriginalRecipeCatalog.filter(source,List.of(),(key,value)->Optional.empty());
+        assertEquals(Set.of(disabled,helper),catalog.originalIds());
+        assertTrue(catalog.sources().isEmpty());assertTrue(catalog.entries().isEmpty());
+        assertEquals(Set.of(disabled,helper),source.keySet());
+    }
     private static ResourceLocation id(String value) { return new ResourceLocation(value); }
 
     private static JsonObject json() {
@@ -27,6 +35,18 @@ class OriginalRecipeFilterTest {
                 new RemovalCandidate(recipeId, id("minecraft:crafting"),
                         outputId == null ? null : id(outputId), Set.of()),
                 Optional.empty());
+    }
+
+    @Test
+    void serializerInspectionCannotMutateTheOriginalDatapackJson() {
+        var original=json();original.addProperty("custom_data","retain");
+        var recipeId=id("example:native");
+        Map<ResourceLocation,JsonElement> source=new HashMap<>(Map.of(recipeId,original));
+        OriginalRecipeCatalog.filter(source,List.of(),(key,value)->{
+            value.getAsJsonObject().remove("custom_data");
+            return Optional.of(recipe(key,"example:plate"));
+        });
+        assertEquals("retain",source.get(recipeId).getAsJsonObject().get("custom_data").getAsString());
     }
 
     @Test
