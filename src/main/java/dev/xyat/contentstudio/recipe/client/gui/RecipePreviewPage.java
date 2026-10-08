@@ -9,7 +9,6 @@ import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
-import dev.xyat.kineticcore.api.client.gui.render.KineticTexture;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
@@ -32,11 +31,10 @@ import java.util.Locale;
 import java.util.Set;
 
 public class RecipePreviewPage extends KineticPage {
-    private static final KineticTexture SLOT_BG = KineticTexture.of("minecraft", "textures/gui/container/crafting_table.png");
     private static final int SLOT_SIZE = 22;
-    private static final int SLOT_GAP = 1;
+    private static final int SLOT_GAP = 2;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
-    private static final float ITEM_SCALE = 1.2F;
+    private static final float ITEM_SCALE = 1.0F;
     private static final int COUNT_COLOR = 0xFF55FF55;
     private static final int SCISSOR_MARGIN = 2;
 
@@ -449,18 +447,8 @@ public class RecipePreviewPage extends KineticPage {
             RecipeRecord record =
                     displayRecords.get(i);
 
-            graphics.texture(SLOT_BG, x, y, SLOT_SIZE, SLOT_SIZE, 29f, 16f, 18, 18);
-
-            KineticTheme.stateOutline(
-                    graphics,
-                    x,
-                    y,
-                    SLOT_SIZE,
-                    SLOT_SIZE,
-                    false,
-                    hovered,
-                    record.invalidConfig
-            );
+            KineticTheme.itemSlot(graphics, x, y, SLOT_SIZE, false);
+            KineticTheme.stateOutline(graphics, x, y, SLOT_SIZE, SLOT_SIZE, false, hovered, record.invalidConfig);
 
             KineticTheme.item(
                     graphics,
@@ -601,14 +589,8 @@ public class RecipePreviewPage extends KineticPage {
         }
 
         String countText = String.valueOf(stack.getCount());
-        int textX = x + SLOT_SIZE - KineticText.width(countText) - 1;
-        int textY = y + SLOT_SIZE - KineticText.lineHeight();
-
-        graphics.push();
-        graphics.translate(
-                0, 0);
-        graphics.text(countText, textX, textY, COUNT_COLOR, true);
-        graphics.pop();
+        graphics.scrollingTextRight(Component.literal(countText), x + SLOT_SIZE - 4,
+                y + SLOT_SIZE - KineticText.lineHeight() - 4, SLOT_SIZE - 8, COUNT_COLOR, true);
     }
 
     private int recordIndexAt(double mouseX, double mouseY) {

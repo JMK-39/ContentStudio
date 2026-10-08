@@ -33,7 +33,8 @@ public final class GuiLongTextValidation {
     private static final String[] NAMES={"villager-offer","villager-level","villager-removed","villager-follow-empty","villager-follow",
         "loot-entity","loot-block","loot-entry-entity","loot-entry-block","loot-pool","loot-chest","loot-chest-remove","loot-chest-exclude",
         "recipe-removal","recipe-impact","recipe-preview","recipe-types","recipe-tags","components","components-invalid","tooltip-hub","tooltip-editor","tooltip-wide-left","tooltip-wide-right","tooltip-wrapped-edge","tooltip-tall",
-        "recipe-hub","recipe-crafting","recipe-furnace","recipe-blast","recipe-smoker","recipe-smithing","recipe-stonecutter","shared-item-selector"};
+        "recipe-hub","recipe-crafting","recipe-furnace","recipe-blast","recipe-smoker","recipe-smithing","recipe-stonecutter","shared-item-selector","recipe-browser","recipe-jei"};
+    private static final BitSet capturedPages = new BitSet();
     private static boolean installed,started,screenshot,finished,originalFullscreen;
     private static String originalLanguage;
     private static int originalScale,originalWidth,originalHeight,phase=-1,page=-1,captures,failures;
@@ -192,6 +193,26 @@ public final class GuiLongTextValidation {
             case 33 -> dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.openItemSelector(
                     new dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.ItemSelectorPreset(
                             null, null, "", "", ""), selection -> {});
+            case 34 -> {
+                var preview = new RecipePreviewPage();
+                KineticGui.open(preview);
+                @SuppressWarnings("unchecked")
+                var records = (List<dev.xyat.contentstudio.recipe.RecipeRecord>)field(preview, "displayRecords");
+                records.clear();
+                for (int i = 0; i < 90; i++) {
+                    var record = new dev.xyat.contentstudio.recipe.RecipeRecord();
+                    record.editorType = "CRAFTING";
+                    record.output = new ItemStack(i % 2 == 0 ? Items.EMERALD : Items.DIAMOND_SWORD, i % 2 == 0 ? 64 : 1);
+                    record.invalidConfig = i % 7 == 0;
+                    records.add(record);
+                }
+            }
+            case 35 -> {
+                var entry = RecipeJeiBridge.recipes(new ItemStack(Items.DIAMOND_SWORD)).stream()
+                        .filter(candidate -> candidate.preview() != null).findFirst()
+                        .orElseThrow(() -> new IllegalStateException("Installed JEI recipe layout is required for this selected case"));
+                KineticGui.open((KineticPage)construct("dev.xyat.contentstudio.recipe.client.gui.RecipeRemovalPreviewPage",removal(),entry));
+            }
             default -> containerPage(new dev.xyat.contentstudio.recipe.client.gui.RecipePage(new dev.xyat.contentstudio.recipe.UniversalRecipeMenu(0,Minecraft.getInstance().player.getInventory(),dev.xyat.contentstudio.recipe.RecipeRegistry.EditorType.values()[index-27],null),Component.literal("GUI validation")));
         }
     }
@@ -225,6 +246,7 @@ public final class GuiLongTextValidation {
     private static void capture(String frame)throws Exception {
         var mc=Minecraft.getInstance();Path path=Path.of(ROOT,String.format("%d-%02d-%s-%s.png",phase,page,NAMES[page],frame));Files.createDirectories(path.getParent());
         try(var image=Screenshot.takeScreenshot(mc.getMainRenderTarget())){image.writeToFile(path);}
+        capturedPages.set(page);
         captures++;LOG.info("CONTENT_GUI_CAPTURE phase={} case={} image={}x{}",phase,NAMES[page],mc.getWindow().getWidth(),mc.getWindow().getHeight());
     }
     private static void finish() {
@@ -237,7 +259,7 @@ public final class GuiLongTextValidation {
         mc.setScreen(null);
         mc.getWindow().setWindowed(originalWidth,originalHeight);
         if(originalFullscreen && !mc.getWindow().isFullscreen())mc.getWindow().toggleFullScreen();
-        LOG.info("CONTENT_GUI_{} pages={} captures={} failures={} userSettingsRestored=true",failures==0?"PASS":"FAIL",NAMES.length,captures,failures);
+        LOG.info("CONTENT_GUI_{} pages={} captures={} failures={} userSettingsRestored=true",failures==0?"PASS":"FAIL",capturedPages.cardinality(),captures,failures);
         dev.xyat.kineticcore.api.runtime.KineticClientRuntime.stopClient();
     }
     private static final class TooltipProbePage extends KineticPage {

@@ -146,15 +146,15 @@ final class RecipeRemovalPreviewPage extends KineticPage {
         int cycle = (int) ((System.currentTimeMillis() / 1000) % Integer.MAX_VALUE);
         for (int i = 0; i < Math.min(recipe.inputs().size(), columns * 6); i++) {
             int x = 100 + i % columns * 22, y = 118 + i / columns * 22;
-            KineticTheme.itemSlot(graphics, x, y, 20, false);
+            RecipeSlots.draw(graphics, x, y, 20);
             try {
                 var alternatives = recipe.alternatives(i);
-                if (alternatives.length > 0) graphics.item(alternatives[cycle % alternatives.length], x + 2, y + 2);
+                if (alternatives.length > 0) KineticTheme.item(graphics, alternatives[cycle % alternatives.length], x, y, 20, 0.875F, false);
             } catch (RuntimeException ignored) { markError(); }
         }
         graphics.text("→", 362, 172, KineticTheme.current().text(), false);
-        KineticTheme.itemSlot(graphics, 412, 164, 20, false);
-        graphics.item(recipe.output(), 414, 166);
+        RecipeSlots.draw(graphics, 412, 164, 20);
+        KineticTheme.item(graphics, recipe.output(), 412, 164, 20, 0.875F, false);
         graphics.itemDecorations(recipe.output(), 414, 166);
     }
 

@@ -2574,12 +2574,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         drawCheckerboard(g, x, y, EDIT_ICON, EDIT_ICON);
         KineticTheme.stateOutline(g, x, y, EDIT_ICON, EDIT_ICON, true, hovered, false);
         if (!stack.isEmpty()) {
-            int itemOffset = (EDIT_ICON - 16) / 2;
-            g.push();
-            g.translate(x + itemOffset, y + itemOffset);
-            g.item(stack, 0, 0);
-            g.itemDecorations(stack, 0, 0);
-            g.pop();
+            KineticTheme.item(g, stack, x, y, EDIT_ICON, 0.875F, true);
         }
         if (hovered) {
             if (!stack.isEmpty()) {

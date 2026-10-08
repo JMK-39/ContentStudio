@@ -812,11 +812,7 @@ public class TooltipClientHandlers {
             boolean hoverIcon = KineticTheme.hovering(mx, my, infoX, 10, 24, 24);
             KineticTheme.itemSlot(g, infoX, 10, 24, 4, hoverIcon);
 
-            g.push();
-            g.translate(infoX, 10);
-            g.scale(1.5f, 1.5f);
-            g.item(itemStack, 0, 0);
-            g.pop();
+            KineticTheme.item(g, itemStack, infoX, 10, 24, 1.125F, false);
 
             g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.title", itemStack.getHoverName()), infoX + 30, 12, infoTextWidth, 0xFFFFFF, true);
             g.scrollingText(Component.literal(itemId), infoX + 30, 24, infoTextWidth, 0xAAAAAA, true);

@@ -1370,8 +1370,8 @@ public class VillagerTradeEditorPage extends KineticPage {
         ItemStack safeStack = stack == null ? ItemStack.EMPTY : stack;
         renderListFlatSlot(g, x, y);
         if (!safeStack.isEmpty()) {
-            g.item(safeStack, x + 1, y + 1);
-            renderGreenItemCount(g, safeStack, x + 1, y + 1);
+            KineticTheme.item(g, safeStack, x, y, 18, 0.75F, false);
+            renderGreenItemCount(g, safeStack, x, y);
         }
     }
 
@@ -1395,13 +1395,16 @@ public class VillagerTradeEditorPage extends KineticPage {
             return;
         }
         String countText = String.valueOf(stack.getCount());
-        int textX = x + 17 - KineticText.width(countText);
-        int textY = y + 9;
+        float scale = Math.min(0.75F, 12.0F / (KineticText.width(countText) + 1));
+        float textX = x + 15 - (KineticText.width(countText) + 1) * scale;
+        float textY = y + 15 - (KineticText.lineHeight() + 1) * scale;
         // 原 flush + translate(z=300)：抬高一层盖过物品 / Former flush + translate(z=300): raise one layer above items.
         g.push();
         g.raise(1);
-        g.text(countText, textX + 1, textY + 1, 0xFF000000, false);
-        g.text(countText, textX, textY, 0xFF55FF55, false);
+        g.translate(textX, textY);
+        g.scale(scale, scale);
+        g.text(countText, 1, 1, 0xFF000000, false);
+        g.text(countText, 0, 0, 0xFF55FF55, false);
         g.pop();
     }
 
@@ -3315,8 +3318,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             ItemStack safeStack = stack == null ? ItemStack.EMPTY : stack;
             renderRemovedFlatSlot(g, x, y);
             if (!safeStack.isEmpty()) {
-                g.item(safeStack, x + 1, y + 1);
-                g.itemDecorations(safeStack, x + 1, y + 1);
+                KineticTheme.item(g, safeStack, x, y, 18, 0.75F, true);
             }
         }
 

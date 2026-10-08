@@ -715,15 +715,15 @@ public class RecipeRemovalPage extends KineticPage {
             int x = GX + (i - start) % COLS * CELL, y = GY + (i - start) / COLS * CELL - shift;
             boolean hover = mx >= x && mx < x + CELL && my >= y && my < y + CELL && my >= GY && my < GY + ROWS * CELL;
             boolean selected = !selectedItem.isEmpty() && ItemStack.isSameItemSameTags(stack, selectedItem);
-            KineticTheme.itemGrid(g, x, y, CELL, CELL);
-            drawItem(g, stack, x + 2, y + 2);
+            RecipeSlots.draw(g, x + 1, y + 1, CELL - 2);
+            drawItem(g, stack, x + 1, y + 1, CELL - 2, 1.0F);
             boolean error = errors.contains(stack.getItem());
             if (selected || hover || error) {
-                KineticTheme.stateOutline(g, x, y, CELL, CELL, selected, hover, error);
+                KineticTheme.stateOutline(g, x + 1, y + 1, CELL - 2, CELL - 2, selected, hover, error);
             } else if (edited.isEdited(stack.getItem())) {
-                KineticTheme.indicatorOutline(g, x, y, CELL, CELL, KineticTheme.Indicator.DANGER);
+                KineticTheme.indicatorOutline(g, x + 1, y + 1, CELL - 2, CELL - 2, KineticTheme.Indicator.DANGER);
             }
-            itemScroll.renderSelectionFlash(g, i, x, y, CELL, CELL);
+            itemScroll.renderSelectionFlash(g, i, x + 1, y + 1, CELL - 2, CELL - 2);
         }
         g.endScissor(); scrollbar(g, itemScroll, mx, my, 232, GY, ROWS * CELL);
         renderRecipeList(g, mx, my); renderPreview(g);
@@ -797,17 +797,17 @@ public class RecipeRemovalPage extends KineticPage {
         int cycle = (int) ((System.currentTimeMillis() / 1000) % Integer.MAX_VALUE);
         for (int i = 0; i < limit; i++) {
             int x = 252 + i % columns * 18, y = 252 + i / columns * 18;
-            KineticTheme.itemSlot(g, x, y, 18, false);
+            RecipeSlots.draw(g, x, y, 16);
             try {
                 var alternatives = summary.alternatives(i);
-                if (alternatives.length > 0) drawItem(g, alternatives[cycle % alternatives.length], x + 1, y + 1);
+                if (alternatives.length > 0) drawItem(g, alternatives[cycle % alternatives.length], x, y, 16, 0.625F);
             } catch (RuntimeException exception) { errors.add(selectedItem.getItem()); }
         }
         if (summary.inputs().isEmpty()) text(g, tr("jei_details"), 252, 258, 200, KineticTheme.current().mutedText());
         if (summary.inputs().size() > limit) text(g, tr("more_inputs"), 252, 310, 225, KineticTheme.current().mutedText());
         g.text("→", 462, 270, KineticTheme.current().text(), false);
-        KineticTheme.itemSlot(g, 482, 264, 20, false);
-        drawItem(g, summary.output(), 484, 266);
+        RecipeSlots.draw(g, 482, 264, 20);
+        drawItem(g, summary.output(), 482, 264, 20, 0.875F);
         g.itemDecorations(summary.output(), 484, 266);
         text(g, tr("recipe_count", visibleRecipes.size()), 512, 252, 104, KineticTheme.current().mutedText());
         text(g, statusLabel(selectedRecipe), 512, 270, 104, KineticTheme.current().mutedText());
@@ -817,7 +817,7 @@ public class RecipeRemovalPage extends KineticPage {
         if (errors.contains(selectedItem.getItem())) text(g, tr("data_error"), 512, 306, 104, KineticTheme.current().danger());
     }
 
-    private void drawItem(KineticGraphics g, ItemStack stack, int x, int y) {
+    private void drawItem(KineticGraphics g, ItemStack stack, int x, int y, int slotSize, float scale) {
 //? if >=1.21 {
 /*
         CompoundTag tag = ItemData.customData(stack);
@@ -825,7 +825,7 @@ public class RecipeRemovalPage extends KineticPage {
         CompoundTag tag = stack.getTag();
 //?}
         if (tag != null && tag.getBoolean("contentstudio_invalid_placeholder")) errors.add(stack.getItem());
-        try { g.item(stack, x, y); }
+        try { KineticTheme.item(g, stack, x, y, slotSize, scale, false); }
         catch (RuntimeException exception) {
             errors.add(stack.getItem()); g.text("!", x + 5, y + 4, KineticTheme.current().danger(), false);
         }

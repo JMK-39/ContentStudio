@@ -46,11 +46,11 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     private static final int SPECIAL_H = RIGHT_Y + RIGHT_H - SPECIAL_Y - 10;
 
     private static final int REMOVE_CELL = 18;
-    private static final int REMOVE_GAP = 1;
+    private static final int REMOVE_GAP = 2;
     private static final int REMOVE_PITCH = REMOVE_CELL + REMOVE_GAP;
     private static final int REMOVE_PADDING = 2;
-    private static final int REMOVE_COLS = 20;
-    private static final int REMOVE_ROWS = 14;
+    private static final int REMOVE_COLS = Math.max(1, (SPECIAL_W - REMOVE_PADDING * 2 - 8 + REMOVE_GAP) / REMOVE_PITCH);
+    private static final int REMOVE_ROWS = Math.max(1, (SPECIAL_H - REMOVE_PADDING * 2 + REMOVE_GAP) / REMOVE_PITCH);
     private static final int REMOVE_VISIBLE_ITEMS = REMOVE_COLS * REMOVE_ROWS;
 
     private static final int EXCLUDE_ROW_H = 24;
@@ -445,7 +445,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         LootCheckerboard.draw(g, x, y, REMOVE_CELL, REMOVE_CELL);
         KineticTheme.stateOutline(g, x, y, REMOVE_CELL, REMOVE_CELL, selected, hovered, false);
         if (!stack.isEmpty()) {
-            g.item(stack, x + 1, y + 1);
+            KineticTheme.item(g, stack, x, y, REMOVE_CELL, 0.75F, false);
         }
 
         if (hovered) {
@@ -572,8 +572,8 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         int col = gridX / REMOVE_PITCH;
         int row = gridY / REMOVE_PITCH;
         if (col >= REMOVE_COLS || row >= REMOVE_ROWS
-                || gridX % REMOVE_PITCH == REMOVE_CELL
-                || gridY % REMOVE_PITCH == REMOVE_CELL) {
+                || gridX % REMOVE_PITCH >= REMOVE_CELL
+                || gridY % REMOVE_PITCH >= REMOVE_CELL) {
             return false;
         }
         double smoothRemoveScroll = globalRemoveScroller.smoothOffset();

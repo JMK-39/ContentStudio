@@ -65,7 +65,15 @@ jobs:
       - name: Check release artifact
         env:
           VERSION: ${{ inputs.mod_version }}
-        run: test -s "build/release/contentstudio-forge-1.20.1-$VERSION.jar" && test -s "build/release/contentstudio-neoforge-1.21.1-$VERSION.jar"
+        run: |
+          for node in forge-1.20.1 neoforge-1.21.1 neoforge-26.1.2; do
+            artifact="build/release/contentstudio-$node-$VERSION.jar"
+            if [ ! -s "$artifact" ]; then
+              echo "Missing or empty release JAR: $artifact" >&2
+              exit 1
+            fi
+            echo "$artifact"
+          done
 
       - name: Publish GitHub Release
         env:

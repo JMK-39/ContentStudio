@@ -21,10 +21,10 @@ public class LootEditorPage extends AbstractLootEditorPage {
     private static final int ENTITY_GRID_COLS = 4;
     private static final int ENTITY_GRID_ROWS = 6;
     private static final int ENTITY_CELL_SIZE = 48;
-    private static final int BLOCK_GRID_COLS = 10;
-    private static final int BLOCK_GRID_ROWS = 16;
     private static final int BLOCK_CELL_SIZE = 18;
-    private static final int BLOCK_CELL_GAP = 1;
+    private static final int BLOCK_CELL_GAP = 2;
+    private static final int BLOCK_GRID_COLS = (TARGET_WIDTH + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
+    private static final int BLOCK_GRID_ROWS = (TARGET_HEIGHT + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
 
     private final KineticEntityPreview entityPreviewRenderer = KineticEntityPreview.create();
 
@@ -150,7 +150,7 @@ public class LootEditorPage extends AbstractLootEditorPage {
                 } else {
                     KineticTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
                 }
-                renderLargeItem(g, targetStack, x + 1, y + 1, 16);
+                KineticTheme.item(g, targetStack, x, y, cell, 0.75F, false);
             }
             flashTarget(g, i, x, y, cell, cell);
             if (hover) {

@@ -89,7 +89,10 @@ final class RecipeTypeFilterPage extends KineticPage {
                     row.type() == null ? selected == null : row.type().equals(selected), hovered, false);
             if (row.type() != null) {
                 ItemStack icon = RecipeRemovalPage.typeIcon(row.type());
-                if (!icon.isEmpty()) graphics.item(icon, 21, y + 4);
+                if (!icon.isEmpty()) {
+                    RecipeSlots.draw(graphics, 21, y + 4, 16);
+                    KineticTheme.item(graphics, icon, 21, y + 4, 16, 0.625F, false);
+                }
             }
             String name = row.type() == null ? RecipeRemovalPage.tr("all_types").getString()
                     : RecipeRemovalPage.typeName(row.type()).getString();
