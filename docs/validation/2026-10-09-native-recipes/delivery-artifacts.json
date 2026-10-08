@@ -1,7 +1,7 @@
 [
     {
         "file":  "contentstudio-forge-1.20.1-26.10.9.jar",
-        "sha256":  "821ff743ce26b61d2f4faf825b0ec0f25348251f63d93e9db27f82ae8b69fdfb",
+        "sha256":  "678287a93c20189d2f50b5c3fdbf06f822c52fb39be6acad619e67970c76a835",
         "classMajor":  61,
         "classes":  262,
         "languageKeys":  985,
@@ -11,7 +11,7 @@
     },
     {
         "file":  "contentstudio-neoforge-1.21.1-26.10.9.jar",
-        "sha256":  "cec2e34167ce78e81ed52ca1141862ac5a1e9a04d669dac450613553bccb8a95",
+        "sha256":  "daf6141aa05eefdea44d2977ee72be3aed4461d895555a59687ba25147d85a73",
         "classMajor":  65,
         "classes":  266,
         "languageKeys":  998,
@@ -21,7 +21,7 @@
     },
     {
         "file":  "contentstudio-neoforge-26.1.2-26.10.9.jar",
-        "sha256":  "b5c731ab35db183c52a0483ea712b989a3be2d2b5d426e235ebe24ad4ac294c9",
+        "sha256":  "b94e6bd8ae6f03b9e3829bab3a32aa80378937adb9395d4f9bb9d98442750fc4",
         "classMajor":  69,
         "classes":  270,
         "languageKeys":  998,
