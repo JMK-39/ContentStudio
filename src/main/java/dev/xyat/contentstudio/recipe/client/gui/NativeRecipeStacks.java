@@ -17,24 +17,11 @@ final class NativeRecipeStacks {
         return variants.isEmpty()?ItemStack.EMPTY:variants.get((int)(Math.floorDiv(timeMillis,1000)%variants.size()));
     }
     static List<String> tagIds(JsonElement json) {
-        var ids=new LinkedHashSet<String>();collectTags(json,ids);return List.copyOf(ids);
-    }
-    private static void collectTags(JsonElement value,Set<String> ids) {
-        if(value.isJsonArray()){value.getAsJsonArray().forEach(v->collectTags(v,ids));return;}
-        if(value.isJsonPrimitive()&&value.getAsJsonPrimitive().isString()) {
-            String text=value.getAsString();if(text.startsWith("#"))addTagId(text.substring(1),ids);return;
+        var ids=new LinkedHashSet<String>();
+        for(String candidate:dev.xyat.contentstudio.recipe.nativeedit.NativeIngredientTags.candidates(json)) {
+            var id=KineticResourceIds.tryParse(candidate);if(id!=null)ids.add(id.toString());
         }
-        if(!value.isJsonObject())return;
-        var object=value.getAsJsonObject();
-        if(object.has("fluid")||object.has("FluidName")||object.has("chemical")||object.has("gas"))return;
-        if(object.has("item")&&object.get("item").isJsonObject()){collectTags(object.get("item"),ids);return;}
-        for(String wrapper:List.of("ingredient","base_ingredient","baseIngredient","children","alternatives","items","values","block"))
-            if(object.has(wrapper)){collectTags(object.get(wrapper),ids);return;}
-        if(!object.has("id")&&!object.has("item")&&object.has("tag")&&object.get("tag").isJsonPrimitive()&&object.getAsJsonPrimitive("tag").isString())
-            addTagId(object.get("tag").getAsString(),ids);
-    }
-    private static void addTagId(String text,Set<String> ids) {
-        var id=KineticResourceIds.tryParse(text);if(id!=null)ids.add(id.toString());
+        return List.copyOf(ids);
     }
     private static void read(JsonElement value,List<ItemStack> result) {
         if(result.size()>=128)return;

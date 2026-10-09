@@ -3,6 +3,8 @@
         "node":  "1.20.1-forge",
         "suites":  18,
         "tests":  87,
+        "passed":  78,
+        "skipped":  9,
         "failures":  0,
         "errors":  0
     },
@@ -10,6 +12,8 @@
         "node":  "1.21.1-neoforge",
         "suites":  22,
         "tests":  107,
+        "passed":  107,
+        "skipped":  0,
         "failures":  0,
         "errors":  0
     },

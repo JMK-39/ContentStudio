@@ -2,16 +2,16 @@
     {
         "profile":  "OTHERWORLD CLASH",
         "file":  "contentstudio-forge-1.20.1-26.10.9.jar",
-        "sha256":  "8f523cd7379c5d04eca1fe4acc78c2d255c38f8aabeb2570ec4eabb13c2d3830"
+        "sha256":  "6498371f66c76367b5495c4c677c6d5ae11634ab7aeea7b29808e0a708dbad1d"
     },
     {
         "profile":  "1.21.1-NeoForge_21.1.252",
         "file":  "contentstudio-neoforge-1.21.1-26.10.9.jar",
-        "sha256":  "9d17259d9a3125b240086e52955e4d6b9bddf184453a9da916ed73e4869412b8"
+        "sha256":  "3f76afee4ba9aec2c23ce0f20f598b6076549922c8543377043aacda1f6b7f44"
     },
     {
         "profile":  "26.1.2-NeoForge_26.1.2.112",
         "file":  "contentstudio-neoforge-26.1.2-26.10.9.jar",
-        "sha256":  "314236069718a76833c13ee73afa55de42e480f4fe50c50296bd3ff364c067ba"
+        "sha256":  "526b65c8d4d7863b1263706868719b05ee235c12ae2095dea53162624dcf2766"
     }
 ]
