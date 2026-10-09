@@ -6,6 +6,69 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class NativeRecipeLayoutTest {
+    @Test void energizingUsesSixInputsAndASeparateOutputLikeItsViewerCategory() {
+        var layout=layout("{\"type\":\"powah:energizing\",\"ingredients\":[\"minecraft:stone\",\"minecraft:stone\",\"minecraft:stone\",\"minecraft:stone\",\"minecraft:stone\",\"minecraft:stone\"],\"result\":{\"id\":\"minecraft:diamond\"},\"energy\":10000}");
+        assertEquals("powah_energizing",layout.kind());
+        assertEquals(6,layout.slots().stream().filter(s->!s.output()).count());
+        assertEquals(136,layout.slots().get(6).x());
+        assertEquals("powah:energizing_orb",NativeRecipeLayout.stationCandidates("powah:energizing").get(0));
+        assertContainedAndSeparated(layout,18);
+    }
+    @Test void feastsMixedCuisineKeepsBothIngredientListsAndItsBaseEditable() {
+        var layout=layout("{\"type\":\"youkaisfeasts:cuisine_mixed\",\"base\":\"youkaisfeasts:california\",\"first\":[{\"item\":\"minecraft:carrot\"}],\"second\":[{\"item\":\"minecraft:potato\"},{\"item\":\"minecraft:beetroot\"}],\"result\":{\"item\":\"minecraft:bread\"}}");
+        assertEquals("feasts_cuisine",layout.kind());assertEquals(5,layout.slots().size());
+        for(var path:List.of(List.of("base"),List.of("first","0"),List.of("second","0"),List.of("second","1")))
+            assertTrue(layout.slots().stream().anyMatch(s->s.path().equals(path)),path.toString());
+        assertEquals("youkaisfeasts:cuisine_board",NativeRecipeLayout.stationCandidates("youkaisfeasts:cuisine_mixed").get(0));
+        assertContainedAndSeparated(layout,18);
+    }
+    @Test void feastsFermentationSeparatesBothFluidsAndItemResults() {
+        var layout=layout("{\"type\":\"youkaisfeasts:simple_fermentation\",\"ingredients\":[{\"item\":\"minecraft:apple\"}],\"inputFluid\":{\"fluid\":\"minecraft:water\",\"amount\":1000},\"outputFluid\":{\"fluid\":\"minecraft:lava\",\"amount\":1000},\"results\":[{\"item\":\"minecraft:bread\"}],\"time\":200}");
+        assertEquals("feasts_ferment",layout.kind());assertEquals(4,layout.slots().size());
+        assertTrue(layout.slots().stream().anyMatch(s->s.path().equals(List.of("outputFluid"))&&s.output()));
+        assertContainedAndSeparated(layout,18);
+    }
+    @Test void fermentationOmitsNativeEmptyFluidStacks() {
+        for(String empty:List.of("{}","{\"id\":\"minecraft:empty\"}","{\"fluid\":\"minecraft:water\",\"amount\":0}")) {
+            var preview=layout("{\"type\":\"youkaisfeasts:simple_fermentation\",\"ingredients\":[{\"item\":\"minecraft:apple\"}],\"results\":[{\"id\":\"minecraft:bread\"}],\"inputFluid\":"+empty+",\"outputFluid\":"+empty+"}");
+            assertEquals(2,preview.slots().size(),empty);
+            assertTrue(preview.slots().stream().noneMatch(s->s.path().get(0).endsWith("Fluid")));
+        }
+    }
+    @Test void fiveIngredientCuisineReservesSpaceForItsArrowBeforeTheResult() {
+        var layout=layout("{\"type\":\"youkaisfeasts:cuisine_mixed\",\"base\":\"youkaisfeasts:futomaki\",\"first\":[\"minecraft:carrot\"],\"second\":[\"minecraft:carrot\",\"minecraft:potato\",\"minecraft:beetroot\",\"minecraft:apple\",\"minecraft:melon_slice\"],\"result\":{\"id\":\"minecraft:bread\"}}");
+        int lastIngredient=layout.slots().stream().filter(s->!s.output()).mapToInt(NativeRecipeLayout.Slot::x).max().orElseThrow();
+        int result=layout.slots().stream().filter(NativeRecipeLayout.Slot::output).findFirst().orElseThrow().x();
+        assertTrue(result-lastIngredient>=18+2+24+2,"Keep the arrow and both gaps between the last ingredient and result");
+        assertContainedAndSeparated(layout,18);
+    }
+    @Test void uncraftingReversesTheCraftingGridAndKeepsItsConsumedInput() {
+        var layout=layout("{\"type\":\"twilightforest:uncrafting\",\"cost\":4,\"input\":{\"count\":8,\"ingredient\":{\"item\":\"minecraft:tipped_arrow\"}},\"key\":{\"A\":{\"item\":\"minecraft:arrow\"}},\"pattern\":[\"AAA\",\"A A\",\"AAA\"]}");
+        assertEquals("twilight_uncrafting",layout.kind());
+        assertEquals(List.of("input"),layout.slots().get(0).path());assertFalse(layout.slots().get(0).output());
+        assertEquals(8,layout.slots().stream().filter(NativeRecipeLayout.Slot::output).count());
+        assertTrue(layout.slots().stream().filter(NativeRecipeLayout.Slot::output).allMatch(s->s.x()>layout.slots().get(0).x()));
+        assertContainedAndSeparated(layout,18);
+    }
+    @Test void twilightConversionsKeepBlockAndEntityRolesDistinct() {
+        var blocks=layout("{\"type\":\"twilightforest:crumble_horn\",\"from\":\"minecraft:stone\",\"to\":\"minecraft:cobblestone\"}");
+        var entities=layout("{\"type\":\"twilightforest:transformation_powder\",\"from\":\"minecraft:pig\",\"to\":\"minecraft:cow\",\"reversible\":true}");
+        assertEquals("twilight_blocks",blocks.kind());assertEquals("twilight_entities",entities.kind());
+        assertEquals(List.of("from"),entities.slots().get(0).path());assertEquals(List.of("to"),entities.slots().get(1).path());
+        assertTrue(entities.slots().get(1).output());assertContainedAndSeparated(entities,34);
+    }
+    @Test void twilightDryingUsesItsNativeInputField() {
+        var layout=layout("{\"type\":\"twilightforest:drying\",\"input\":{\"item\":\"minecraft:slime_ball\"},\"result\":{\"id\":\"twilightforest:gelatinous_slime_drop\"},\"filter_time\":6000}");
+        assertEquals(2,layout.slots().size());assertEquals(List.of("input"),layout.slots().get(0).path());
+    }
+    private static NativeRecipeLayout layout(String text) {return NativeRecipeLayout.of(JsonParser.parseString(text).getAsJsonObject());}
+    private static void assertContainedAndSeparated(NativeRecipeLayout layout,int size) {
+        for(var slot:layout.slots()) {assertTrue(slot.x()>=0&&slot.y()>=0);assertTrue(slot.x()+size<=layout.width());assertTrue(slot.y()+size<=layout.height());}
+        for(int i=0;i<layout.slots().size();i++)for(int j=i+1;j<layout.slots().size();j++) {
+            var a=layout.slots().get(i);var b=layout.slots().get(j);
+            assertTrue(Math.abs(a.x()-b.x())>=size+2||Math.abs(a.y()-b.y())>=size+2,"Overlapping recipe slots: "+a+" / "+b);
+        }
+    }
     @Test void cauldronKeepsItsBaseFluidSeparateFromItsReagent() {
         var json=JsonParser.parseString("{\"type\":\"irons_spellbooks:alchemist_cauldron_brew\",\"base_fluid\":{\"FluidName\":\"minecraft:water\",\"Amount\":1000},\"input\":\"minecraft:gold_ingot\",\"results\":[{\"FluidName\":\"minecraft:lava\",\"Amount\":250}]}").getAsJsonObject();
         assertTrue(NativeRecipeLayout.of(json).slots().stream().anyMatch(slot->slot.path().equals(List.of("base_fluid"))));

@@ -91,6 +91,8 @@ public final class NativeRecipeMatrixValidation {
         for(var group:grouped.entrySet()) {
             if(results.asList().stream().anyMatch(v->v.getAsJsonObject().get("type").getAsString().equals(group.getKey()) && v.getAsJsonObject().get("status").getAsString().equals("PASS")))continue;
             Case chosen=null;
+            if(Set.of("powah","youkaisfeasts","twilightforest").contains(group.getKey().split(":",2)[0]))
+                group.getValue().sort((left,right)->Integer.compare(NativeRecipeLayout.of(right.getValue().getAsJsonObject()).slots().size(),NativeRecipeLayout.of(left.getValue().getAsJsonObject()).slots().size()));
             for(var entry:group.getValue()) {
                 try {chosen=probe(entry.getKey(),group.getKey(),entry.getValue().getAsJsonObject());}catch(RuntimeException rejected){ }
                 if(chosen!=null)break;
@@ -98,7 +100,8 @@ public final class NativeRecipeMatrixValidation {
             if(chosen!=null) {
                 cases.add(chosen);
                 String mod=group.getKey().split(":",2)[0];
-                if(previewMods.add(mod) || Set.of("farmersdelight:cooking","farmersdelight:cutting","create:sequenced_assembly","extendedcrafting:shaped_table").contains(group.getKey())) {
+                if(previewMods.add(mod) || Set.of("farmersdelight:cooking","farmersdelight:cutting","create:sequenced_assembly","extendedcrafting:shaped_table").contains(group.getKey())
+                        ||Set.of("powah","youkaisfeasts","twilightforest").contains(mod)) {
                     var body=new JsonObject();body.addProperty("id",chosen.id());body.addProperty("catalog",RecipeMemoryManager.catalogVersion(manager));body.addProperty("revision","");body.addProperty("edited",false);
                     body.add("recipe",RecipeMemoryManager.originalCatalog(manager).sources().get(KineticResourceIds.parse(chosen.id())).deepCopy());
                     var path=new JsonArray();chosen.path().forEach(path::add);body.add("testPath",path);body.addProperty("testValue",chosen.value());body.add("testDraft",chosen.draft());previews.add(body);
@@ -126,6 +129,7 @@ public final class NativeRecipeMatrixValidation {
                 var item=KineticResourceIds.tryParse(primitive.getAsString());
                 boolean itemField=primitive.getAsString().contains(":") || Set.of("item","id","input","output","ingredient","reagent","catalyst").contains(key) || key.endsWith("_item") || key.endsWith("_cell");
                 if(itemField && item!=null && KineticRegistries.items().contains(item))value=primitive.getAsString().equals("minecraft:diamond")?"minecraft:emerald":"minecraft:diamond";
+                if(type.equals("twilightforest:crumble_horn")&&Set.of("from","to").contains(key))value="minecraft:diamond_block";
             }
             if(value==null)continue;
             try {

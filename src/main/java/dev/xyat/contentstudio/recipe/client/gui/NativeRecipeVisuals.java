@@ -19,6 +19,9 @@ final class NativeRecipeVisuals {
         }
     }
     private NativeRecipeVisuals() { }
+    static boolean hasTexture(String namespace,String path) {
+        return Minecraft.getInstance().getResourceManager().getResource(KineticResourceIds.of(namespace,path)).isPresent();
+    }
     static Icon read(JsonElement value) {
         if(!value.isJsonObject())return null;
         var object=value.getAsJsonObject();

@@ -83,6 +83,17 @@ public record NativeRecipeLayout(String kind, int width, int height, List<Slot> 
             case "mysticalagriculture:reprocessor" -> "seed_reprocessor"; case "mysticalagriculture:soul_extraction" -> "soul_extractor";
             case "spore:surgery", "spore:grafting" -> "surgery_table";
             case "touhou_little_maid:altar_recipe_serializers", "touhou_little_maid:altar_recipe" -> "altar";
+            case "powah:energizing" -> "energizing_orb";
+            case "twilightforest:uncrafting" -> "uncrafting_table";
+            case "twilightforest:crumble_horn" -> "crumble_horn";
+            case "twilightforest:transformation_powder" -> "transformation_powder";
+            case "twilightforest:drying" -> "sorting_drying_rack";
+            case "twilightforest:ominous_fire" -> "exanimate_essence";
+            case "youkaisfeasts:simple_basin" -> "wood_basin";
+            case "youkaisfeasts:simple_fermentation" -> "fermentation_tank";
+            case "youkaisfeasts:steaming" -> "steamer_pot";
+            case "youkaisfeasts:cuisine_mixed", "youkaisfeasts:cuisine_ordered", "youkaisfeasts:cuisine_fixed" -> "cuisine_board";
+            case "youkaisfeasts:unordered_cooking", "youkaisfeasts:immediate_soup" -> "stockpot";
             case "minecraft:crafting_shaped", "minecraft:crafting_shapeless" -> "crafting_table";
             case "minecraft:smelting" -> "furnace"; case "minecraft:blasting" -> "blast_furnace";
             case "minecraft:smoking" -> "smoker"; case "minecraft:campfire_cooking" -> "campfire";
@@ -95,6 +106,8 @@ public record NativeRecipeLayout(String kind, int width, int height, List<Slot> 
     public static NativeRecipeLayout of(JsonObject json) {return of(json,0);}
     public static NativeRecipeLayout of(JsonObject json,int page) {
         String type=NativeRecipeDocument.serializerId(json);var slots=new ArrayList<Slot>();
+        var workstation=NativeWorkstationLayouts.of(type,json);
+        if(workstation!=null)return workstation;
         if(type.equals("create:sequenced_assembly") && json.has("sequence") && json.get("sequence").isJsonArray()) {
             if(json.has("ingredient"))slots.add(new Slot(List.of("ingredient"),0,24,false));
             if(json.has("transitionalItem"))slots.add(new Slot(List.of("transitionalItem"),0,64,false));

@@ -37,7 +37,7 @@ public final class GuiLongTextValidation {
         "native-recipe-browser","native-recipe-fields","native-recipe-nested","native-recipe-item","native-recipe-add-field",
         "native-workstations","vanilla-workstations","native-visual","native-visual-slot"};
     private static final BitSet capturedPages = new BitSet();
-    private static boolean installed,started,screenshot,finished,originalFullscreen,nativeNavigationChecked;
+    private static boolean installed,started,screenshot,finished,originalFullscreen,nativeNavigationChecked,slotMenuOpened,preparingSearch;
     private static String originalLanguage;
     private static int originalScale,originalWidth,originalHeight,phase=-1,page=-1,captures,failures;
     private static long due;
@@ -109,9 +109,32 @@ public final class GuiLongTextValidation {
             }
             LOG.info("CONTENT_GUI_NATIVE_DRAFT_NAVIGATION_PASS");
         }catch(Exception error){throw new AssertionError(error);}
-        nativeSamples=List.copyOf(samples);var names=new ArrayList<>(List.of(NAMES));var pages=new ArrayList<String>(List.of("26","41","42"));
-        for(int i=0;i<samples.size();i++) {
-            var body=samples.get(i);names.add("native-mod-"+body.get("recipe").getAsJsonObject().get("type").getAsString().replace(':','-'));
+        var expanded=new ArrayList<>(samples);
+        if(Boolean.getBoolean("contentstudio.guiValidation.tags")) {
+            var body=samples.get(0).deepCopy();body.addProperty("id","contentstudio:_tag_preview");body.addProperty("tagFixture",true);
+            //? if >=1.21 {
+            /*body.add("recipe",com.google.gson.JsonParser.parseString("{\"type\":\"minecraft:crafting_shapeless\",\"ingredients\":[\"#minecraft:planks\"],\"result\":{\"id\":\"minecraft:stick\",\"count\":4}}"));
+            *///?} else {
+            body.add("recipe",com.google.gson.JsonParser.parseString("{\"type\":\"minecraft:crafting_shapeless\",\"ingredients\":[{\"tag\":\"minecraft:planks\"}],\"result\":{\"item\":\"minecraft:stick\",\"count\":4}}"));
+            //?}
+            body.add("testPath",com.google.gson.JsonParser.parseString("[\"result\",\"count\"]"));body.addProperty("testValue","5");
+            var draft=body.getAsJsonObject("recipe").deepCopy();draft.getAsJsonObject("result").addProperty("count",5);body.add("testDraft",draft);expanded.add(body);
+            var fields=body.deepCopy();fields.addProperty("tagFields",true);fields.remove("tagFixture");
+            fields.add("recipe",com.google.gson.JsonParser.parseString("{\"type\":\"example:tag_fields\",\"input\":{\"tag\":\"minecraft:planks\"}}"));expanded.add(fields);
+            try {
+            var reader=Class.forName("dev.xyat.contentstudio.recipe.client.gui.NativeRecipeStacks");
+            var read=reader.getDeclaredMethod("read",com.google.gson.JsonElement.class);read.setAccessible(true);
+            var variants=(List<ItemStack>)read.invoke(null,com.google.gson.JsonParser.parseString("{\"tag\":\"minecraft:planks\",\"count\":8}"));
+            if(variants.size()<2||variants.stream().anyMatch(s->s.getCount()!=8||s.is(Items.PAPER)))throw new AssertionError("Tag preview lost real alternatives/count");
+            var frame=reader.getDeclaredMethod("frame",List.class,long.class);frame.setAccessible(true);
+            if(((ItemStack)frame.invoke(null,variants,0L)).getItem()==((ItemStack)frame.invoke(null,variants,1000L)).getItem())throw new AssertionError("Tag preview does not cycle");
+            LOG.info("CONTENT_GUI_TAG_CYCLE_PASS alternatives={} quantity=8",variants.size());
+            }catch(ReflectiveOperationException error){throw new AssertionError(error);}
+        }
+        nativeSamples=List.copyOf(expanded);var names=new ArrayList<>(List.of(NAMES));var pages=new ArrayList<String>(List.of("26","41","42"));
+        if(Boolean.getBoolean("contentstudio.guiValidation.tags"))pages.add("27");
+        for(int i=0;i<expanded.size();i++) {
+            var body=expanded.get(i);names.add(body.has("tagFixture")?"native-tag-preview":body.has("tagFields")?"native-tag-fields":"native-mod-"+body.get("recipe").getAsJsonObject().get("type").getAsString().replace(':','-'));
             pages.add(String.valueOf(45+i));
         }
         NAMES=names.toArray(String[]::new);System.setProperty("contentstudio.guiValidation.pages",String.join(",",pages));System.setProperty("contentstudio.guiValidation.phases","4");install();
@@ -139,8 +162,16 @@ public final class GuiLongTextValidation {
                     stressOriginal=Language.getInstance();
                     Language.inject(new StressLanguage(stressOriginal));
                 }
-                nextPage();return;
+                if(Boolean.getBoolean("contentstudio.guiValidation.tags")) {
+                    preparingSearch=true;
+                    dev.xyat.kineticcore.api.client.search.KineticItemSearch.prepare(()->{
+                        preparingSearch=false;
+                        try{nextPage();}catch(Throwable error){failures++;LOG.error("CONTENT_GUI_FAIL preparing item selection",error);finish();}
+                    });
+                }else nextPage();
+                return;
             }
+            if(preparingSearch)return;
             long now=System.currentTimeMillis();
             if(!screenshot && now>=due) {
                 if(Boolean.getBoolean("contentstudio.nativeRecipeMatrix.captureOnly") && (page==26 || page==41)) {
@@ -153,7 +184,7 @@ public final class GuiLongTextValidation {
                         nativeNavigationChecked=true;
                         var cards=(List<?>)field(menu,"cards");
                         String mod=cards.stream().map(card->{try{return (String)field(card,"key");}catch(Exception e){throw new AssertionError(e);}})
-                                .filter(key->key.equals("create")).findFirst().orElse("ae2");
+                                .filter(key->key.equals("create")).findFirst().orElse((String)field(cards.get(0),"key"));
                         var query=menu.getClass().getDeclaredField("query");query.setAccessible(true);query.set(menu,mod);invoke(menu,"search");
                         cards=(List<?>)field(menu,"cards");if(cards.size()!=1)throw new AssertionError("Mod search failed: "+mod);
                         ((Runnable)field(cards.get(0),"click")).run();
@@ -163,10 +194,14 @@ public final class GuiLongTextValidation {
                         LOG.info("CONTENT_GUI_NATIVE_HIERARCHY_PASS mod={} cards={}",mod,types.size());openPage(page);due=now+1000;return;
                     }
                 }
-                capture("start");screenshot=true;due=now+(phase==4?3400:550);return;
+                capture("start");screenshot=true;due=now+(tagCapture()?1300:phase==4?3400:550);return;
             }
             if(screenshot && now>=due) {
+                if(slotMenuOpened){capture("menu");nextPage();return;}
                 if(phase==4)capture("scroll");
+                if(tagCapture()) {
+                    capture("cycle");openSlotContextMenu();slotMenuOpened=true;due=now+450;return;
+                }
                 nextPage();
             }
         } catch(Throwable error) {
@@ -174,16 +209,18 @@ public final class GuiLongTextValidation {
             finish();
         }
     }
+    private static boolean tagCapture(){return Boolean.getBoolean("contentstudio.guiValidation.tags")&&(page==27||page>=45&&nativeSamples.get(page-45).has("tagFixture"));}
     private static void nextPhase() {
         if(stressOriginal!=null){Language.inject(stressOriginal);stressOriginal=null;}
         phase++;page=-1;
-        if(phase>=Integer.getInteger("contentstudio.guiValidation.phases",5)){finish();return;}
+        boolean fullHdOnly=Boolean.getBoolean("contentstudio.guiValidation.fullHdOnly");
+        if(phase>=(fullHdOnly?2:Integer.getInteger("contentstudio.guiValidation.phases",5))){finish();return;}
         var mc=Minecraft.getInstance();
         mc.setScreen(null);
-        String lang=phase==2 || phase==3?"zh_cn":"en_us";
+        String lang=(fullHdOnly?phase==1:phase==2 || phase==3)?"zh_cn":"en_us";
         mc.getLanguageManager().setSelected(lang);
         mc.options.languageCode=lang;
-        int width=phase==1 || phase==3?1920:854,height=phase==1 || phase==3?1080:480;
+        int width=fullHdOnly||phase==1 || phase==3?1920:854,height=fullHdOnly||phase==1 || phase==3?1080:480;
         mc.getWindow().setWindowed(width,height);mc.resizeDisplay();
         reload=mc.reloadResourcePacks();
         LOG.info("CONTENT_GUI_PHASE phase={} language={} requested={}x{} autoScale=true",phase,lang,width,height);
@@ -194,7 +231,7 @@ public final class GuiLongTextValidation {
         while(page<NAMES.length && !selectedPages.isBlank() && !List.of(selectedPages.split(",")).contains(String.valueOf(page)))page++;
         if(page>=NAMES.length){nextPhase();return;}
         openPage(page);
-        screenshot=false;due=System.currentTimeMillis()+1000;
+        screenshot=false;slotMenuOpened=false;due=System.currentTimeMillis()+1000;
         LOG.info("CONTENT_GUI_OPEN phase={} case={} page={}",phase,NAMES[page],KineticGui.currentPage()!=null?KineticGui.currentPage().getClass().getName():String.valueOf(Minecraft.getInstance().screen));
     }
     //? if >=1.21 {
@@ -229,7 +266,48 @@ public final class GuiLongTextValidation {
     @SuppressWarnings("unchecked")
     private static void openPage(int index)throws Exception {
         if(index>=45) {
-            var body=nativeSamples.get(index-45);var preview=new NativeRecipeEditorPage(body,()->{});KineticGui.open(preview);
+            var body=nativeSamples.get(index-45);
+            if(body.has("tagFields")) {
+                var fields=new NativeRecipeFieldsPage(body,()->{});var session=field(fields,"session");
+                KineticGui.open((KineticPage)construct("dev.xyat.contentstudio.recipe.client.gui.NativeRecipeFieldsPage",session,List.of("input")));return;
+            }
+            var preview=new NativeRecipeEditorPage(body,()->{});KineticGui.open(preview);
+            if(body.has("tagFixture")) {
+                var tags=(List<List<String>>)field(preview,"ingredientTags");
+                var items=(List<List<ItemStack>>)field(preview,"stacks");
+                if(!tags.get(0).equals(List.of("minecraft:planks"))||items.get(0).size()<2)throw new AssertionError("Native ingredient tag identity lost");
+                LOG.info("CONTENT_GUI_NATIVE_TAG_PASS schema={} alternatives={}",body.get("recipe"),items.get(0).size());
+                invoke(preview,"onMouseClick",diagramClick(preview,false));
+                if(KineticGui.currentPage()==preview)throw new AssertionError("Left click did not open ingredient selection");
+                KineticGui.open(preview);
+                invoke(preview,"onMouseClick",diagramClick(preview,true));
+                if(KineticGui.currentPage()!=preview)throw new AssertionError("Right click opened a picker instead of a menu");
+                var actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(preview,"slotMenu");
+                if(actions.size()!=2)throw new AssertionError("Missing native edit/remove actions");
+                invoke(preview,"closeContextMenu");actions.get(0).action().run();
+                if(!(KineticGui.currentPage() instanceof NativeRecipeFieldsPage))throw new AssertionError("Edit action did not open slot fields");
+                if(((List<?>)field(KineticGui.currentPage(),"keys")).isEmpty())throw new AssertionError("Primitive ingredient edit opened an empty page");
+                KineticGui.open(preview);actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(preview,"slotMenu");
+                actions.get(1).action().run();
+                var document=(dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocument)field(field(preview,"session"),"document");
+                if(document.json().getAsJsonArray("ingredients").size()!=0 || !document.json().get("result").equals(body.getAsJsonObject("recipe").get("result")))
+                    throw new AssertionError("Native remove action damaged unrelated data");
+                LOG.info("CONTENT_GUI_NATIVE_SLOT_MENU_PASS leftSelect=true rightMenu=true edit=true remove=true");
+                preview=new NativeRecipeEditorPage(body,()->{});KineticGui.open(preview);
+            }
+            var original=body.getAsJsonObject("recipe");
+            String type=original.get("type").getAsString();
+            if(type.equals("twilightforest:uncrafting")) {
+                int expected=original.has("input_count")?original.get("input_count").getAsInt():original.getAsJsonObject("input").has("count")?original.getAsJsonObject("input").get("count").getAsInt():1;
+                var input=(List<List<ItemStack>>)field(preview,"stacks");
+                if(input.isEmpty()||input.get(0).isEmpty()||input.get(0).get(0).getCount()!=expected)throw new AssertionError("Uncrafting input quantity lost");
+                LOG.info("CONTENT_GUI_UNCRAFTING_COUNT_PASS count={}",expected);
+            }
+            if(type.startsWith("youkaisfeasts:cuisine_")&&original.has("base")) {
+                var input=(List<List<ItemStack>>)field(preview,"stacks");
+                if(input.isEmpty()||input.get(0).isEmpty())throw new AssertionError("Cuisine base definition has no native ingredient preview: "+original.get("base"));
+                LOG.info("CONTENT_GUI_CUISINE_BASE_PASS id={}",original.get("base"));
+            }
             var path=body.getAsJsonArray("testPath").asList().stream().map(com.google.gson.JsonElement::getAsString).toList();
             invoke(preview,"edit",path,body.get("testValue").getAsString());
             var document=(dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocument)field(field(preview,"session"),"document");
@@ -327,6 +405,42 @@ public final class GuiLongTextValidation {
             case 22,23,24,25 -> KineticGui.open(new TooltipProbePage(index));
             // Recipe editors are container pages drawn on the vanilla workstation textures.
             case 26 -> containerPage(new dev.xyat.contentstudio.recipe.client.gui.RecipeHubPage(new dev.xyat.contentstudio.recipe.RecipeMenu(0,Minecraft.getInstance().player.getInventory()),Component.literal("GUI validation")));
+            case 27 -> {
+                var menu=new dev.xyat.contentstudio.recipe.UniversalRecipeMenu(0,Minecraft.getInstance().player.getInventory(),dev.xyat.contentstudio.recipe.RecipeRegistry.EditorType.CRAFTING,null);
+                var p=new RecipePage(menu,Component.literal("Recipe tag preview"));containerPage(p);
+                if(Boolean.getBoolean("contentstudio.guiValidation.tags")) {
+                    var selection=construct("dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors$ItemSelection",dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.ItemSelectionType.TAG,ItemStack.EMPTY,"minecraft:planks");
+                    invoke(p,"handleItemSelectorResult",selection,0,menu.inputContainer,true);
+                    if(menu.inputContainer.getItem(0).is(Items.PAPER)||menu.inputContainer.getItem(0).isEmpty())throw new AssertionError("Tag selector retained a paper icon");
+                    var write=dev.xyat.contentstudio.recipe.RecipeConfigStore.class.getDeclaredMethod("writeStack",ItemStack.class,Integer.class);write.setAccessible(true);
+                    var encoded=(com.google.gson.JsonObject)write.invoke(null,menu.inputContainer.getItem(0),0);
+                    if(!encoded.has("tag")||!encoded.get("tag").getAsString().equals("#minecraft:planks")||encoded.has("item"))throw new AssertionError("Tag preview saved as a concrete item");
+                    LOG.info("CONTENT_GUI_TAG_SERIALIZATION_PASS tag=#minecraft:planks concreteItem=false");
+                    var saved=new ItemStack(Items.PAPER);
+                    //? if >=1.21 {
+                    /*dev.xyat.contentstudio.item.ItemData.updateCustomData(saved,tag->tag.putString("kt_tag","#minecraft:planks"));
+                    *///?} else {
+                    saved.getOrCreateTag().putString("kt_tag","#minecraft:planks");
+                    //?}
+                    menu.inputContainer.setItem(1,saved);menu.outputContainer.setItem(0,new ItemStack(Items.STICK,4));
+                    var actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(p,"slotMenu",0,menu.inputContainer);
+                    actions.get(actions.size()-1).action().run();
+                    if(!menu.inputContainer.getItem(0).isEmpty()||!menu.inputContainer.getItem(1).is(Items.PAPER))throw new AssertionError("Vanilla remove action damaged a neighbour");
+                    invoke(p,"handleItemSelectorResult",selection,0,menu.inputContainer,true);
+                    actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(p,"slotMenu",0,menu.inputContainer);
+                    actions.get(0).action().run();
+                    if(KineticGui.currentPage()==p)throw new AssertionError("Vanilla choose action did not open item selection");
+                    var selector=Minecraft.getInstance().screen;
+                    var filterType=selector.getClass().getDeclaredField("activeFilterType");filterType.setAccessible(true);filterType.setInt(selector,2);
+                    var filterValue=selector.getClass().getDeclaredField("activeFilterValue");filterValue.setAccessible(true);filterValue.set(selector,"minecraft:planks");
+                    invoke(selector,"applyFilterAsResult");
+                    if(KineticGui.currentPage()!=p || menu.inputContainer.getItem(0).isEmpty() || !menu.inputContainer.getItem(1).is(Items.PAPER)
+                            || !menu.outputContainer.getItem(0).is(Items.STICK) || menu.outputContainer.getItem(0).getCount()!=4)
+                        throw new AssertionError("Choosing a tag lost the surrounding recipe draft");
+                    LOG.info("CONTENT_GUI_VANILLA_SLOT_MENU_PASS choose=true remove=true neighboursRetained=true");
+                    LOG.info("CONTENT_GUI_VANILLA_TAG_PASS selectedRealItem=true legacyCarrierRetained=true");
+                }
+            }
             case 33 -> dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.openItemSelector(
                     new dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors.ItemSelectorPreset(
                             null, null, "", "", ""), selection -> {});
@@ -354,6 +468,23 @@ public final class GuiLongTextValidation {
             default -> containerPage(new dev.xyat.contentstudio.recipe.client.gui.RecipePage(new dev.xyat.contentstudio.recipe.UniversalRecipeMenu(0,Minecraft.getInstance().player.getInventory(),dev.xyat.contentstudio.recipe.RecipeRegistry.EditorType.values()[index-27],null),Component.literal("GUI validation")));
         }
     }
+    private static dev.xyat.kineticcore.api.client.gui.input.MouseInput diagramClick(Object page,boolean right)throws Exception {
+        double x=((Number)field(page,"diagramX")).doubleValue()+3*((Number)field(page,"scale")).doubleValue();
+        double y=((Number)field(page,"diagramY")).doubleValue()+3*((Number)field(page,"scale")).doubleValue();
+        return new dev.xyat.kineticcore.api.client.gui.input.MouseInput(x,y,
+                right?dev.xyat.kineticcore.api.client.gui.input.MouseButton.RIGHT:dev.xyat.kineticcore.api.client.gui.input.MouseButton.LEFT,right?1:0,0);
+    }
+    @SuppressWarnings("unchecked")
+    private static void openSlotContextMenu()throws Exception {
+        var page=KineticGui.currentPage();
+        if(page instanceof NativeRecipeEditorPage)invoke(page,"onMouseClick",diagramClick(page,true));
+        else if(page instanceof RecipePage recipe) {
+            var menu=recipe.menu();
+            var actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(recipe,"slotMenu",0,menu.inputContainer);
+            invoke(recipe,"openContextMenu",((Number)invoke(recipe,"leftPos")).doubleValue()+menu.slots.get(0).x+18.0,
+                    ((Number)invoke(recipe,"topPos")).doubleValue()+menu.slots.get(0).y+18.0,actions,184);
+        }else throw new AssertionError("Unexpected tag menu page");
+    }
     private static void containerPage(Object page)throws Exception {
         var mc=Minecraft.getInstance();
         mc.setScreen((net.minecraft.client.gui.screens.Screen)construct("dev.xyat.kineticcore.internal.client.gui.page.PageContainerScreen",page,mc.player.getInventory(),Component.literal("GUI validation")));
@@ -378,7 +509,7 @@ public final class GuiLongTextValidation {
     }
     private static boolean compatible(Class<?>[]types,Object[]args) {
         if(types.length!=args.length)return false;
-        for(int i=0;i<types.length;i++)if(args[i]!=null && !(types[i].isInstance(args[i]) || types[i]==int.class && args[i] instanceof Integer || types[i]==boolean.class && args[i] instanceof Boolean))return false;
+        for(int i=0;i<types.length;i++)if(args[i]!=null && !(types[i].isInstance(args[i]) || types[i]==int.class && args[i] instanceof Integer || types[i]==double.class && args[i] instanceof Double || types[i]==boolean.class && args[i] instanceof Boolean))return false;
         return true;
     }
     private static void capture(String frame)throws Exception {

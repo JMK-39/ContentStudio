@@ -19,6 +19,7 @@ import static dev.xyat.contentstudio.recipe.client.gui.NativeRecipeBrowserPage.t
 /** Typed structural fields retain the serializer's original format, including NBT versus components. */
 public final class NativeRecipeFieldsPage extends KineticPage {
     private static final int PAGE_ROWS=8, ROW_Y=76, ROW_PITCH=28;
+    private final Map<String,List<ItemStack>> previewCache=new HashMap<>();
     static final class Session {
         final NativeRecipeDocument document;
         final String id, revision, original;
@@ -47,6 +48,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
     }
     private List<String> child(String key) {var result=new ArrayList<>(path);result.add(key);return List.copyOf(result);}
     @Override protected void build(KineticUi ui) {
+        previewCache.clear();
         keys=session.document.children(path);
         page=Math.min(page,Math.max(0,(keys.size()-1)/PAGE_ROWS));
         ui.textField(90,42,528).enabled(!session.busy).value(session.target).maxLength(256).validator(value -> KineticResourceIds.tryParse(value)!=null)
@@ -147,10 +149,13 @@ public final class NativeRecipeFieldsPage extends KineticPage {
             var field=child(keys.get(index));var value=session.document.at(field);
             if(value.isJsonNull()) g.scrollingText(Component.literal("null"),208,y+8,352,0xFFAAAAAA,false);
             if(value.isJsonPrimitive() && value.getAsJsonPrimitive().isString() && isItemField(field,value.getAsString())) {
-                var id=KineticResourceIds.tryParse(value.getAsString());
-                if(id!=null && KineticRegistries.items().contains(id)) {
+                String text=value.getAsString();boolean tag=field.get(field.size()-1).equals("tag")||text.startsWith("#");
+                String ref=tag&&!text.startsWith("#")?"#"+text:text;
+                var choices=previewCache.computeIfAbsent(ref,key->NativeRecipeStacks.read(new JsonPrimitive(key)));
+                if(!choices.isEmpty()) {
                     RecipeSlots.draw(g,564,y+4,18);
-                    g.item(new ItemStack(KineticRegistries.items().get(id)),565,y+5);
+                    g.item(NativeRecipeStacks.frame(choices,System.currentTimeMillis()),565,y+5);
+                    if(tag)RecipeSlots.tagMarker(g,564,y+4,18,1);
                 }
             }
         }

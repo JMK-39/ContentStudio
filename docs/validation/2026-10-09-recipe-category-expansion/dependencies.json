@@ -1,0 +1,152 @@
+[
+    {
+        "node":  "forge",
+        "file":  "[农夫乐事] FarmersDelight.jar",
+        "modIds":  [
+                       "farmersdelight"
+                   ],
+        "version":  "1.20.1-1.3.4",
+        "sha256":  "34f03eb671ea1ca579b00c98e4541404cb96d1a292014aed9cc5eb45ad8afbce",
+        "source":  "existing local installation"
+    },
+    {
+        "node":  "forge",
+        "file":  "architectury-9.2.14-forge.jar",
+        "modIds":  [
+                       "architectury"
+                   ],
+        "version":  "9.2.14+forge",
+        "sha256":  "218b471d0b8a1f6cda14cfc1beb9eeb0df54304500acc6c5613d9b88ec65d9af",
+        "source":  "https://cdn.modrinth.com/data/lhGA9TYQ/versions/1MKTLiiG/architectury-9.2.14-forge.jar"
+    },
+    {
+        "node":  "forge",
+        "file":  "[暮色森林] twilightforest.jar",
+        "modIds":  [
+                       "twilightforest"
+                   ],
+        "version":  "4.3.2508",
+        "sha256":  "0bdc89263616d1b35c32ef82c5e9c14cbd20368e2fe8b468c72a28320be7a778",
+        "source":  "existing local installation"
+    },
+    {
+        "node":  "forge",
+        "file":  "Powah-5.0.11.jar",
+        "modIds":  [
+                       "powah"
+                   ],
+        "version":  "5.0.11-forge",
+        "sha256":  "22f16ac88e8064f4f7fd94fb88fad3c8723dbd6fa5c11b7fd73c078c293184fa",
+        "source":  "https://cdn.modrinth.com/data/KZO4S4DO/versions/xDOvxyqP/Powah-5.0.11.jar"
+    },
+    {
+        "node":  "forge",
+        "file":  "[幻想乡乐事]youkaisfeasts.jar",
+        "modIds":  [
+                       "youkaisfeasts"
+                   ],
+        "version":  "0.5.0",
+        "sha256":  "f56c3f2fd33ce0ca37e8bbf35681f7bb3f9fd1dff764ad7d62a350c7701384fe",
+        "source":  "existing local installation"
+    },
+    {
+        "node":  "forge",
+        "file":  "cloth-config-11.1.136-forge.jar",
+        "modIds":  [
+                       "cloth_config"
+                   ],
+        "version":  "11.1.136+forge",
+        "sha256":  "1e895e85cf5b1e1905ef3178ec155c8badfe22a1577b92c09143a5aa1f4ce0f2",
+        "source":  "https://cdn.modrinth.com/data/9s6osm5g/versions/t8TXrZvZ/cloth-config-11.1.136-forge.jar"
+    },
+    {
+        "node":  "neo21",
+        "file":  "twilightforest-1.21.1-4.8.3345-universal.jar",
+        "modIds":  [
+                       "twilightforest"
+                   ],
+        "version":  "4.8.3345",
+        "sha256":  "493da16d10210f9f53a3c33b3d8fcb4ae9b14016ee420d753c894562bd9aba35",
+        "source":  "https://mediafilez.forgecdn.net/files/7797/302/twilightforest-1.21.1-4.8.3345-universal.jar"
+    },
+    {
+        "node":  "neo21",
+        "file":  "FarmersDelight-1.21.1-1.3.4.jar",
+        "modIds":  [
+                       "farmersdelight"
+                   ],
+        "version":  "1.21.1-1.3.4",
+        "sha256":  "139ad7696462c89c03eea463f805abffa552526c5dadaadae221dd9624cb197c",
+        "source":  "https://cdn.modrinth.com/data/R2OftAxM/versions/XTVZDOol/FarmersDelight-1.21.1-1.3.4.jar"
+    },
+    {
+        "node":  "neo21",
+        "file":  "guideme-21.1.19.jar",
+        "modIds":  [
+                       "guideme"
+                   ],
+        "version":  "21.1.19",
+        "sha256":  "2ce254edb931c3c3cf81d69abaf8f4ce5b871bf85e64984f366bf044173bd66a",
+        "source":  "https://cdn.modrinth.com/data/Ck4E7v7R/versions/hFpGwC6q/guideme-21.1.19.jar"
+    },
+    {
+        "node":  "neo21",
+        "file":  "Powah-6.2.10.jar",
+        "modIds":  [
+                       "powah"
+                   ],
+        "version":  "6.2.10-neoforge",
+        "sha256":  "0e604a7356111c1dd44a00ea42fc1aa960d9faeb978261349df1138fcee4d0b4",
+        "source":  "https://cdn.modrinth.com/data/KZO4S4DO/versions/1prWLuga/Powah-6.2.10.jar"
+    },
+    {
+        "node":  "neo21",
+        "file":  "youkaisfeasts-1.1.0.jar",
+        "modIds":  [
+                       "youkaisfeasts"
+                   ],
+        "version":  "1.1.0",
+        "sha256":  "23f65d4c72a1b766bde7725d03abcc0d62fe1d214c868e9c951b98c6a42c259a",
+        "source":  "https://mediafilez.forgecdn.net/files/8004/770/youkaisfeasts-1.1.0.jar"
+    },
+    {
+        "node":  "neo21",
+        "file":  "cloth-config-15.0.140-neoforge.jar",
+        "modIds":  [
+                       "cloth_config"
+                   ],
+        "version":  "15.0.140+neoforge",
+        "sha256":  "65e722e0d98431a07c45f8bdd8d529a217cc8c175fde1740248bd5c1b4f3c0d4",
+        "source":  "https://cdn.modrinth.com/data/9s6osm5g/versions/izKINKFg/cloth-config-15.0.140-neoforge.jar"
+    },
+    {
+        "node":  "neo26",
+        "file":  "Powah-7.0.4-alpha.jar",
+        "modIds":  [
+                       "powah"
+                   ],
+        "version":  "7.0.4-alpha-neoforge",
+        "sha256":  "c91523449abef54d76f7f01ef6dd2b7ac7060524a49b524beb781617b7340fed",
+        "source":  "https://cdn.modrinth.com/data/KZO4S4DO/versions/bymXTkIP/Powah-7.0.4-alpha.jar"
+    },
+    {
+        "node":  "neo26",
+        "file":  "guideme-26.1.15-beta.jar",
+        "modIds":  [
+                       "guideme"
+                   ],
+        "version":  "26.1.15-beta",
+        "sha256":  "17acb84bff9320b237340b280415029ba950640895343fb2f9c35b7b4416e7d5",
+        "source":  "https://cdn.modrinth.com/data/Ck4E7v7R/versions/JnplCcod/guideme-26.1.15-beta.jar"
+    },
+    {
+        "node":  "neo26",
+        "file":  "cloth-config-26.1.154.jar",
+        "modIds":  [
+                       "cloth_config"
+                   ],
+        "version":  "26.1.154+neoforge",
+        "sha256":  "d9147c8549fedad478bd18e2ddeef172ef290a081f80bd4d242d54e027ecd9d8",
+        "source":  "https://cdn.modrinth.com/data/9s6osm5g/versions/TimoYzse/cloth-config-26.1.154.jar"
+    }
+]

@@ -1,0 +1,32 @@
+[
+    {
+        "file":  "contentstudio-forge-1.20.1-26.10.9.jar",
+        "sha256":  "8f523cd7379c5d04eca1fe4acc78c2d255c38f8aabeb2570ec4eabb13c2d3830",
+        "classMajor":  61,
+        "classes":  264,
+        "languageKeys":  989,
+        "languageParity":  true,
+        "forgeRefmap":  true,
+        "validationFixtureAbsent":  true
+    },
+    {
+        "file":  "contentstudio-neoforge-1.21.1-26.10.9.jar",
+        "sha256":  "9d17259d9a3125b240086e52955e4d6b9bddf184453a9da916ed73e4869412b8",
+        "classMajor":  65,
+        "classes":  268,
+        "languageKeys":  1002,
+        "languageParity":  true,
+        "forgeRefmap":  false,
+        "validationFixtureAbsent":  true
+    },
+    {
+        "file":  "contentstudio-neoforge-26.1.2-26.10.9.jar",
+        "sha256":  "314236069718a76833c13ee73afa55de42e480f4fe50c50296bd3ff364c067ba",
+        "classMajor":  69,
+        "classes":  272,
+        "languageKeys":  1002,
+        "languageParity":  true,
+        "forgeRefmap":  false,
+        "validationFixtureAbsent":  true
+    }
+]

@@ -13,6 +13,29 @@ final class NativeRecipeStacks {
     static List<ItemStack> read(JsonElement json) {
         var result=new ArrayList<ItemStack>();read(json,result);return List.copyOf(result);
     }
+    static ItemStack frame(List<ItemStack> variants,long timeMillis) {
+        return variants.isEmpty()?ItemStack.EMPTY:variants.get((int)(Math.floorDiv(timeMillis,1000)%variants.size()));
+    }
+    static List<String> tagIds(JsonElement json) {
+        var ids=new LinkedHashSet<String>();collectTags(json,ids);return List.copyOf(ids);
+    }
+    private static void collectTags(JsonElement value,Set<String> ids) {
+        if(value.isJsonArray()){value.getAsJsonArray().forEach(v->collectTags(v,ids));return;}
+        if(value.isJsonPrimitive()&&value.getAsJsonPrimitive().isString()) {
+            String text=value.getAsString();if(text.startsWith("#"))addTagId(text.substring(1),ids);return;
+        }
+        if(!value.isJsonObject())return;
+        var object=value.getAsJsonObject();
+        if(object.has("fluid")||object.has("FluidName")||object.has("chemical")||object.has("gas"))return;
+        if(object.has("item")&&object.get("item").isJsonObject()){collectTags(object.get("item"),ids);return;}
+        for(String wrapper:List.of("ingredient","base_ingredient","baseIngredient","children","alternatives","items","values","block"))
+            if(object.has(wrapper)){collectTags(object.get(wrapper),ids);return;}
+        if(!object.has("id")&&!object.has("item")&&object.has("tag")&&object.get("tag").isJsonPrimitive()&&object.getAsJsonPrimitive("tag").isString())
+            addTagId(object.get("tag").getAsString(),ids);
+    }
+    private static void addTagId(String text,Set<String> ids) {
+        var id=KineticResourceIds.tryParse(text);if(id!=null)ids.add(id.toString());
+    }
     private static void read(JsonElement value,List<ItemStack> result) {
         if(result.size()>=128)return;
         if(value.isJsonArray()) {value.getAsJsonArray().forEach(v->read(v,result));return;}
@@ -54,11 +77,25 @@ final class NativeRecipeStacks {
                 return;
             }
             for(String wrapper:List.of("ingredient","base_ingredient","baseIngredient","children","alternatives","items","values","block"))
-                if(object.has(wrapper)){read(object.get(wrapper),result);return;}
+                if(object.has(wrapper)){
+                    int start=result.size();read(object.get(wrapper),result);
+                    if(object.has("count"))try {
+                        int count=Math.max(1,Math.min(999,object.get("count").getAsInt()));
+                        for(int i=start;i<result.size();i++)result.get(i).setCount(count);
+                    }catch(RuntimeException invalidCount){ }
+                    return;
+                }
             String key=object.has("id")?"id":object.has("item")?"item":object.has("tag")?"tag":object.has("fluid")?"fluid":null;
             if(key==null)return;
             var identifier=object.get(key);if(!identifier.isJsonPrimitive())return;
-            if(key.equals("tag")) {tag(identifier.getAsString(),result);return;}
+            if(key.equals("tag")) {
+                int start=result.size();tag(identifier.getAsString(),result);
+                if(object.has("count"))try {
+                    int count=Math.max(1,Math.min(999,object.get("count").getAsInt()));
+                    for(int i=start;i<result.size();i++)result.get(i).setCount(count);
+                }catch(RuntimeException invalidCount){ }
+                return;
+            }
             if(key.equals("fluid")) {var bucket=fluidBucket(identifier.getAsString());if(!bucket.isEmpty())result.add(bucket);return;}
             var stack=stack(identifier.getAsString());if(stack.isEmpty())return;
             try {

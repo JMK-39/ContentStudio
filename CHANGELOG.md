@@ -1,5 +1,25 @@
 # Changelog / 更新日志
 
+## 2026-10-09 — More workstation recipe previews / 更多工作台配方预览
+
+### English
+
+- Add dedicated previews and workstation entries for Powah energizing, Youkais' Feasts cooking and fermentation, and Twilight Forest uncrafting, block conversion and drying recipes where available.
+- Show Twilight Forest entity conversions with rotating 3D previews and the mod's own recipe frames and arrows.
+- Keep cuisine base ingredients, both mixed-cuisine ingredient groups, fluids and uncrafting input counts visible while editing their native recipe data.
+- Reserve space between full ingredient rows, arrows and outputs, and omit empty fermentation fluid slots without changing the recipe editor's outer layout. The editor remains usable without JEI.
+- Cycle real matching items in tag ingredient slots instead of paper icons, with a lower-right `#` badge and the tag ID in the tooltip. Keep tag rules when saving, including existing recipe records.
+- Left-click recipe slots to choose ingredients; right-click for item editing and removal. Preserve data matching options and clear only the selected cell in shaped recipes.
+
+### 简体中文
+
+- 为 Powah 充能、幻想乡乐事的烹饪与发酵，以及暮色森林的拆解、方块转换和晾晒配方补充专用预览与工作台入口，按对应版本可用的功能显示。
+- 暮色森林实体转换使用可旋转的 3D 模型预览，并显示模组原生的配方边框与箭头。
+- 编辑时显示料理基础材料、混合料理的两组材料、液体和拆解物品数量，保留各版本原生配方数据。
+- 为完整材料行、箭头与产物预留间距，隐藏发酵配方的空液体槽位，保持配方编辑器外层布局一致，无需安装 JEI 即可使用。
+- 标签材料槽位轮换显示实际匹配物品，不再用纸张图标代替；右下角显示 `#` 标记，悬浮提示列出标签 ID。保存时保留标签规则，也支持已有配方记录。
+- 配方槽位左键选择材料，右键展开物品编辑与移除菜单；保留数据匹配选项，有序配方只清空所点的格子。
+
 ## 2026-10-09 — Third-party recipe editor / 第三方配方编辑器
 
 ### English
