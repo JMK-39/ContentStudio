@@ -17,9 +17,9 @@ public final class VanillaRecipeHubPage extends KineticPage {
             ui.itemButton(40+i%3*188,98+i/3*48,NativeRecipeStationMenu.CARD_WIDTH,new ItemStack(type.getIcon())).text(type.getTitle()).tooltip(type.getTitle())
                     .onClick(()->RecipeNetwork.requestEdit("",type.name(),-1)).build();i++;
         }
-        ui.button(40,246,128).text(tr("back")).onClick(this::close).build();
+        ui.button(40,60,128).text(tr("back")).onClick(this::close).build();
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
-        KineticTheme.panelAlt(g,22,54,596,226);g.scrollingText(title(),34,66,572,0xFFFFFFFF,false);
+        KineticTheme.panelAlt(g,22,54,596,226);g.scrollingText(title(),176,66,430,0xFFFFFFFF,false);
     }
 }

@@ -87,7 +87,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
             if(!field.equals(List.of("type"))) ui.button(604,y,16).enabled(!session.busy).text(Component.literal("−")).tooltip(tr("remove"))
                     .onClick(() -> openDialog(tr("remove"),Component.literal(String.join(" / ",field)),tr("remove"),tr("back"),()->mutate(field,false),()->{})).build();
         }
-        ui.button(22,320,84).text(tr("back")).onClick(this::close).build();
+        ui.button(22,18,84).text(tr("back")).onClick(this::close).build();
         ui.button(114,320,40).text(Component.literal("<")).enabled(page>0).onClick(() -> {page--;rebuild();}).build();
         ui.button(198,320,40).text(Component.literal(">")).enabled((page+1)*PAGE_ROWS<keys.size()).onClick(() -> {page++;rebuild();}).build();
         ui.button(246,320,92).enabled(!session.busy).text(tr("add_field")).onClick(() -> {
@@ -142,7 +142,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
         KineticTheme.panel(g,14,14,612,332);
-        g.scrollingText(title(),22,24,596,0xFFFFAA00,false);
+        g.scrollingText(title(),114,24,504,0xFFFFAA00,false);
         g.scrollingText(tr("id"),22,48,64,0xFFFFFFFF,false);
         g.scrollingText(Component.literal(path.isEmpty()?session.id:String.join(" / ",path)),22,66,596,0xFFAAAAAA,false);
         for(int row=0;row<PAGE_ROWS;row++) {
@@ -157,7 +157,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
                 String ref=tag&&!text.startsWith("#")?"#"+text:text;
                 var choices=previewCache.computeIfAbsent(ref,key->NativeRecipeStacks.read(new JsonPrimitive(key)));
                 if(!choices.isEmpty()) {
-                    RecipeSlots.draw(g,564,y+4,18);
+                    KineticTheme.itemSlot(g,564,y+4,18,false);
                     g.item(NativeRecipeStacks.frame(choices,System.currentTimeMillis()),565,y+5);
                     if(tag)RecipeSlots.tagMarker(g,564,y+4,18,1);
                 }

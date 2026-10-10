@@ -190,17 +190,17 @@ public class TooltipClientHandlers {
             int padding = 20;
             int topY = 15;
 
-            searchBox = ui().textField(padding, topY, 150).placeholder(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.search_hint")).build();
+            searchBox = ui().textField(padding + 85, topY, 150).placeholder(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.search_hint")).build();
 
             searchBox.setTextValue(lastSearch);
             searchBox.onTextChange(this::updateSearch);
 
             int btnW = 80;
             int backBtnX =
-                    width() - padding - btnW;
+                    padding;
 
             int addBtnX =
-                    backBtnX - btnW - 5;
+                    width() - padding - btnW;
 
             int saveBtnX =
                     addBtnX - btnW - 5;
@@ -712,7 +712,7 @@ public class TooltipClientHandlers {
             startX = 10;
             listW = this.width() - 35; // 预留右侧独立轨道给滚动条
             listStartY = 80;
-            infoX = 15;
+            infoX = 65;
 
             int btnY = 15;
             int btnW_Save = 85;
@@ -721,7 +721,7 @@ public class TooltipClientHandlers {
 
             int saveBtnX = this.width() - 15 - btnW_Save;
             int addBtnX = saveBtnX - btnW_Add - 5;
-            int backBtnX = addBtnX - btnW_Back - 5;
+            int backBtnX = 15;
 
             ui().button(backBtnX, btnY, btnW_Back).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.back")).onClick(() -> {
                         saveInputStates();
@@ -758,8 +758,8 @@ public class TooltipClientHandlers {
                 widgets.add(w);
             }
 
-            // 16 px swatches 18 px apart (2 px gaps), then the reset button, which ends 4 px before Back.
-            int curX = backBtnX - (8 * SWATCH_PITCH - 2) - 4 - 15 - 4;
+            // 16 px swatches 18 px apart (2 px gaps), ending before the right-hand actions.
+            int curX = addBtnX - (8 * SWATCH_PITCH - 2) - 4 - 15 - 4;
             // The color palette is the first control beside both item information lines.
             infoTextWidth = curX - (infoX + 30) - HEADER_GAP;
             for (int i = 0; i < COLORS.length; i++) {
@@ -812,7 +812,7 @@ public class TooltipClientHandlers {
             boolean hoverIcon = KineticTheme.hovering(mx, my, infoX, 10, 24, 24);
             KineticTheme.itemSlot(g, infoX, 10, 24, 4, hoverIcon);
 
-            KineticTheme.item(g, itemStack, infoX, 10, 24, 1.125F, false);
+            KineticTheme.item(g, itemStack, infoX, 10, 24, 1.0F, false);
 
             g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.title", itemStack.getHoverName()), infoX + 30, 12, infoTextWidth, 0xFFFFFF, true);
             g.scrollingText(Component.literal(itemId), infoX + 30, 24, infoTextWidth, 0xAAAAAA, true);

@@ -27,7 +27,7 @@ final class NativeRecipeAddFieldPage extends KineticPage {
         List<SelectionItem> items=new ArrayList<>();
         for(String kind:TYPES)items.add(new SelectionItem(tr("type."+kind),null,null,true,false));
         ui.selectionList(172,124,296,112,items).textRows().selected(type).onSelect(index->type=index).build();
-        ui.button(172,252,144).text(tr("back")).onClick(this::close).build();
+        ui.button(172,70,144).text(tr("back")).onClick(this::close).build();
         ui.button(324,252,144).text(tr("add_field")).onClick(()->{
             JsonElement value=switch(type) {
                 case 1 -> new JsonPrimitive(0);case 2 -> new JsonPrimitive(false);case 3 -> new JsonObject();
@@ -38,6 +38,6 @@ final class NativeRecipeAddFieldPage extends KineticPage {
         }).build();
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
-        KineticTheme.panel(g,160,64,320,224);g.scrollingText(title(),172,76,296,0xFFFFAA00,false);
+        KineticTheme.panel(g,160,64,320,224);g.scrollingText(title(),324,76,144,0xFFFFAA00,false);
     }
 }

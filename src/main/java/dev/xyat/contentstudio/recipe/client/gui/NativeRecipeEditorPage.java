@@ -193,7 +193,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
             }
             @Override protected boolean onMouseRelease(MouseInput input) {return horizontal.release(input.button())|vertical.release(input.button());}
         });
-        ui.button(22,320,84).text(tr("back")).enabled(!session.busy).onClick(this::close).build();
+        ui.button(22,18,84).text(tr("back")).enabled(!session.busy).onClick(this::close).build();
         ui.button(114,320,132).text(tr("advanced")).enabled(!session.busy).onClick(()->openChild(new NativeRecipeFieldsPage(session,List.of()))).build();
         ui.button(354,320,128).text(tr(session.added?"delete_recipe":"restore")).enabled(session.edited&&!session.busy).onClick(()->openDialog(tr(session.added?"delete_recipe":"restore"),tr(session.added?"delete_recipe_confirm":"restore_confirm"),tr(session.added?"delete_recipe":"restore"),tr("back"),()->send("restore"),()->{})).build();
         ui.button(490,320,128).text(tr("save")).enabled(!session.busy).onClick(()->send("save")).build();
@@ -295,7 +295,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
         KineticTheme.panel(g,14,14,612,332);
-        g.scrollingText(title(),22,24,596,0xFFFFAA00,false);g.scrollingText(tr("id"),22,48,64,0xFFFFFFFF,false);
+        g.scrollingText(title(),114,24,504,0xFFFFAA00,false);g.scrollingText(tr("id"),22,48,64,0xFFFFFFFF,false);
         KineticTheme.panelAlt(g,20,74,390,206);KineticTheme.panelAlt(g,418,74,200,206);
         g.scrollingText(jeiPreview==null?tr(layout.kind().equals("generic")?"generic_preview":"click_slot"):jeiPreview.category(),24,80,382,0xFFAAAAAA,false);
         g.scrollingText(selected<0?tr("parameters"):tr(slots.get(selected).output()?"output_slot":"input_slot"),426,82,184,0xFFFFAA00,false);

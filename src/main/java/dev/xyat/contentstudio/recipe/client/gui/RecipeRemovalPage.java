@@ -105,7 +105,7 @@ public class RecipeRemovalPage extends KineticPage {
 
     @Override protected void build(KineticUi ui) {
         RecipeNetworkClient.registerRemovalScreen(this);
-        itemSearch = ui().autoComplete(8, 8, 150, () -> itemDictionary).label(tr("item_search")).placeholder(tr("item_search")).build();
+        itemSearch = ui().autoComplete(74, 8, 84, () -> itemDictionary).label(tr("item_search")).placeholder(tr("item_search")).build();
         itemSearch.limitTextLength(160); itemSearch.setTextValue(itemQuery);
         itemSearch.onTextChange(query -> { itemQuery = query; refreshItems(); itemScroll.setOffset(0); });
         recipeSearch = ui().autoComplete(244, 34, 380, this::recipeDictionary).label(tr("recipe_search")).placeholder(tr("recipe_search")).build();
@@ -129,7 +129,7 @@ public class RecipeRemovalPage extends KineticPage {
         });
         saveButton = button("save", "save_hint", 442, 8, 60, this::save);
         viewerAllButton = button("viewer_all", 564, 8, () -> openViewerMenu(564, 30, null));
-        button("back", 366, 334, this::close);
+        button("back", 8, 8, this::close);
         copyButton = button("copy", "context.copy_hint", 432, 334, 60, () -> {
             String value = selectedValue();
             if (value != null) { KineticClientRuntime.setClipboard(value); showToast(tr("copied")); }
@@ -715,7 +715,7 @@ public class RecipeRemovalPage extends KineticPage {
             int x = GX + (i - start) % COLS * CELL, y = GY + (i - start) / COLS * CELL - shift;
             boolean hover = mx >= x && mx < x + CELL && my >= y && my < y + CELL && my >= GY && my < GY + ROWS * CELL;
             boolean selected = !selectedItem.isEmpty() && ItemStack.isSameItemSameTags(stack, selectedItem);
-            RecipeSlots.draw(g, x + 1, y + 1, CELL - 2);
+            KineticTheme.itemSlot(g, x + 1, y + 1, CELL - 2, false);
             drawItem(g, stack, x + 1, y + 1, CELL - 2, 1.0F);
             boolean error = errors.contains(stack.getItem());
             if (selected || hover || error) {

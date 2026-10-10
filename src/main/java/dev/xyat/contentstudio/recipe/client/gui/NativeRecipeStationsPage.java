@@ -25,11 +25,11 @@ public final class NativeRecipeStationsPage extends KineticPage {
         ui.textField(22,42,470).value(menu.query).maxLength(256).placeholder(tr("station_search")).onChange(v->menu.query=v).build();
         ui.button(498,42,120).text(tr("search_button")).onClick(menu::search).build();
         menu.build(ui,22,76,596,210);
-        ui.button(22,320,120).text(tr("back")).onClick(this::close).build();
+        ui.button(22,18,120).text(tr("back")).onClick(this::close).build();
         ui.button(458,320,160).text(tr("all_recipes")).onClick(()->openChild(new NativeRecipeBrowserPage())).build();
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
-        KineticTheme.panel(g,14,14,612,332);g.scrollingText(title(),22,24,596,0xFFFFAA00,false);menu.render(g,mx,my);
+        KineticTheme.panel(g,14,14,612,332);g.scrollingText(title(),150,24,468,0xFFFFAA00,false);menu.render(g,mx,my);
     }
     @Override protected boolean onMouseScroll(ScrollInput i){return menu.wheel(i);}
     @Override protected boolean onMouseClick(MouseInput i){return menu.click(i);}

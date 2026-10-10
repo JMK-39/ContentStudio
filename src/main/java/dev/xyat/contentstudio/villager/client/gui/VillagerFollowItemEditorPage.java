@@ -84,7 +84,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
 
         int buttonY = gridY + gridHeight + 10;
         ui().button(70, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.items.list_editor.add")).onClick(this::openSelector).build();
-        ui().button(255, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.config.back")).onClick(this::close).build();
+        ui().button(70, panelY + 8, 130).text(KineticI18n.translatable("gui.kineticcore.config.back")).onClick(this::close).build();
         ui().button(440, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.hud_editor.save")).onClick(this::save).build();
     }
 
@@ -140,7 +140,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             float partialTick
     ) {
         KineticTheme.panel(graphics, PANEL_X, panelY, PANEL_WIDTH, panelHeight);
-        graphics.scrollingTextCentered(title(), width() / 2, panelY + 12, PANEL_WIDTH - 16, 0xFFFFAA00, true);
+        graphics.scrollingText(title(), 208, panelY + 12, PANEL_X + PANEL_WIDTH - 216, 0xFFFFAA00, true);
         // The frame sits 3 px outside the slots so no slot lies on its lines.
         KineticTheme.panel(graphics, GRID_X - 3, gridY - 3, GRID_WIDTH + 6, gridHeight + 6);
         renderItems(graphics, mouseX, mouseY);

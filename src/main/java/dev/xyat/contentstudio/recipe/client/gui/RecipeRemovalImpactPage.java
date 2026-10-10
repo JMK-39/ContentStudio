@@ -102,7 +102,7 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
             clearStale = !clearStale;
             updateButtons();
         }).build();
-        ui().button(16, 328, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
+        ui().button(16, 4, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
         exactButton = ui().button(246, 328, 172).text(RecipeRemovalPage.tr("impact_exact")).tooltip(RecipeRemovalPage.tr("impact_exact_hint")).onClick(() -> {
                     parent.applyImpactExactRules(rule, flow.buildExactRules());
                     close();
@@ -216,7 +216,7 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.scrollingText(title(), TEXT_LEFT, 10, TEXT_RIGHT - TEXT_LEFT, KineticTheme.current().text(), false);
+        graphics.scrollingText(title(), 82, 10, TEXT_RIGHT - 82, KineticTheme.current().text(), false);
         graphics.scrollingText(Component.literal(rule.value()), TEXT_LEFT, 28,
                 COUNTS_X - TEXT_LEFT - TEXT_GAP, KineticTheme.current().mutedText(), false);
         if (flow.isComplete()) {
@@ -274,7 +274,7 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
         ResourceLocation id = group.outputId();
         if (id != null && KineticRegistries.items().contains(id)) {
             ItemStack stack = new ItemStack(KineticRegistries.items().get(id));
-            RecipeSlots.draw(graphics, 62, y + 2, 16);
+            KineticTheme.itemGrid(graphics, 62, y + 2, 16, 16);
             KineticTheme.item(graphics, stack, 62, y + 2, 16, 1.0F, false);
         }
         String label = outputName(id) + (id == null ? "" : "  " + id);

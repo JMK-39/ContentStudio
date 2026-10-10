@@ -426,7 +426,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         int searchFieldWidth = leftW - searchLeftPadding - searchRightPadding - clearButtonWidth - searchClearGap;
         int clearButtonX = leftX + searchLeftPadding + searchFieldWidth + searchClearGap;
 
-        this.professionBox = ui().autoComplete(leftX + searchLeftPadding, topY, searchFieldWidth, VillagerTradeEditorPage::getProfessionDictionary).label(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search")).placeholder(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip")).build();
+        this.professionBox = ui().autoComplete(leftX + searchLeftPadding + 64, topY, searchFieldWidth - 64, VillagerTradeEditorPage::getProfessionDictionary).label(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search")).placeholder(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip")).build();
         this.professionBox.setTextValue(lastProfessionText);
         this.professionBox.onTextChange(value -> {
             if (!suppressProfessionResponder) {
@@ -477,7 +477,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         toolbarWidgets.add(ui().button(saveX, topY, saveW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save.tooltip")).onClick(this::saveValidTradeConfig).build());
 
-        toolbarWidgets.add(ui().button(backX, topY, backW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")).onClick(this::close).build());
+        toolbarWidgets.add(ui().button(leftX + searchLeftPadding, topY, backW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")).onClick(this::close).build());
 
         // The footer already has room after the reward/restock controls; keep the toolbar and trade slots fixed.
         int sourceX = rightX + 246;
@@ -3210,9 +3210,9 @@ public class VillagerTradeEditorPage extends KineticPage {
             this.listH = rootH - 44;
 
             int buttonY = rootY + 8;
-            ui().button(rootX + 10, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip")).onClick(this::restoreAllRemovedTrades).build();
-            ui().button(rootX + 68, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.reset")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip")).onClick(this::openResetConfirmPopup).build();
-            ui().button(rootX + rootW - 60, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.back")).onClick(this::returnToParent).build();
+            ui().button(rootX + rootW - 118, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip")).onClick(this::restoreAllRemovedTrades).build();
+            ui().button(rootX + rootW - 60, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.reset")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip")).onClick(this::openResetConfirmPopup).build();
+            ui().button(rootX + 10, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.back")).onClick(this::returnToParent).build();
 
             refreshRemovedEntries();
         }
@@ -3246,8 +3246,8 @@ public class VillagerTradeEditorPage extends KineticPage {
         protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
             KineticTheme.panel(g, rootX, rootY, rootW, rootH);
             int titleCenter = rootX + rootW / 2;
-            int titleLeft = rootX + 118 + TEXT_GAP;
-            int titleRight = rootX + rootW - 60 - TEXT_GAP;
+            int titleLeft = rootX + 60 + TEXT_GAP;
+            int titleRight = rootX + rootW - 118 - TEXT_GAP;
             int titleWidth = Math.max(1, 2 * Math.min(titleCenter - titleLeft, titleRight - titleCenter));
             g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.title"), titleCenter, rootY + 12, titleWidth, 0xFFFFFF55, true);
             KineticTheme.panelAlt(g, listX, listY, listW, listH);

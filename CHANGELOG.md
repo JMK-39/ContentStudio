@@ -1,3 +1,15 @@
+2026年10月10日 — Editor navigation and tag indicators / 编辑页导航与标签标记
+
+- Move recipe, loot, villager trade and item tooltip editor Back controls to the upper left when the header has space, using the lower left for inventory-style layouts.
+- Tag ingredient icons show their gold # marker at the upper left; item quantities remain at the lower right.
+- Recipe item lists and workstation entry icons use the API checkerboard slot background. Vanilla workstation recipe diagrams keep their native backgrounds.
+
+- 配方、掉落、村民交易和物品悬浮提示编辑页的返回入口优先放在左上角，背包式界面顶部空间不足时使用左下角。
+- 标签材料物品图标的金色 # 标记改为左上角，物品数量保持在右下角。
+- 配方物品列表与工作台入口图标使用 API 棋盘格背景；原版工作台配方示意图保留原版背景。
+
+---
+
 # Changelog / 更新日志
 
 ## 2026-10-10 — JEI recipe editing / JEI 配方编辑

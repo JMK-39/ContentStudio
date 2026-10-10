@@ -52,7 +52,7 @@ final class LootPoolEditPage extends KineticPage {
 
         ui().button(PANEL_X + 196, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.apply")).onClick(this::applyChanges).build();
         ui().button(PANEL_X + 272, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.delete")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(this::openDeleteConfirm).build();
-        ui().button(PANEL_X + 348, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.cancel")).onClick(this::closeToParent).build();
+        ui().button(PANEL_X + 24, PANEL_Y + 18, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.cancel")).onClick(this::closeToParent).build();
 
     }
 
@@ -132,7 +132,7 @@ final class LootPoolEditPage extends KineticPage {
 
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
-        g.scrollingText(title(), PANEL_X + 24, PANEL_Y + 24, WIDTH - 48, 0xFFFFAA00, false);
+        g.scrollingText(title(), PANEL_X + 102, PANEL_Y + 24, WIDTH - 126, 0xFFFFAA00, false);
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
                 Component.literal(String.valueOf(poolIndex + 1))), PANEL_X + 24, PANEL_Y + 42, WIDTH - 48, 0xFFE6E6E6, false);
         fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 36, 0xFF55FFFF);

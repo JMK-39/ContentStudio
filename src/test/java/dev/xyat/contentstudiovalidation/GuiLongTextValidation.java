@@ -37,7 +37,7 @@ public final class GuiLongTextValidation {
         "native-recipe-browser","native-recipe-fields","native-recipe-nested","native-recipe-item","native-recipe-add-field",
         "native-workstations","vanilla-workstations","native-visual","native-visual-slot"};
     private static final BitSet capturedPages = new BitSet();
-    private static boolean installed,started,screenshot,finished,originalFullscreen,nativeNavigationChecked,slotMenuOpened,preparingSearch;
+    private static boolean installed,started,screenshot,finished,originalFullscreen,nativeNavigationChecked,slotMenuOpened,preparingSearch,ownedWorldPrepared,ownedRespawnRequested;
     private static String originalLanguage;
     private static int originalScale,originalWidth,originalHeight,phase=-1,page=-1,captures,failures;
     private static long due;
@@ -147,6 +147,10 @@ public final class GuiLongTextValidation {
             var mc=Minecraft.getInstance();
             if(!started) {
                 if(mc.player==null || mc.level==null || mc.getSingleplayerServer()==null)return;
+                if(mc.gameDirectory.getName().startsWith(".codex-native-recipes-") && mc.player.isDeadOrDying()) {
+                    if(!ownedRespawnRequested) {mc.player.respawn();ownedRespawnRequested=true;}
+                    return;
+                }
                 started=true;originalLanguage=mc.getLanguageManager().getSelected();originalScale=mc.options.guiScale().get();
                 originalWidth=mc.getWindow().getWidth();originalHeight=mc.getWindow().getHeight();originalFullscreen=mc.getWindow().isFullscreen();
                 originalTooltipData=TooltipClientHandlers.clientData;
@@ -154,17 +158,48 @@ public final class GuiLongTextValidation {
                 if(originalFullscreen)mc.getWindow().toggleFullScreen();
                 if(mc.gameDirectory.getName().startsWith(".codex-native-recipes-")) {
                     preparingSearch=true;
-                    mc.getSingleplayerServer().execute(()->{
-                        var server=mc.getSingleplayerServer();var player=server.getPlayerList().getPlayers().get(0);
+                    var server=mc.getSingleplayerServer();var testPlayerId=mc.player.getUUID();
+                    server.execute(()->{
+                        try {
+                        var player=server.getPlayerList().getPlayer(testPlayerId);
+                        if(player==null)throw new AssertionError("Owned test player missing: "+testPlayerId);
+                        boolean respawned=player.isDeadOrDying();
+                        if(respawned) {
+                            //? if >=1.21 {
+                            /*player=server.getPlayerList().respawn(player,false,net.minecraft.world.entity.Entity.RemovalReason.KILLED);
+                            *///?} else {
+                            player=server.getPlayerList().respawn(player,false);
+                            //?}
+                            // Match the vanilla command handler: the connection must follow the replacement player.
+                            player.connection.player=player;
+                        }
+                        // The GUI may leave the owned copy running while capturing screenshots.
+                        player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+                        player.setInvulnerable(true);
+                        player.getAbilities().invulnerable=true;
+                        player.onUpdateAbilities();
+                        player.setHealth(player.getMaxHealth());
+                        player.getFoodData().setFoodLevel(20);
+                        player.clearFire();
+                        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetHealthPacket(player.getHealth(),20,player.getFoodData().getSaturationLevel()));
                         //? if >=26.1 {
                         /*server.getPlayerList().op(new net.minecraft.server.players.NameAndId(player.getGameProfile()));
                         *///?} else {
                         server.getPlayerList().op(player.getGameProfile());
                         //?}
-                        mc.execute(()->{preparingSearch=false;try{nextPhase();}catch(Throwable error){failures++;LOG.error("CONTENT_GUI_FAIL preparing owned world",error);finish();}});
+                        LOG.info("CONTENT_GUI_OWNED_PLAYER_SAFE creative=true invulnerable=true health={} respawned={}",player.getHealth(),respawned||ownedRespawnRequested);
+                        mc.execute(()->{preparingSearch=false;ownedWorldPrepared=true;});
+                        } catch(Throwable error) {
+                            mc.execute(()->{preparingSearch=false;failures++;LOG.error("CONTENT_GUI_FAIL preparing owned world",error);finish();});
+                        }
                     });
                 } else nextPhase();
                 return;
+            }
+            if(ownedWorldPrepared) {
+                // Wait for the server's respawn/health packets before replacing a death screen with a fixture page.
+                if(mc.player==null || mc.level==null || mc.player.isDeadOrDying())return;
+                ownedWorldPrepared=false;nextPhase();return;
             }
             if(reload!=null) {
                 if(!reload.isDone() || mc.getOverlay()!=null)return;
@@ -294,12 +329,15 @@ public final class GuiLongTextValidation {
                 invoke(preview,"onMouseClick",diagramClick(preview,true));
                 if(KineticGui.currentPage()!=preview)throw new AssertionError("Right click opened a picker instead of a menu");
                 var actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(preview,"slotMenu");
-                if(actions.size()!=2)throw new AssertionError("Missing native edit/remove actions");
-                invoke(preview,"closeContextMenu");actions.get(0).action().run();
+                String editLabel=Component.translatable("gui.contentstudio.recipe.native.edit_slot").getString();
+                String removeLabel=Component.translatable("gui.contentstudio.recipe.native.remove_slot").getString();
+                var edit=actions.stream().filter(action->action.label().getString().equals(editLabel)).findFirst().orElseThrow(()->new AssertionError("Missing native edit action"));
+                if(actions.stream().noneMatch(action->action.label().getString().equals(removeLabel)))throw new AssertionError("Missing native remove action");
+                invoke(preview,"closeContextMenu");edit.action().run();
                 if(!(KineticGui.currentPage() instanceof NativeRecipeFieldsPage))throw new AssertionError("Edit action did not open slot fields");
                 if(((List<?>)field(KineticGui.currentPage(),"keys")).isEmpty())throw new AssertionError("Primitive ingredient edit opened an empty page");
                 KineticGui.open(preview);actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(preview,"slotMenu");
-                actions.get(1).action().run();
+                actions.stream().filter(action->action.label().getString().equals(removeLabel)).findFirst().orElseThrow(()->new AssertionError("Missing native remove action")).action().run();
                 var document=(dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocument)field(field(preview,"session"),"document");
                 if(document.json().getAsJsonArray("ingredients").size()!=0 || !document.json().get("result").equals(body.getAsJsonObject("recipe").get("result")))
                     throw new AssertionError("Native remove action damaged unrelated data");
@@ -494,7 +532,7 @@ public final class GuiLongTextValidation {
             var actions=(List<dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem>)invoke(recipe,"slotMenu",0,menu.inputContainer);
             invoke(recipe,"openContextMenu",((Number)invoke(recipe,"leftPos")).doubleValue()+menu.slots.get(0).x+18.0,
                     ((Number)invoke(recipe,"topPos")).doubleValue()+menu.slots.get(0).y+18.0,actions,184);
-        }else throw new AssertionError("Unexpected tag menu page");
+        }else throw new AssertionError("Unexpected tag menu page: "+page+" screen="+Minecraft.getInstance().screen);
     }
     private static void containerPage(Object page)throws Exception {
         var mc=Minecraft.getInstance();

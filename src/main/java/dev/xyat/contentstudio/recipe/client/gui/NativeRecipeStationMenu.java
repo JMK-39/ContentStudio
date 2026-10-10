@@ -57,6 +57,7 @@ final class NativeRecipeStationMenu {
                     if(cy+38<=y || cy>=y+h)continue;
                     var card=cards.get(i);boolean hover=mx>=cx && mx<cx+cardWidth && my>=Math.max(y,cy) && my<Math.min(y+h,cy+38);
                     KineticTheme.button(g,cx,cy,cardWidth,38,Component.empty(),hover,true,false);
+                    KineticTheme.itemSlot(g,cx+6,cy+9,20,false);
                     g.item(card.icon(),cx+8,cy+11);
                     g.scrollingTextCentered(card.label(),cx+105,cy+15,cardWidth-40,0xFFFFFFFF,true);
                     if(hover)hovered=card;

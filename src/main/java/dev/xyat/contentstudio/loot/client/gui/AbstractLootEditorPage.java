@@ -319,12 +319,12 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     @Override
     protected void build(KineticUi ui) {
-        searchBox = ui().textField(LEFT_X + 1, SEARCH_Y, TARGET_WIDTH - 2).placeholder(KineticI18n.translatable("gui.contentstudio.loot.loots.search_hint")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.search")).build();
+        searchBox = ui().textField(LEFT_X + 49, SEARCH_Y, TARGET_WIDTH - 50).placeholder(KineticI18n.translatable("gui.contentstudio.loot.loots.search_hint")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.search")).build();
         searchBox.limitTextLength(256);
         searchBox.setTextValue(searchQuery);
         searchBox.onTextChange(this::onSearchChanged);
 
-        ui().button(RIGHT_X + RIGHT_W - 48, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.back")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.back")).onClick(this::close).build();
+        ui().button(LEFT_X + 1, SEARCH_Y, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.back")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.back")).onClick(this::close).build();
 
         initEditWidgets();
         if (usesGroupedLayout()) {

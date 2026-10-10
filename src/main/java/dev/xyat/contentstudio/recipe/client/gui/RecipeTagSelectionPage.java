@@ -76,7 +76,7 @@ public class RecipeTagSelectionPage extends KineticPage {
 
         int btnW = 80;
 
-        ui().button(width() / 2 - btnW / 2, height() - 30, btnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(() -> {
+        ui().button(listX, height() - 30, btnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(() -> {
                     if (isAttached()) {
                         navigateBack();
                     }

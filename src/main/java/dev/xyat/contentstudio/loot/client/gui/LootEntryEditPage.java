@@ -181,7 +181,7 @@ final class LootEntryEditPage extends KineticPage {
 
         int actionY = screenHeight - 38;
         ui().button(360, actionY, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.apply")).onClick(this::applyChanges).build();
-        ui().button(432, actionY, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.cancel")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.cancel")).onClick(this::closeToParent).build();
+        ui().button(24, 15, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.cancel")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.cancel")).onClick(this::closeToParent).build();
         updateToggleValues();
     }
 
@@ -401,7 +401,7 @@ final class LootEntryEditPage extends KineticPage {
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
-        g.scrollingText(title(), 24, 21, TABLE_NAME_X - 24 - TEXT_GAP, 0xFFFFAA00, false);
+        g.scrollingText(title(), 96, 21, TABLE_NAME_X - 96 - TEXT_GAP, 0xFFFFAA00, false);
         g.scrollingText(Component.literal(parent.selectedTableName().getString()), TABLE_NAME_X, 21, CONTENT_RIGHT - TABLE_NAME_X, 0xFFFFD75F, false);
         drawItem(g, mx, my);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24, 101);

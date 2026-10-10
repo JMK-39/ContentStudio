@@ -40,7 +40,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
     }
 
     @Override protected void build(KineticUi ui) {
-        ui().button(366, 328, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
+        ui().button(16, 10, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
         viewerButton = ui().button(432, 328, 60).text(RecipeRemovalPage.tr("open_viewer")).tooltip(RecipeRemovalPage.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing")).onClick(this::openViewerMenu).build();
         viewerButton.setEnabled(RecipeJeiBridge.available());
         toggle = ui().button(498, 328, 60).text(parent.recipeAction(entry)).onClick(() -> {
@@ -116,7 +116,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.scrollingTextCentered(title(), PAGE_WIDTH / 2, 16, TEXT_WIDTH, KineticTheme.current().text(), true);
+        graphics.scrollingText(title(), 82, 16, PAGE_WIDTH - TEXT_MARGIN - 82, KineticTheme.current().text(), true);
         Component id = entry.recipe().id() == null ? RecipeRemovalPage.tr("no_id") : Component.literal(entry.recipe().id().toString());
         graphics.scrollingTextCentered(id, PAGE_WIDTH / 2, 36, TEXT_WIDTH, KineticTheme.current().mutedText(), true);
         graphics.scrollingTextCentered(parent.statusLabel(entry), PAGE_WIDTH / 2, 50, TEXT_WIDTH, KineticTheme.current().mutedText(), true);

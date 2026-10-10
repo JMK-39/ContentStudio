@@ -61,7 +61,7 @@ final class RecipeTypeFilterPage extends KineticPage {
         search = ui().autoComplete(16, 36, 608, KineticSuggestion.fromStrings(() -> all.stream()
                         .map(row -> row.type().toString()).toList())).label(RecipeRemovalPage.tr("filter_type_search")).placeholder(RecipeRemovalPage.tr("filter_type_search")).build();
         search.onTextChange(value -> { query = value; refresh(); scroll.setOffset(0); });
-        ui().button(564, 328, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
+        ui().button(16, 6, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
         refresh();
     }
 
@@ -77,7 +77,7 @@ final class RecipeTypeFilterPage extends KineticPage {
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.scrollingText(title(), 16, 12, ROW_RIGHT - 16, KineticTheme.current().text(), false);
+        graphics.scrollingText(title(), 82, 12, ROW_RIGHT - 82, KineticTheme.current().text(), false);
         scroll.update(visible.size(), 10);
         graphics.scissor(16, 68, 624, 308);
         int start = scroll.smoothIndexOffset(), shift = scroll.visualShift(24);
@@ -90,8 +90,8 @@ final class RecipeTypeFilterPage extends KineticPage {
             if (row.type() != null) {
                 ItemStack icon = RecipeRemovalPage.typeIcon(row.type());
                 if (!icon.isEmpty()) {
-                    RecipeSlots.draw(graphics, 21, y + 4, 16);
-                    KineticTheme.item(graphics, icon, 21, y + 4, 16, 0.625F, false);
+                    KineticTheme.itemSlot(graphics, 21, y + 2, 20, false);
+                    KineticTheme.item(graphics, icon, 21, y + 2, 20, 1.0F, false);
                 }
             }
             String name = row.type() == null ? RecipeRemovalPage.tr("all_types").getString()

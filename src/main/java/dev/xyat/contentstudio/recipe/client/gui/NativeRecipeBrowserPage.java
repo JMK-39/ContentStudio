@@ -66,7 +66,7 @@ public final class NativeRecipeBrowserPage extends KineticPage {
                 int hovered=index(mx,my);setTooltip(hovered<0?null:items.get(hovered).tooltip());
                 for(int i=0;i<items.size();i++) {
                     int x=24+i%24*24,y=74+i/24*24;
-                    RecipeSlots.draw(g,x+2,y+2,18);g.item(items.get(i).stack(),x+3,y+3);
+                    KineticTheme.itemSlot(g,x+2,y+2,18,false);g.item(items.get(i).stack(),x+3,y+3);
                     if(hovered==i||items.get(i).outline()!=null)KineticTheme.stateOutline(g,x,y,22,22,false,hovered==i,items.get(i).outline()!=null);
                 }
             }
@@ -75,7 +75,7 @@ public final class NativeRecipeBrowserPage extends KineticPage {
                 playClickSound();send(creating?"template":"open",rows.get(i).getAsJsonObject().get("id").getAsString());return true;
             }
         });
-        ui.button(22,320,90).text(tr("back")).onClick(this::close).build();
+        ui.button(22,18,90).text(tr("back")).onClick(this::close).build();
         if(!savedOnly)ui.button(118,320,160).text(tr(creating?"choose_template":"new_recipe")).tooltip(tr("new_recipe_hint"))
                 .onClick(()->{creating=!creating;rebuild();}).build();
         ui.button(384,320,70).text(Component.literal("<")).enabled(page>0).onClick(() -> {page--;refresh();}).build();
@@ -107,7 +107,7 @@ public final class NativeRecipeBrowserPage extends KineticPage {
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
         KineticTheme.panel(g,14,14,612,332);
-        g.scrollingText(title(),22,24,596,0xFFFFAA00,false);
+        g.scrollingText(title(),120,24,498,0xFFFFAA00,false);
         g.scrollingTextCentered(Component.literal((page+1)+" / "+pages+" ("+total+")"),501,326,86,0xFFFFFFFF,false);
     }
 }

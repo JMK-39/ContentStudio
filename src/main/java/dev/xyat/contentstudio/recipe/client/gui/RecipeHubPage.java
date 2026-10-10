@@ -25,7 +25,7 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
         // to the screen current when the hub opened (see the migration report).
         // Fixed header, pinned vanilla entry, four scrollable mod rows and the existing session actions.
         setImageSize(600, 316);
-        setTitleLabelPosition(8, 10);
+        setTitleLabelPosition(8, 1000);
         setInventoryLabelPosition(8, 1000);
     }
 
@@ -51,7 +51,7 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
         int totalBottomWidth = bottomBtnW * (jei?4:3) + bottomSpacing * (jei?3:2);
         int bottomStartX = leftPos() + (imageWidth() - totalBottomWidth) / 2;
 
-        ui().button(bottomStartX, bottomY, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(this::close).build();
+        ui().button(leftPos() + 12, topPos() + 4, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(this::close).build();
 
         ui().button(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.btn.hub")).onClick(() -> {
                     if (KineticClientRuntime.localPlayer() != null) {
@@ -80,6 +80,7 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
     @Override
     protected void renderContainerBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panelAlt(graphics, leftPos(), topPos(), imageWidth(), imageHeight());
+        graphics.scrollingText(title(), leftPos() + 128, topPos() + 10, imageWidth() - 140, KineticTheme.current().text(), false);
         stations.render(graphics,mouseX,mouseY);
     }
 
