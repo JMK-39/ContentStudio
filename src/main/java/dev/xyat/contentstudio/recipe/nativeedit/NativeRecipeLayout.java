@@ -3,7 +3,7 @@ package dev.xyat.contentstudio.recipe.nativeedit;
 import com.google.gson.*;
 import java.util.*;
 
-/** Pure recipe geometry. No viewer classes: layouts remain available without JEI, EMI or REI. */
+/** Pure vanilla geometry and native JSON slot paths; third-party drawing comes from optional JEI categories. */
 public record NativeRecipeLayout(String kind, int width, int height, List<Slot> slots) {
     public record Slot(List<String> path, int x, int y, boolean output) {
         public Slot { path=List.copyOf(path); }
@@ -105,6 +105,8 @@ public record NativeRecipeLayout(String kind, int width, int height, List<Slot> 
     }
     public static NativeRecipeLayout of(JsonObject json) {return of(json,0);}
     public static NativeRecipeLayout of(JsonObject json,int page) {
+        if(NativeRecipeDocument.serializerId(json).equals("forge:conditional"))
+            return NativeRecipeView.resolve(json,branch->true).layout(page);
         String type=NativeRecipeDocument.serializerId(json);var slots=new ArrayList<Slot>();
         var workstation=NativeWorkstationLayouts.of(type,json);
         if(workstation!=null)return workstation;

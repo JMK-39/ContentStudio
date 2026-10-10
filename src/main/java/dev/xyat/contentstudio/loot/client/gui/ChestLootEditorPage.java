@@ -445,7 +445,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         LootCheckerboard.draw(g, x, y, REMOVE_CELL, REMOVE_CELL);
         KineticTheme.stateOutline(g, x, y, REMOVE_CELL, REMOVE_CELL, selected, hovered, false);
         if (!stack.isEmpty()) {
-            KineticTheme.item(g, stack, x, y, REMOVE_CELL, 0.75F, false);
+            KineticTheme.item(g, stack, x, y, REMOVE_CELL, 1.0F, false);
         }
 
         if (hovered) {

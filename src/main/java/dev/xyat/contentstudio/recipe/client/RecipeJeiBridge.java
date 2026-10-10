@@ -3,6 +3,8 @@ package dev.xyat.contentstudio.recipe.client;
 import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.runtime.KineticPlatform;
 import dev.xyat.contentstudio.recipe.removal.RecipeSummary;
+import com.google.gson.JsonObject;
+import net.minecraft.resources.ResourceLocation;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -13,6 +15,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 public final class RecipeJeiBridge {
@@ -47,17 +50,32 @@ public final class RecipeJeiBridge {
         void tick();
     }
 
+    public record EditorSlot(int x, int y, int width, int height, String role,
+                             Set<String> ingredients, String name) {
+        public EditorSlot { ingredients = Set.copyOf(ingredients); }
+        public boolean output() { return role.equals("OUTPUT"); }
+        public boolean editable() { return dev.xyat.contentstudio.recipe.nativeedit.JeiRecipeSlotBindings.isEditableRole(role); }
+    }
+
+    public interface EditorPreview extends Preview {
+        List<EditorSlot> slots();
+        Component category();
+    }
+
     public interface Access {
         List<Entry> recipes(ItemStack output);
         void show(ItemStack output);
+        default EditorPreview editor(ResourceLocation id, JsonObject recipe) { return null; }
     }
 
     private static Access access;
+    private static long generation;
 
     private RecipeJeiBridge() {}
 
     public static void setAccess(Access value) {
         access = value;
+        generation++;
     }
 
     public static boolean available() {
@@ -80,6 +98,14 @@ public final class RecipeJeiBridge {
 
     public static List<Entry> recipes(ItemStack output) {
         return access == null ? List.of() : access.recipes(output);
+    }
+
+    public static boolean jeiAvailable() { return access != null; }
+    public static long generation() { return generation; }
+
+    /** Optional JEI code is isolated in the plugin; vanilla and field editors never load its classes. */
+    public static EditorPreview editor(ResourceLocation id, JsonObject recipe) {
+        return access == null ? null : access.editor(id, recipe);
     }
 
     public static boolean show(Viewer viewer, ItemStack output) {

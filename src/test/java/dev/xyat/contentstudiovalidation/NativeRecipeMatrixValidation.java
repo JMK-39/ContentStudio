@@ -99,6 +99,7 @@ public final class NativeRecipeMatrixValidation {
             }
             if(chosen!=null) {
                 cases.add(chosen);
+                if(group.getKey().equals("create:sequenced_assembly"))addSequenceCases(group.getValue());
                 String mod=group.getKey().split(":",2)[0];
                 if(previewMods.add(mod) || Set.of("farmersdelight:cooking","farmersdelight:cutting","create:sequenced_assembly","extendedcrafting:shaped_table").contains(group.getKey())
                         ||Set.of("powah","youkaisfeasts","twilightforest").contains(mod)) {
@@ -109,6 +110,25 @@ public final class NativeRecipeMatrixValidation {
             } else record(group.getKey(),"","UNVERIFIED","No serializer-visible editable primitive found");
         }
         LOG.info("CONTENT_MATRIX_PREPARED types={} editable={} priorPassed={}",grouped.size(),cases.size(),results.asList().stream().filter(v->v.getAsJsonObject().get("status").getAsString().equals("PASS")).count());writeReport();
+    }
+    private static void addSequenceCases(List<Map.Entry<net.minecraft.resources.ResourceLocation,JsonElement>> originals) {
+        var source=originals.get(0);var id=source.getKey();var json=source.getValue().getAsJsonObject();
+        String before=fingerprint(decode(id,json));
+        for(String type:NativeRecipeSequenceEdits.TYPES) {
+            var doc=new NativeRecipeDocument(json);NativeRecipeSequenceEdits.add(doc,List.of(),type);
+            String after=fingerprint(decode(id,doc.json()));require(!before.equals(after),"added sequence step decoded: "+type);
+            cases.add(new Case(id.toString(),"create:sequence_add_"+type.split(":")[1],List.of("sequence"),type,doc.json(),before,after));
+        }
+        var large=new NativeRecipeDocument(json);
+        int additions=0;while(large.at(List.of("sequence")).getAsJsonArray().size()<40)
+            NativeRecipeSequenceEdits.add(large,List.of(),NativeRecipeSequenceEdits.TYPES.get(additions++%4));
+        large.move(List.of("sequence","0"),39);
+        var sequence=large.at(List.of("sequence")).getAsJsonArray();
+        for(int i=0;i<sequence.size();i++)if(sequence.get(i).getAsJsonObject().get("type").getAsString().equals("create:deploying")) {
+            NativeRecipeSlotEdits.select(large,List.of("sequence",Integer.toString(i),"ingredients","1"),"minecraft:diamond",false);break;
+        }
+        String after=fingerprint(decode(id,large.json()));require(!before.equals(after),"large sequence and selected material decoded");
+        cases.add(new Case(id.toString(),"create:sequence_40_steps_material_move",List.of("sequence"),"40 steps / diamond / reordered",large.json(),before,after));
     }
     private static Case probe(net.minecraft.resources.ResourceLocation id,String type,JsonObject json) {
         var original=new NativeRecipeDocument(json);String before=fingerprint(decode(id,json));

@@ -152,7 +152,18 @@ public final class GuiLongTextValidation {
                 originalTooltipData=TooltipClientHandlers.clientData;
                 mc.options.guiScale().set(0);
                 if(originalFullscreen)mc.getWindow().toggleFullScreen();
-                nextPhase();
+                if(mc.gameDirectory.getName().startsWith(".codex-native-recipes-")) {
+                    preparingSearch=true;
+                    mc.getSingleplayerServer().execute(()->{
+                        var server=mc.getSingleplayerServer();var player=server.getPlayerList().getPlayers().get(0);
+                        //? if >=26.1 {
+                        /*server.getPlayerList().op(new net.minecraft.server.players.NameAndId(player.getGameProfile()));
+                        *///?} else {
+                        server.getPlayerList().op(player.getGameProfile());
+                        //?}
+                        mc.execute(()->{preparingSearch=false;try{nextPhase();}catch(Throwable error){failures++;LOG.error("CONTENT_GUI_FAIL preparing owned world",error);finish();}});
+                    });
+                } else nextPhase();
                 return;
             }
             if(reload!=null) {
@@ -177,7 +188,7 @@ public final class GuiLongTextValidation {
                 if(Boolean.getBoolean("contentstudio.nativeRecipeMatrix.captureOnly") && (page==26 || page==41)) {
                     var current=KineticGui.currentPage();var menu=field(current,page==26?"stations":"menu");
                     if(((List<?>)field(menu,"cards")).isEmpty()) {
-                        if(now>due+30_000)throw new AssertionError("Workstation navigation never loaded");
+                        if(now>due+30_000)throw new AssertionError("Workstation navigation never loaded: ready="+field(menu,"ready")+", rows="+((List<?>)field(menu,"rows")).size()+", jei="+RecipeJeiBridge.jeiAvailable());
                         return;
                     }
                     if(page==41 && phase==0 && !nativeNavigationChecked) {

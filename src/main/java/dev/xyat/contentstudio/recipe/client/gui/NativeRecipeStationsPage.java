@@ -14,9 +14,13 @@ public final class NativeRecipeStationsPage extends KineticPage {
     private final NativeRecipeStationMenu menu;
     public NativeRecipeStationsPage() {this("","",null);}
     NativeRecipeStationsPage(String mod,String group,JsonArray rows) {
-        super(mod.isEmpty()?tr("stations"):Component.literal(KineticPlatform.displayName(mod)));
-        setPausesGame(false);menu=new NativeRecipeStationMenu(this::rebuild,this::openChild,this::isAttached,mod,group,rows);
+        this(mod,group,rows,false);
     }
+    NativeRecipeStationsPage(String mod,String group,JsonArray rows,boolean creating) {
+        super(mod.isEmpty()?tr(creating?"new_recipe":"stations"):Component.literal(KineticPlatform.displayName(mod)));
+        setPausesGame(false);menu=new NativeRecipeStationMenu(this::rebuild,this::openChild,this::isAttached,mod,group,rows,creating);
+    }
+    public static NativeRecipeStationsPage creation() {return new NativeRecipeStationsPage("","",null,true);}
     @Override protected void build(KineticUi ui) {
         ui.textField(22,42,470).value(menu.query).maxLength(256).placeholder(tr("station_search")).onChange(v->menu.query=v).build();
         ui.button(498,42,120).text(tr("search_button")).onClick(menu::search).build();

@@ -275,7 +275,7 @@ public final class RecipeRemovalImpactPage extends KineticPage implements Recipe
         if (id != null && KineticRegistries.items().contains(id)) {
             ItemStack stack = new ItemStack(KineticRegistries.items().get(id));
             RecipeSlots.draw(graphics, 62, y + 2, 16);
-            KineticTheme.item(graphics, stack, 62, y + 2, 16, 0.75F, false);
+            KineticTheme.item(graphics, stack, 62, y + 2, 16, 1.0F, false);
         }
         String label = outputName(id) + (id == null ? "" : "  " + id);
         graphics.scrollingText(Component.literal(label), GROUP_NAME_X, y + 6,

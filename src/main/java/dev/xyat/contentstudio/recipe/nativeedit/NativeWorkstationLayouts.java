@@ -9,6 +9,24 @@ final class NativeWorkstationLayouts {
     private NativeWorkstationLayouts() { }
     static NativeRecipeLayout of(String type,JsonObject json) {
         var slots=new ArrayList<Slot>();
+        if(type.equals("minecraft:stonecutting")) {
+            add(json,"ingredient",slots,0,8,1,false);add(json,"result",slots,62,8,1,true);
+            return layout("stonecutting",82,34,slots);
+        }
+        if(type.equals("goety:ritual")) {
+            int[][] pedestals={{56,22},{96,62},{56,102},{16,62},{76,22},{96,22},
+                    {36,102},{16,102},{36,22},{96,102},{76,102},{16,22}};
+            if(json.has("ingredients")&&json.get("ingredients").isJsonArray()) {
+                var ingredients=json.getAsJsonArray("ingredients");if(ingredients.size()>pedestals.length)return null;
+                for(int i=0;i<ingredients.size();i++)slots.add(new Slot(List.of("ingredients",Integer.toString(i)),pedestals[i][0],pedestals[i][1],false));
+            }
+            add(json,"activation_item",slots,56,52,1,false);add(json,"result",slots,151,52,1,true);
+            return layout("goety_ritual",174,140,slots);
+        }
+        if(type.equals("goety:cursed_infuser")||type.equals("goety:cursed_infuser_recipes")) {
+            add(json,"ingredient",slots,0,2,1,false);add(json,"result",slots,62,2,1,true);
+            return layout("goety_infuser",82,56,slots);
+        }
         if(type.equals("powah:energizing")) {
             // Six horizontal inputs, the orb's result and an energy caption below them.
             add(json,"ingredients",slots,4,4,6,false);

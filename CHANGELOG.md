@@ -1,5 +1,27 @@
 # Changelog / 更新日志
 
+## 2026-10-10 — JEI recipe editing / JEI 配方编辑
+
+### English
+
+- Use installed JEI categories to draw third-party recipe editors, including their original backgrounds, ingredients and animations. Without JEI, vanilla recipes keep visual editing, third-party editing entries are hidden, and previously saved recipes keep loading.
+- Add independent third-party recipes from registered types and templates, with mod filters in recipe management.
+- Add, duplicate, reorder and remove Create assembly steps, and edit their materials while retaining existing recipe data.
+- Browse recipes by output icons, with recipe IDs in tooltips. Keep conditional recipe branches intact and group Forge workstation recipes under Vanilla.
+- Add smooth scrolling and draggable scrollbars to workstation entries; clarify recipe parameters, including Goety ritual settings.
+- Keep previews safe when languages or resource packs reload. Ambiguous or display-only JEI slots remain previews; their recipe fields can still be edited separately.
+- Restore normal-sized villager trade icons and lower-right quantities, and show more blocks in the loot editor.
+
+### 简体中文
+
+- 第三方配方编辑直接使用已安装 JEI 的分类绘制，显示原有背景、材料和动画。未安装 JEI 时，原版配方保留可视化编辑，隐藏第三方新增和编辑入口，已保存的配方仍正常加载。
+- 按已注册类型和模板新增独立第三方配方，配方管理支持模组分类筛选。
+- 支持添加、复制、调整顺序和移除机械动力序列组装步骤，编辑步骤材料并保留原有配方数据。
+- 配方列表使用产物图标，悬浮提示显示配方 ID；保留条件配方的分支，将 Forge 工作台配方归入原版。
+- 工作台入口支持平滑滚动和拖动滑块，补充配方参数说明，包括诡厄巫法的仪式设置。
+- 修复切换语言或重载资源时的预览问题。无法确定对应字段的槽位和纯展示槽位保留预览，可单独编辑配方字段。
+- 村民交易图标恢复正常大小，数量显示在右下角；方块掉落编辑器可显示更多方块。
+
 ## 2026-10-09 — More workstation recipe previews / 更多工作台配方预览
 
 ### English

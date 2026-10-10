@@ -807,7 +807,7 @@ public class RecipeRemovalPage extends KineticPage {
         if (summary.inputs().size() > limit) text(g, tr("more_inputs"), 252, 310, 225, KineticTheme.current().mutedText());
         g.text("→", 462, 270, KineticTheme.current().text(), false);
         RecipeSlots.draw(g, 482, 264, 20);
-        drawItem(g, summary.output(), 482, 264, 20, 0.875F);
+        drawItem(g, summary.output(), 482, 264, 20, 1.0F);
         g.itemDecorations(summary.output(), 484, 266);
         text(g, tr("recipe_count", visibleRecipes.size()), 512, 252, 104, KineticTheme.current().mutedText());
         text(g, statusLabel(selectedRecipe), 512, 270, 104, KineticTheme.current().mutedText());

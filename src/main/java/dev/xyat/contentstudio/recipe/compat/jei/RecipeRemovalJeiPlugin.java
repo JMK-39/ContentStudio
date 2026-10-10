@@ -26,6 +26,14 @@ import net.minecraft.world.item.crafting.Recipe;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import com.google.gson.JsonObject;
+import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
+import mezz.jei.api.ingredients.ITypedIngredient;
+import dev.xyat.kineticcore.api.registry.KineticRegistries;
 
 @JeiPlugin
 public final class RecipeRemovalJeiPlugin implements IModPlugin {
@@ -45,7 +53,50 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
         RecipeJeiBridge.setAccess(null);
     }
 
-    private record Access(IJeiRuntime runtime) implements RecipeJeiBridge.Access {
+    private static final class Access implements RecipeJeiBridge.Access {
+        private final IJeiRuntime runtime;
+        private final Map<ResourceLocation, List<EditorFactory<?>>> editors = new LinkedHashMap<>();
+        private final Map<String, List<EditorFactory<?>>> types = new LinkedHashMap<>();
+        private boolean indexed;
+        private Access(IJeiRuntime runtime) { this.runtime = runtime; }
+
+        @Override public RecipeJeiBridge.EditorPreview editor(ResourceLocation id, JsonObject json) {
+            if (!indexed) {
+                indexed = true;
+                runtime.getRecipeManager().createRecipeCategoryLookup().includeHidden().get().forEach(this::index);
+            }
+            var factories = editors.getOrDefault(id, List.of());
+            String serializer=dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeDocument.serializerId(json);
+            var ordered=new ArrayList<>(factories);
+            for(var factory:types.getOrDefault(serializer,List.of()))if(!ordered.contains(factory))ordered.add(factory);
+            ordered.sort(java.util.Comparator.comparingInt(factory->factory.category().getRecipeType().getUid().toString().equals(serializer)?0:1));
+            for(var factory:ordered) {
+                var result=factory.create(id,json,runtime);if(result!=null)return result;
+            }
+            return null;
+        }
+
+        private <T> void index(IRecipeCategory<T> category) {
+            try {
+                runtime.getRecipeManager().createRecipeLookup(category.getRecipeType()).includeHidden().get().forEach(recipe -> {
+                    try {
+                        var id = recipeId(category, recipe);
+                        if (id != null) {
+                            var factory=new EditorFactory<>(id,category);editors.computeIfAbsent(id,key->new ArrayList<>()).add(factory);
+                            Object nativeRecipe=recipe;
+//? if >=1.21 {
+/*                            if(nativeRecipe instanceof RecipeHolder<?> holder)nativeRecipe=holder.value();
+*///?}
+                            if(nativeRecipe instanceof Recipe<?> value) {
+                                String serializer=net.minecraft.core.registries.BuiltInRegistries.RECIPE_SERIALIZER.getKey(value.getSerializer()).toString();
+                                var categories=types.computeIfAbsent(serializer,key->new ArrayList<>());
+                                if(categories.stream().noneMatch(existing->existing.category()==category))categories.add(factory);
+                            }
+                        }
+                    } catch (RuntimeException ignored) { }
+                });
+            } catch (RuntimeException ignored) { }
+        }
         private List<IFocus<?>> focus(ItemStack output) {
             return List.of(runtime.getJeiHelpers().getFocusFactory()
                     .createFocus(RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK, output));
@@ -105,6 +156,67 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
             } catch (RuntimeException ignored) {
             }
         }
+    }
+
+    private static <T> ResourceLocation recipeId(IRecipeCategory<T> category, T recipe) {
+        ResourceLocation id = category.getRegistryName(recipe);
+//? if >=26.1 {
+/*        if (id == null && recipe instanceof RecipeHolder<?> holder) id = holder.id().identifier();
+*///?} else if >=1.21 {
+/*        if (id == null && recipe instanceof RecipeHolder<?> holder) id = holder.id();
+*///?} else {
+        if (id == null && recipe instanceof Recipe<?> value) id = value.getId();
+//?}
+        return id;
+    }
+
+    private record EditorFactory<T>(ResourceLocation id, IRecipeCategory<T> category) {
+        private RecipeJeiBridge.EditorPreview create(ResourceLocation draftId,JsonObject json, IJeiRuntime runtime) {
+            Object decoded = JeiDraftRecipes.decode(draftId, json);
+            Class<? extends T> recipeClass = category.getRecipeType().getRecipeClass();
+//? if >=1.21 {
+/*            if (!recipeClass.isInstance(decoded) && decoded instanceof RecipeHolder<?> holder) decoded = holder.value();
+*///?}
+            // A category backed by a synthetic display object is view-only unless its native recipe can be decoded.
+            if (!recipeClass.isInstance(decoded)) return null;
+            return runtime.getRecipeManager().createRecipeLayoutDrawable(category, recipeClass.cast(decoded),
+                    runtime.getJeiHelpers().getFocusFactory().createFocusGroup(List.of()))
+                    .map(layout -> (RecipeJeiBridge.EditorPreview) new EditorLayout(layout, runtime)).orElse(null);
+        }
+    }
+
+    private static final class EditorLayout implements RecipeJeiBridge.EditorPreview {
+        private final IRecipeLayoutDrawable<?> layout;
+        private final List<RecipeJeiBridge.EditorSlot> slots;
+        private EditorLayout(IRecipeLayoutDrawable<?> layout, IJeiRuntime runtime) {
+            this.layout = layout;
+            layout.setPosition(0, 0);
+            var result = new ArrayList<RecipeJeiBridge.EditorSlot>();
+            for (var view : layout.getRecipeSlotsView().getSlotViews()) {
+                if (!(view instanceof IRecipeSlotDrawable drawable)) continue;
+                var rect = drawable.getAreaIncludingBackground();
+                Set<String> values = new LinkedHashSet<>();
+                view.getAllIngredients().forEach(ingredient -> {
+                    try { values.add(token(ingredient, runtime)); } catch (RuntimeException ignored) { }
+                });
+                result.add(new RecipeJeiBridge.EditorSlot(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(),
+                        view.getRole().name(), values, view.getSlotName().orElse("")));
+            }
+            slots = List.copyOf(result);
+        }
+        private static <T> String token(ITypedIngredient<T> ingredient, IJeiRuntime runtime) {
+            var stack = ingredient.getItemStack();
+            if (stack.isPresent()) return "item:" + KineticRegistries.items().id(stack.get().getItem());
+            var helper = runtime.getIngredientManager().getIngredientHelper(ingredient.getType());
+            return "resource:" + helper.getResourceLocation(ingredient.getIngredient());
+        }
+        @Override public List<RecipeJeiBridge.EditorSlot> slots() { return slots; }
+        @Override public net.minecraft.network.chat.Component category() { return layout.getRecipeCategory().getTitle(); }
+        @Override public int width() { return layout.getRect().getWidth(); }
+        @Override public int height() { return layout.getRect().getHeight(); }
+        @Override public void draw(KineticGraphics graphics, int mouseX, int mouseY) { layout.drawRecipe(KineticGraphicsInterop.unwrap(graphics), mouseX, mouseY); }
+        @Override public void drawOverlays(KineticGraphics graphics, int mouseX, int mouseY) { layout.drawOverlays(KineticGraphicsInterop.unwrap(graphics), mouseX, mouseY); }
+        @Override public void tick() { layout.tick(); }
     }
 
     private record LayoutPreview(IRecipeLayoutDrawable<?> layout) implements RecipeJeiBridge.Preview {

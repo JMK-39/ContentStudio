@@ -108,6 +108,9 @@ public final class RecipeMemoryManager {
         if (parsed.isEmpty()) throw new IllegalArgumentException("Recipe conditions are inactive");
         return new RecipeHolder<>(ResourceKey.create(Registries.RECIPE, id), parsed.get().carrier());
     }
+    public static synchronized boolean nativeConditionsMatch(RecipeManager manager, JsonObject json) {
+        return net.neoforged.neoforge.common.conditions.ICondition.conditionsMatched(NATIVE_OPS.get(manager), json);
+    }
     public static boolean containsRuntimeRecipe(RecipeManager manager, ResourceLocation id) {
         return manager.getRecipes().stream().anyMatch(recipe -> recipe.id().identifier().equals(id));
     }
@@ -665,6 +668,9 @@ public final class RecipeMemoryManager {
         if (parsed.isEmpty()) throw new IllegalArgumentException("Recipe conditions are inactive");
         return new RecipeHolder<>(id, parsed.get().carrier());
     }
+    public static synchronized boolean nativeConditionsMatch(RecipeManager manager, JsonObject json) {
+        return net.neoforged.neoforge.common.conditions.ICondition.conditionsMatched(NATIVE_OPS.get(manager), json);
+    }
     public static boolean containsRuntimeRecipe(RecipeManager manager, ResourceLocation id) {
         return manager.getRecipes().stream().anyMatch(recipe -> recipe.id().equals(id));
     }
@@ -1141,6 +1147,9 @@ public final class RecipeMemoryManager {
         if (!recipe.getId().equals(id)) throw new IllegalArgumentException("DERIVED_ID:" + recipe.getId());
         dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeCompat.initialize(recipe);
         return recipe;
+    }
+    public static synchronized boolean nativeConditionsMatch(RecipeManager manager, JsonObject json) {
+        return CraftingHelper.processConditions(json, "conditions", NATIVE_OPS.get(manager));
     }
     public static boolean containsRuntimeRecipe(RecipeManager manager, ResourceLocation id) {
         return manager.getRecipes().stream().anyMatch(recipe -> recipe.getId().equals(id));

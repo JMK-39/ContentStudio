@@ -24,7 +24,9 @@ public class LootEditorPage extends AbstractLootEditorPage {
     private static final int BLOCK_CELL_SIZE = 18;
     private static final int BLOCK_CELL_GAP = 2;
     private static final int BLOCK_GRID_COLS = (TARGET_WIDTH + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
-    private static final int BLOCK_GRID_ROWS = (TARGET_HEIGHT + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
+    // Start just below the search field and use the full height inside the panel border.
+    private static final int BLOCK_GRID_TOP = SEARCH_Y + 16 + 2;
+    private static final int BLOCK_GRID_ROWS = (RIGHT_Y + RIGHT_H - 2 - BLOCK_GRID_TOP + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
 
     private final KineticEntityPreview entityPreviewRenderer = KineticEntityPreview.create();
 
@@ -65,6 +67,10 @@ public class LootEditorPage extends AbstractLootEditorPage {
             return super.targetAreaHeight();
         }
         return gridRows() * BLOCK_CELL_SIZE + (gridRows() - 1) * BLOCK_CELL_GAP;
+    }
+
+    @Override protected int targetAreaY() {
+        return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_TOP : super.targetAreaY();
     }
 
     @Override
@@ -150,7 +156,7 @@ public class LootEditorPage extends AbstractLootEditorPage {
                 } else {
                     KineticTheme.stateOutline(g, x, y, cell, cell, false, hover, false);
                 }
-                KineticTheme.item(g, targetStack, x, y, cell, 0.75F, false);
+                KineticTheme.item(g, targetStack, x, y, cell, 1.0F, false);
             }
             flashTarget(g, i, x, y, cell, cell);
             if (hover) {

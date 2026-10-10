@@ -56,7 +56,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     protected static final int LEFT_X = 10;
     protected static final int LEFT_Y = 42;
     protected static final int SEARCH_Y = 16;
-    protected static final int TARGET_WIDTH = 192;
+    protected static final int TARGET_WIDTH = 198;
     protected static final int TARGET_HEIGHT = 288;
     protected static final int RIGHT_X = 220;
     protected static final int RIGHT_Y = 14;
@@ -2574,7 +2574,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         drawCheckerboard(g, x, y, EDIT_ICON, EDIT_ICON);
         KineticTheme.stateOutline(g, x, y, EDIT_ICON, EDIT_ICON, true, hovered, false);
         if (!stack.isEmpty()) {
-            KineticTheme.item(g, stack, x, y, EDIT_ICON, 0.875F, true);
+            KineticTheme.item(g, stack, x, y, EDIT_ICON, 1.0F, true);
         }
         if (hovered) {
             if (!stack.isEmpty()) {

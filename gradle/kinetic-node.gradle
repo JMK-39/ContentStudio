@@ -321,7 +321,7 @@ if (pLoader in ['forge', 'neoforge']) {
     }
     def captureJar = tasks.register('guiCaptureValidationJar', Jar) {
         dependsOn 'testClasses', writeCaptureMetadata
-        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class', 'dev/xyat/contentstudiovalidation/NativeRecipeValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeMatrixValidation*.class' }
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class', 'dev/xyat/contentstudiovalidation/NativeRecipeValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeMatrixValidation*.class', 'dev/xyat/contentstudiovalidation/JeiEditorValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeCreationValidation*.class' }
         from captureMetadata
         archiveFileName = 'contentstudio-gui-capture.jar'
     }

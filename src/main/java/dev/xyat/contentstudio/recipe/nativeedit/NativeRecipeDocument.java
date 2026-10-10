@@ -67,6 +67,11 @@ public final class NativeRecipeDocument {
         replace(root, path, replacement);
     }
 
+    public void setValue(List<String> path,JsonElement value) {
+        resolve(path);var candidate=root.deepCopy();replace(candidate,path,value.deepCopy());new NativeRecipeDocument(candidate);
+        replace(root,path,value.deepCopy());
+    }
+
     public void duplicate(List<String> path) {
         if (path.isEmpty()) throw new IllegalArgumentException("Select an array member");
         JsonElement parent = resolve(path.subList(0, path.size() - 1));
@@ -75,6 +80,19 @@ public final class NativeRecipeDocument {
         resolve(candidate, path.subList(0, path.size() - 1)).getAsJsonArray().add(resolve(path).deepCopy());
         new NativeRecipeDocument(candidate);
         parent.getAsJsonArray().add(resolve(path).deepCopy());
+    }
+
+    /** Moves one complete array member, preserving every native or custom field. */
+    public void move(List<String> path, int destination) {
+        if(path.isEmpty())throw new IllegalArgumentException("Select an array member");
+        var parentPath=path.subList(0,path.size()-1);var parent=resolve(parentPath);
+        if(!parent.isJsonArray())throw new IllegalArgumentException("Select an array member");
+        int source=Integer.parseInt(path.get(path.size()-1));var values=parent.getAsJsonArray().deepCopy();
+        if(source<0||source>=values.size()||destination<0||destination>=values.size())throw new IllegalArgumentException("Invalid array position");
+        var moved=values.remove(source);var reordered=new JsonArray();
+        for(int i=0;i<=values.size();i++) {if(i==destination)reordered.add(moved);if(i<values.size())reordered.add(values.get(i));}
+        var candidate=root.deepCopy();replace(candidate,parentPath,reordered);new NativeRecipeDocument(candidate);
+        replace(root,parentPath,reordered);
     }
 
     public void remove(List<String> path) {

@@ -47,7 +47,8 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
         int bottomBtnW = 108;
         int bottomSpacing = 8;
         int bottomY = topPos() + imageHeight() - 34;
-        int totalBottomWidth = bottomBtnW * 3 + bottomSpacing * 2;
+        boolean jei=dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable();
+        int totalBottomWidth = bottomBtnW * (jei?4:3) + bottomSpacing * (jei?3:2);
         int bottomStartX = leftPos() + (imageWidth() - totalBottomWidth) / 2;
 
         ui().button(bottomStartX, bottomY, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(this::close).build();
@@ -60,6 +61,8 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
                         });
                     }
                 }).build();
+        if(jei)ui.button(bottomStartX+(bottomBtnW+bottomSpacing)*3,bottomY,bottomBtnW).text(NativeRecipeBrowserPage.tr("new_third_party"))
+                .tooltip(NativeRecipeBrowserPage.tr("new_recipe_hint")).onClick(()->openChild(NativeRecipeStationsPage.creation())).build();
 
         ui().button(bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.manage.title")).onClick(() -> {
                     this.showToast(KineticI18n.translatable("msg.contentstudio.recipe.recipehud.requesting_recipes"));
@@ -82,6 +85,7 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
 
     @Override protected boolean onMouseScroll(dev.xyat.kineticcore.api.client.gui.input.ScrollInput i){return stations.wheel(i);}
     @Override protected boolean onMouseClick(dev.xyat.kineticcore.api.client.gui.input.MouseInput i){return stations.click(i);}
+    @Override protected boolean onMouseClickCapture(dev.xyat.kineticcore.api.client.gui.input.MouseInput i){return stations.click(i);}
     @Override protected boolean onMouseDrag(dev.xyat.kineticcore.api.client.gui.input.MouseDragInput i){return stations.drag(i);}
     @Override protected boolean onMouseRelease(dev.xyat.kineticcore.api.client.gui.input.MouseInput i){return stations.release(i);}
 }

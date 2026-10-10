@@ -25,6 +25,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
     private boolean dataError;
     private float previewScale = 1;
     private int previewX, previewY;
+    private long previewGeneration=RecipeJeiBridge.generation();
 
     RecipeRemovalPreviewPage(RecipeRemovalPage parent, RecipeJeiBridge.Entry entry) {
         super(entry.category());
@@ -49,7 +50,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
         ui().button(564, 328, 60).text(RecipeRemovalPage.tr("save")).tooltip(RecipeRemovalPage.tr("save_hint")).onClick(parent::save).build();
         refreshAction();
         if (preview != null) {
-            previewScale = Math.min(2, Math.min(580f / Math.max(1, preview.width()), 214f / Math.max(1, preview.height())));
+            previewScale = Math.min(1, Math.min(580f / Math.max(1, preview.width()), 214f / Math.max(1, preview.height())));
             previewX = (int) ((640 - preview.width() * previewScale) / 2);
             previewY = 74 + (int) ((230 - preview.height() * previewScale) / 2);
         }
@@ -98,6 +99,15 @@ final class RecipeRemovalPreviewPage extends KineticPage {
     }
 
     @Override protected void onTick() {
+        if(previewGeneration!=RecipeJeiBridge.generation()) {
+            previewGeneration=RecipeJeiBridge.generation();preview=null;dataError=false;
+            if(RecipeJeiBridge.jeiAvailable())try {
+                for(var fresh:RecipeJeiBridge.recipes(entry.recipe().output()))if(java.util.Objects.equals(fresh.recipe().id(),entry.recipe().id())&&fresh.preview()!=null) {
+                    preview=fresh.preview().get();break;
+                }
+            }catch(RuntimeException ignored){markError();}
+            rebuild();
+        }
         if (preview != null && !dataError) {
             try { preview.tick(); } catch (RuntimeException ignored) { markError(); }
         }
@@ -124,6 +134,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
     }
 
     private void drawPreview(KineticGraphics graphics, int mouseX, int mouseY, boolean overlays) {
+        if(previewGeneration!=RecipeJeiBridge.generation())return;
         graphics.push();
         try {
             graphics.translate(previewX, previewY);
@@ -149,12 +160,12 @@ final class RecipeRemovalPreviewPage extends KineticPage {
             RecipeSlots.draw(graphics, x, y, 20);
             try {
                 var alternatives = recipe.alternatives(i);
-                if (alternatives.length > 0) KineticTheme.item(graphics, alternatives[cycle % alternatives.length], x, y, 20, 0.875F, false);
+                if (alternatives.length > 0) KineticTheme.item(graphics, alternatives[cycle % alternatives.length], x, y, 20, 1.0F, false);
             } catch (RuntimeException ignored) { markError(); }
         }
         graphics.text("→", 362, 172, KineticTheme.current().text(), false);
         RecipeSlots.draw(graphics, 412, 164, 20);
-        KineticTheme.item(graphics, recipe.output(), 412, 164, 20, 0.875F, false);
+        KineticTheme.item(graphics, recipe.output(), 412, 164, 20, 1.0F, false);
         graphics.itemDecorations(recipe.output(), 414, 166);
     }
 

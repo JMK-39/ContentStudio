@@ -43,6 +43,7 @@ public class RecipePreviewPage extends KineticPage {
     // 原 parent != null：打开时是否存在父界面 / Former parent != null: whether a parent screen existed when opened.
     private final boolean hasParentScreen;
     private KineticTextField searchBox;
+    private String modFilter="";
     private int gridX;
     private int gridY;
     private int gridW;
@@ -222,7 +223,17 @@ public class RecipePreviewPage extends KineticPage {
                                 (availableSearchWidth - searchWidth) / 2
                         );
 
-        gridY = 35;
+        gridY = 59;
+        ui.button(sidePadding,31,120).text(modFilter.isEmpty()?NativeRecipeBrowserPage.tr("all_mods"):Component.literal(dev.xyat.kineticcore.api.runtime.KineticPlatform.displayName(modFilter)))
+                .onClick(()->{
+                    var choices=new ArrayList<KineticOverlays.MenuItem>();
+                    choices.add(KineticOverlays.MenuItem.action(NativeRecipeBrowserPage.tr("all_mods"),()->{modFilter="";onSearchUpdate(searchBox.textValue());rebuild();}));
+                    var mods=new java.util.TreeSet<String>();for(var record:RecipeDatabase.records)if(!record.output.isEmpty())mods.add(KineticRegistries.items().id(record.output.getItem()).getNamespace());
+                    for(String mod:mods)choices.add(KineticOverlays.MenuItem.action(Component.literal(dev.xyat.kineticcore.api.runtime.KineticPlatform.displayName(mod)),()->{modFilter=mod;onSearchUpdate(searchBox.textValue());rebuild();}));
+                    openContextMenu(sidePadding,51,choices,180);
+                }).build();
+        if(dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable())ui.button(sidePadding+126,31,180).text(NativeRecipeBrowserPage.tr("saved_third_party"))
+                .onClick(()->openChild(NativeRecipeBrowserPage.saved())).build();
 
         searchBox = ui().textField(searchX, searchY, searchWidth).placeholder(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.search_hint")).build();
 
@@ -317,12 +328,12 @@ public class RecipePreviewPage extends KineticPage {
         List<RecipeRecord> invalidRecords = new ArrayList<>();
 
         for (RecipeRecord record : RecipeDatabase.records) {
-            if (isNotPendingDeleted(record) && isDisplayableRecord(record) && matchesSearch(record, lowerQuery)) {
+            if (isNotPendingDeleted(record) && isDisplayableRecord(record) && matchesMod(record) && matchesSearch(record, lowerQuery)) {
                 validRecords.add(record);
             }
         }
         for (RecipeRecord record : RecipeDatabase.invalidRecords) {
-            if (isNotPendingDeleted(record) && isDisplayableRecord(record) && matchesSearch(record, lowerQuery)) {
+            if (isNotPendingDeleted(record) && isDisplayableRecord(record) && matchesMod(record) && matchesSearch(record, lowerQuery)) {
                 invalidRecords.add(record);
             }
         }
@@ -336,6 +347,9 @@ public class RecipePreviewPage extends KineticPage {
         );
     }
 
+    private boolean matchesMod(RecipeRecord record) {
+        return modFilter.isEmpty()||!record.output.isEmpty()&&KineticRegistries.items().id(record.output.getItem()).getNamespace().equals(modFilter);
+    }
     private boolean matchesSearch(RecipeRecord record, String lowerQuery) {
         if (lowerQuery.isEmpty()) {
             return true;

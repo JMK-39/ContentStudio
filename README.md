@@ -5,7 +5,8 @@
 Content Studio gives pack authors and server administrators in-game editors for recipes, loot tables, villager trades, and item tooltips.
 
 - Recipe creation, removal rules, previews, and an impact list.
-- Search mod/workstation entries and edit clickable native recipe previews without requiring JEI, preserving custom fields.
+- Search mod/workstation entries and edit third-party recipes directly on their JEI layouts, preserving native data. Without JEI, Vanilla remains visual, third-party editing entries are hidden, and saved recipes keep loading.
+- Choose a registered third-party type and a template to create an independent recipe under a new ID; filter saved recipes by mod.
 - Entity, block, and container loot; villager and wandering-trader offers.
 - Trade-source selection, validation and resumable editing drafts.
 - Searchable item selection, version-specific item data, and native client tooltips.
@@ -21,7 +22,8 @@ See the [English Wiki tutorial](https://github.com/JMK-39/ContentStudio/wiki/Tut
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
 
 - 配方创建、移除规则、预览与影响列表。
-- 按模组与工作台搜索入口，直接编辑独立配方预览，无需 JEI，并保留专有字段。
+- 按模组与工作台搜索入口，在 JEI 原生布局上直接编辑第三方配方并保留专有字段。未安装 JEI 时，原版仍可视化编辑，隐藏第三方编辑入口，已保存配方继续加载。
+- 选择第三方模组已注册的类型与模板，以新 ID 创建独立配方；已保存配方支持按模组筛选。
 - 实体、方块和容器战利品，以及村民和流浪商人交易。
 - 交易来源选择、校验与可恢复的编辑草稿。
 - 可搜索物品选择、分版本物品数据与原生客户端提示。
