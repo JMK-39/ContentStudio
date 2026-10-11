@@ -1,3 +1,10 @@
+2026年10月11日 — Recipe storage / 配方存储目录
+
+- Store native recipe overrides beside `recipe_bundle.json` under `data/contentstudio/recipe/`. Move existing override files automatically, preserving edits already in the new directory.
+- 原生配方覆盖文件与 `recipe_bundle.json` 统一放在 `data/contentstudio/recipe/` 下；自动移入旧覆盖文件，同 ID 保留新目录已有修改。
+
+---
+
 2026年10月10日 — Editor navigation and tag indicators / 编辑页导航与标签标记
 
 - Move recipe, loot, villager trade and item tooltip editor Back controls to the upper left when the header has space, using the lower left for inventory-style layouts.

@@ -10,6 +10,39 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class NativeRecipeStoreTest {
     @TempDir Path temporary;
+    @Test void readingMovedLocationRelocatesExistingOverridesWithoutBackup() throws Exception {
+        Path oldFile=temporary.resolve("recipe_overrides.json");
+        Path file=temporary.resolve("recipe/recipe_overrides.json");
+        String saved="{\"example:cutting\":{\"type\":\"farmersdelight:cutting\"}}";
+        Files.writeString(oldFile,saved);
+        assertEquals(JsonParser.parseString(saved),NativeRecipeStore.local(file));
+        assertTrue(Files.exists(file));
+        assertFalse(Files.exists(oldFile));
+        try(var paths=Files.walk(temporary)) { assertFalse(paths.anyMatch(path->path.toString().endsWith(".bak"))); }
+    }
+    @Test void relocationKeepsNewerEditsAndImportsOnlyMissingIds() throws Exception {
+        Path oldFile=temporary.resolve("recipe_overrides.json");
+        Path file=temporary.resolve("recipe/recipe_overrides.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(oldFile,"{\"example:same\":{\"type\":\"test:old\"},\"example:other\":{\"type\":\"test:other\"}}");
+        Files.writeString(file,"{\"example:same\":{\"type\":\"test:new\"}}");
+        var merged=NativeRecipeStore.local(file);
+        assertEquals("test:new",merged.getAsJsonObject("example:same").get("type").getAsString());
+        assertTrue(merged.has("example:other"));
+        assertFalse(Files.exists(oldFile));
+        assertEquals(merged,NativeRecipeStore.local(file));
+    }
+    @Test void failedRelocationLeavesBothExistingFilesIntact() throws Exception {
+        Path oldFile=temporary.resolve("recipe_overrides.json");
+        Path file=temporary.resolve("recipe/recipe_overrides.json");
+        Files.createDirectories(file.getParent());
+        String saved="{\"example:cutting\":{\"type\":\"farmersdelight:cutting\"}}";
+        Files.writeString(oldFile,saved);
+        Files.writeString(file,"{broken");
+        assertThrows(IOException.class,()->NativeRecipeStore.local(file));
+        assertEquals(saved,Files.readString(oldFile));
+        assertEquals("{broken",Files.readString(file));
+    }
     @Test void atomicUpdateRetainsOtherRecipesAndRejectsStaleDrafts() throws Exception {
         Path file=temporary.resolve("overrides.json");
         var id=KineticResourceIds.parse("example:cutting");

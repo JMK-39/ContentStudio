@@ -16,12 +16,20 @@ import java.util.HexFormat;
 /** Separate native JSON overrides; the original workstation bundle remains untouched. */
 public final class NativeRecipeStore {
     private static final class Location {
-        static final Path FILE = KineticPlatform.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe_overrides.json");
+        static final Path FILE = KineticPlatform.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/recipe_overrides.json");
     }
     public static Path file() { return Location.FILE; }
-    public static final ResourceLocation RESOURCE = KineticResourceIds.of("contentstudio", "recipe_overrides.json");
+    public static final ResourceLocation RESOURCE = KineticResourceIds.of("contentstudio", "recipe/recipe_overrides.json");
+    private static final ResourceLocation LEGACY_RESOURCE = KineticResourceIds.of("contentstudio", "recipe_overrides.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private NativeRecipeStore() { }
+
+    public static void initialize() {
+        try { local(); }
+        catch (IOException error) {
+            com.mojang.logging.LogUtils.getLogger().error("Could not relocate native recipe overrides; existing files are preserved", error);
+        }
+    }
 
     public static Map<ResourceLocation, JsonObject> parse(JsonObject root) {
         Map<ResourceLocation, JsonObject> recipes = new LinkedHashMap<>();
@@ -33,6 +41,7 @@ public final class NativeRecipeStore {
     }
     public static Map<ResourceLocation, JsonObject> load(ResourceManager resources) throws IOException {
         var resource = resources.getResource(RESOURCE);
+        if (resource.isEmpty()) resource = resources.getResource(LEGACY_RESOURCE);
         if (resource.isEmpty()) return Map.of();
         try (var reader = resource.get().openAsReader()) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
@@ -52,10 +61,25 @@ public final class NativeRecipeStore {
         return local(file());
     }
     static JsonObject local(Path file) throws IOException {
+        relocate(file);
+        return readLocal(file);
+    }
+    private static JsonObject readLocal(Path file) throws IOException {
         if (!Files.exists(file)) return new JsonObject();
         if (Files.size(file) > 8_000_000) throw new IOException("Native recipe file exceeds editor limit");
         try { return JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject(); }
         catch (RuntimeException e) { throw new IOException("Invalid native recipe file; preserving it", e); }
+    }
+    private static void relocate(Path file) throws IOException {
+        Path parent = file.getParent();
+        if (parent == null || parent.getParent() == null || !parent.getFileName().toString().equals("recipe")
+                || !file.getFileName().toString().equals("recipe_overrides.json")) return;
+        Path oldFile = parent.getParent().resolve("recipe_overrides.json");
+        if (!Files.isRegularFile(oldFile)) return;
+        JsonObject merged = readLocal(oldFile);
+        readLocal(file).entrySet().forEach(entry -> merged.add(entry.getKey(), entry.getValue().deepCopy()));
+        writeAtomic(file, merged);
+        Files.delete(oldFile);
     }
     public static String revision(JsonObject root) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(root.toString().getBytes(StandardCharsets.UTF_8))); }
@@ -69,6 +93,9 @@ public final class NativeRecipeStore {
         if (!revision(root).equals(expectedRevision)) throw new IOException("STALE");
         if (value == null) root.remove(id.toString());
         else root.add(id.toString(), new NativeRecipeDocument(value).json());
+        writeAtomic(file, root);
+    }
+    private static void writeAtomic(Path file, JsonObject root) throws IOException {
         String encoded=GSON.toJson(root);
         if(encoded.getBytes(StandardCharsets.UTF_8).length>8_000_000) throw new IOException("Native recipe file exceeds editor limit");
         Files.createDirectories(file.getParent());

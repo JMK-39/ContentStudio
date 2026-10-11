@@ -17,6 +17,8 @@ Optional: **JEI 15.20+ on Forge, JEI 19+ on NeoForge 1.21.1, JEI 29+ on 26.1.2**
 
 See the [English Wiki tutorial](https://github.com/JMK-39/ContentStudio/wiki/Tutorial) for detailed instructions.
 
+Recipe settings are stored together in `config/kineticcore/datapack/data/contentstudio/recipe/`: `recipe_bundle.json` contains built-in recipes and removal rules; `recipe_overrides.json` contains native recipe edits. Existing override files outside this directory move automatically; edits already in the new directory take priority.
+
 ## 简体中文
 
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
@@ -33,6 +35,8 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 可选：**Forge 使用 JEI 15.20+，NeoForge 1.21.1 使用 JEI 19+，26.1.2 使用 JEI 29+**，以及 EMI、REI。物品提示无需 KubeJS。按 **F6** 打开 KineticCore 配置中心；编辑需要服务端 **2 级权限**。Forge 物品数据使用 `{...}` NBT，NeoForge 使用原生 `[...]` 组件，不提供旧物品 NBT 转换器。
 
 详细用法见[中文 Wiki 教程](https://github.com/JMK-39/ContentStudio/wiki/使用教程)。
+
+配方配置统一存放在 `config/kineticcore/datapack/data/contentstudio/recipe/`：`recipe_bundle.json` 保存内置配方与移除规则，`recipe_overrides.json` 保存原生配方修改。目录外已有的覆盖文件会自动移入，同 ID 优先保留新目录中的编辑结果。
 
 [GitHub project / 项目仓库](https://github.com/JMK-39/ContentStudio) · [CurseForge](https://www.curseforge.com/minecraft/mc-mods/contentstudio)
 

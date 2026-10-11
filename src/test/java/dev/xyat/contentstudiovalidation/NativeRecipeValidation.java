@@ -78,6 +78,15 @@ public final class NativeRecipeValidation {
                     onServer(()->{
                         var manager=Minecraft.getInstance().getSingleplayerServer().getRecipeManager();
                         require(RecipeMemoryManager.containsRuntimeRecipe(manager,KineticResourceIds.parse(COPY)),"copy exists after reload");
+                        var file=NativeRecipeStore.file();
+                        require(file.getParent().getFileName().toString().equals("recipe"),"native edits use recipe directory");
+                        require(!java.nio.file.Files.exists(file.getParent().getParent().resolve("recipe_overrides.json")),"old override location removed");
+                        var resources=Minecraft.getInstance().getSingleplayerServer().getResourceManager();
+                        require(resources.getResource(KineticResourceIds.parse("contentstudio:recipe/recipe_overrides.json")).isPresent(),"new override resource is mounted");
+                        try {
+                            require(NativeRecipeStore.load(resources).containsKey(KineticResourceIds.parse(COPY)),"native edits read from datapack resource");
+                        } catch(java.io.IOException error) { throw new AssertionError("Cannot read mounted native overrides",error); }
+                        require(!RecipeMemoryManager.originalCatalog(manager).entries().containsKey(KineticResourceIds.parse("contentstudio:recipe_overrides")),"private override configuration excluded from recipe catalog");
                         var inactive=imported.getAsJsonObject("recipe").deepCopy();
                         var condition=new JsonObject();condition.addProperty("modid","contentstudio_missing_validation");
                         //? if >=1.21 {

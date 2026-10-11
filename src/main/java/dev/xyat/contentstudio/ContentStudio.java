@@ -12,6 +12,7 @@ public final class ContentStudio {
 
 //? if >=1.21 {
 /*    public ContentStudio(net.neoforged.bus.api.IEventBus modBus) {
+        dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.initialize();
         dev.xyat.contentstudio.recipe.ComponentRecipeIngredients.register(modBus);
         RecipeModule.install();
         LootModule.install();
@@ -20,6 +21,7 @@ public final class ContentStudio {
     }
 *///?} else {
     public ContentStudio() {
+        dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.initialize();
         RecipeModule.install();
         LootModule.install();
         VillagerModule.install();
