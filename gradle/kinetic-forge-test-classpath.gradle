@@ -1,0 +1,61 @@
+// Forge remapped dependencies can retain invalid upstream signatures. Only verification runtimes use copies.
+// Compile classpaths, game runs, cached artifacts and release JARs are never rewritten.
+if (project.property('loader').toString() == 'forge') {
+    def helperSources = rootProject.files('gradle/UnsignedForgeTestClasspath.java', 'gradle/UnsignedForgeTestClasspathCheck.java')
+    def helperClasses = layout.buildDirectory.dir('unsigned-test-tools/classes')
+    def compileHelper = tasks.register('compileUnsignedForgeTestTools', JavaCompile) {
+        source helperSources
+        classpath = files()
+        destinationDirectory = helperClasses
+        javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(17) }
+        options.release = 17
+    }
+    def verifyHelper = tasks.register('checkUnsignedForgeTestClasspath', JavaExec) {
+        group = 'verification'
+        dependsOn compileHelper
+        classpath = files(helperClasses)
+        mainClass = 'UnsignedForgeTestClasspathCheck'
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+        args layout.buildDirectory.dir('unsigned-test-tools/fixture').get().asFile.absolutePath
+    }
+    tasks.named('check').configure { dependsOn verifyHelper }
+    afterEvaluate {
+        def consumers = tasks.withType(Test).toList() + tasks.withType(JavaExec).findAll {
+            it.name.startsWith('check') && it.name != 'checkUnsignedForgeTestClasspath'
+        }
+        def originals = consumers.collectEntries { task -> [(task): task.classpath] }
+        def originalFiles = files(originals.values())
+        def runtimeDirectory = layout.buildDirectory.dir('unsigned-test-runtime')
+        def inputList = layout.buildDirectory.file('unsigned-test-tools/classpath-input.txt')
+        def mappingFile = runtimeDirectory.map { it.file('classpath.properties') }
+        def prepare = tasks.register('prepareUnsignedForgeTestClasspath', JavaExec) {
+            dependsOn compileHelper, originalFiles
+            inputs.files(originalFiles).withPropertyName('originalVerificationClasspath')
+            inputs.files(helperSources)
+            outputs.dir(runtimeDirectory)
+            classpath = files(helperClasses)
+            mainClass = 'UnsignedForgeTestClasspath'
+            javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+            doFirst {
+                def list = inputList.get().asFile
+                list.parentFile.mkdirs()
+                list.setText(originalFiles.files.collect { it.absolutePath }.join('\n'), 'UTF-8')
+                setArgs([runtimeDirectory.get().asFile.absolutePath, list.absolutePath, mappingFile.get().asFile.absolutePath])
+            }
+        }
+        consumers.each { task ->
+            // Keep the original collection until the execution action, so Gradle retains testClasses/dependency edges.
+            task.dependsOn prepare
+            task.inputs.files(helperSources, rootProject.file('gradle/kinetic-forge-test-classpath.gradle'))
+            task.doFirst {
+                def mapping = new Properties()
+                mappingFile.get().asFile.withInputStream { mapping.load(it) }
+                task.classpath = files(originals[task].files.collect { source ->
+                    def mapped = mapping.getProperty(source.absolutePath)
+                    if (mapped == null) throw new GradleException("Missing Forge verification classpath entry: ${source}")
+                    new File(mapped)
+                })
+            }
+        }
+    }
+}
