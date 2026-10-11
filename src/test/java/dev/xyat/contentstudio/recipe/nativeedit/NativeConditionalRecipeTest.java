@@ -5,6 +5,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class NativeConditionalRecipeTest {
+    @Test void parametersShowOnlyActiveRecipeSettingsAndNeverRepeatSlotIdentifiers() throws Exception {
+        var source=JsonParser.parseString("{\"type\":\"forge:conditional\",\"recipes\":[{\"recipe\":{\"type\":\"minecraft:stonecutting\",\"ingredient\":\"minecraft:stone\",\"result\":\"minecraft:stone_slab\",\"count\":2,\"group\":\"slabs\"}}]}").getAsJsonObject();
+        var document=new NativeRecipeDocument(source);var view=NativeRecipeView.resolve(source,branch->true);
+        var parameters=NativeRecipeLayout.parameters(document,view.path());
+        assertEquals(java.util.List.of(java.util.List.of("recipes","0","recipe","count"),java.util.List.of("recipes","0","recipe","group")),parameters);
+    }
     @Test void selectsActiveBranchAndPreservesInactiveBranchesWhenEditing() {
         var source=JsonParser.parseString("{\"type\":\"forge:conditional\",\"recipes\":[{\"enabled\":false,\"recipe\":{\"type\":\"minecraft:stonecutting\",\"ingredient\":\"minecraft:dirt\",\"result\":\"minecraft:stone\"}},{\"enabled\":true,\"recipe\":{\"type\":\"minecraft:crafting_shaped\",\"pattern\":[\"AA\"],\"key\":{\"A\":{\"tag\":\"minecraft:planks\"}},\"result\":{\"item\":\"minecraft:stick\"}}}]}").getAsJsonObject();
         var inactive=source.getAsJsonArray("recipes").get(0).deepCopy();

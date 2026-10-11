@@ -1,3 +1,19 @@
+2026年10月12日 — 26.10.12 — Recipe classification and editing / 配方分类与编辑
+
+- Group recipes by their registered runtime recipe type owner, including active conditional branches. Vanilla workstation types from any mod appear under Vanilla; preserve existing recipe IDs.
+- Save edits in type-owner files such as `minecraft.json`, `create.json` and `tacz.json`. Read existing ContentStudio files without automatic conversion or deletion. TACZ Workshop legacy recipes are left for explicit conversion.
+- Use the shared item grid with normal-sized items, two-unit slot gaps and lower-right counts. Preserve native output NBT, components and supported TACZ builder results.
+- Keep the editor open after saving and refresh its loaded session and parent list so the same recipe can be saved again. Retain drafts on failure. Preserve unusable existing entries and protect ordinary recipe files from settings-file collisions.
+- Restrict JEI selection outlines to actual ingredient slots and omit duplicate slot identifiers from recipe parameters. Requires KineticCore 26.10.12+.
+
+- 按运行时注册配方类型所属模组分类，条件配方使用生效分支；任何模组提供的原版工作台类型均归入原版，保留现有配方 ID。
+- 按类型所属模组保存到 `minecraft.json`、`create.json`、`tacz.json` 等文件；保持现有 ContentStudio 配方文件读取兼容，不自动转换或删除旧文件，TACZ 工坊旧配方留待单独转换。
+- 产物列表使用共享物品网格，物品正常大小、槽位间距为两个界面单位，数量位于右下角；保留原生 NBT、组件与受支持的 TACZ 构建结果。
+- 保存后保持当前编辑页并更新已加载会话与父列表，可再次保存同一配方；失败时保留草稿。保留无法使用的旧条目，保护同名普通配方文件不被配置覆盖。
+- JEI 选择框使用实际材料槽位边界，配方参数不再重复显示材料和产物标识；需要 KineticCore 26.10.12+。
+
+---
+
 2026年10月11日 — Recipe storage / 配方存储目录
 
 - Store native recipe overrides beside `recipe_bundle.json` under `data/contentstudio/recipe/`. Move existing override files automatically, preserving edits already in the new directory.

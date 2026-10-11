@@ -94,8 +94,8 @@ final class NativeRecipeStationMenu {
         if(namespace.isEmpty()) {
             var mods=new TreeMap<String,JsonObject>();
             for(var row:rows) {
-                String type=row.get("type").getAsString(),mod=type.split(":",2)[0];
-                if(dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable()&&!Set.of("minecraft","forge","neoforge").contains(mod))mods.merge(mod,row,(current,candidate)->
+                String mod=owner(row);
+                if(dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable()&&!mod.equals("minecraft"))mods.merge(mod,row,(current,candidate)->
                         current.get("icon").getAsString().equals("minecraft:knowledge_book")
                                 && !candidate.get("icon").getAsString().equals("minecraft:knowledge_book")?candidate:current);
             }
@@ -107,22 +107,22 @@ final class NativeRecipeStationMenu {
         }
         if(namespace.equals("create") && section.isEmpty()) {
             for(String group:List.of("basic","sequence")) {
-                var row=rows.stream().filter(r->r.get("type").getAsString().startsWith("create:"))
+                var row=rows.stream().filter(r->owner(r).equals("create"))
                         .filter(r->r.get("type").getAsString().equals("create:sequenced_assembly")==group.equals("sequence")).findFirst();
                 if(row.isPresent())cards.add(new Card(group,tr("group."+group),icon(row.get()),tr("group."+group),
                         ()->open.accept(new NativeRecipeStationsPage(namespace,group,snapshot(),creating))));
             }
         } else for(var row:rows) {
             String type=row.get("type").getAsString();
-            if(!dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable()&&!NativeRecipeCreation.vanilla(type))continue;
-            boolean vanilla=namespace.equals("minecraft")&&(type.startsWith("forge:")||type.startsWith("neoforge:"));
-            if(!type.startsWith(namespace+":")&&!vanilla)continue;
+            if(!dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable()&&!owner(row).equals("minecraft"))continue;
+            if(!owner(row).equals(namespace))continue;
             if(namespace.equals("create") && type.equals("create:sequenced_assembly")!=section.equals("sequence"))continue;
             var icon=icon(row);Component name=icon.isEmpty()?Component.literal(type):icon.getHoverName();
             if((type+" "+name.getString()).toLowerCase(Locale.ROOT).contains(q))cards.add(new Card(type,name,icon,
-                    Component.literal(type+" ("+row.get("count").getAsInt()+")"),()->open.accept(new NativeRecipeBrowserPage(type,false,creating))));
+                    Component.literal(type+" ("+row.get("count").getAsInt()+")"),()->open.accept(new NativeRecipeBrowserPage(type,false,creating).forMod(namespace))));
         }
     }
+    private static String owner(JsonObject row) {return row.has("owner")?row.get("owner").getAsString():row.get("type").getAsString().split(":",2)[0];}
     private static ItemStack icon(JsonObject row) {var id=KineticResourceIds.tryParse(row.get("icon").getAsString());return id==null?ItemStack.EMPTY:new ItemStack(KineticRegistries.items().get(id));}
     boolean wheel(ScrollInput input) {
         if(!input.inside(x,y,w,h))return false;

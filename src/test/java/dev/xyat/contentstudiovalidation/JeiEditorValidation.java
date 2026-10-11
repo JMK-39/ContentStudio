@@ -44,7 +44,9 @@ public final class JeiEditorValidation {
             if(index<samples.size()) {captureAndCheck();index++;open();return;}
             if(phase++==0) {index=0;mc.getLanguageManager().setSelected("zh_cn");mc.options.languageCode="zh_cn";reload=mc.reloadResourcePacks();return;}
             finished=true;LOG.info("CONTENT_JEI_EDITOR_PASS visuals={} fieldsOnly={} hidden={} captures={} jei={}",visuals,fieldsOnly,hidden,captures,RecipeJeiBridge.jeiAvailable());
-            if(Boolean.getBoolean("contentstudio.jeiEditorValidation.thenMatrix"))NativeRecipeMatrixValidation.install();else mc.stop();
+            if(Boolean.getBoolean("contentstudio.jeiEditorValidation.thenMatrix"))NativeRecipeMatrixValidation.install();
+            else if(Boolean.getBoolean("contentstudio.jeiEditorValidation.thenGui"))GuiLongTextValidation.install();
+            else mc.stop();
         }catch(Throwable error){finished=true;LOG.error("CONTENT_JEI_EDITOR_FAIL phase="+phase+" index="+index,error);Minecraft.getInstance().stop();}
     }
     private static void prepare(Minecraft mc) {

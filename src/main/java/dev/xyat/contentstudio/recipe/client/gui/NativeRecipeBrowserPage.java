@@ -34,6 +34,7 @@ public final class NativeRecipeBrowserPage extends KineticPage {
     public NativeRecipeBrowserPage() { this(""); }
     public NativeRecipeBrowserPage(String serializer) {this(serializer,false,false);}
     NativeRecipeBrowserPage(String serializer,boolean savedOnly,boolean creating) { super(tr(savedOnly?"saved_recipes":creating?"choose_template":"title"));this.serializer=serializer;this.savedOnly=savedOnly;this.creating=creating;setPausesGame(false); }
+    NativeRecipeBrowserPage forMod(String owner) {mod=owner;return this;}
     public static NativeRecipeBrowserPage saved() {return new NativeRecipeBrowserPage("",true,false);}
     static Component tr(String suffix, Object... args) { return KineticI18n.translatable("gui.contentstudio.recipe.native." + suffix, args); }
     @Override protected void build(KineticUi ui) {
@@ -49,32 +50,17 @@ public final class NativeRecipeBrowserPage extends KineticPage {
         List<ItemGridItem> items = new ArrayList<>();
         for (var value : rows) {
             var row=value.getAsJsonObject();
+            var previews=row.has("preview")&&!row.get("preview").isJsonNull()?NativeRecipeStacks.read(row.get("preview")):List.<ItemStack>of();
             var id=KineticResourceIds.tryParse(row.has("icon")?row.get("icon").getAsString():"minecraft:knowledge_book");
-            var stack=id==null?ItemStack.EMPTY:new ItemStack(KineticRegistries.items().get(id));
+            var stack=!previews.isEmpty()?previews.get(0):row.has("preview")&&!row.get("preview").isJsonNull()?ItemStack.EMPTY:id==null?ItemStack.EMPTY:new ItemStack(KineticRegistries.items().get(id));
             if(stack.isEmpty())stack=new ItemStack(Items.KNOWLEDGE_BOOK);
             var tooltip=stack.getHoverName().copy().append("\n").append(Component.literal(row.get("id").getAsString()).withStyle(net.minecraft.ChatFormatting.GRAY))
                     .append("\n").append(tr("recipe_type",row.get("type").getAsString()));
             items.add(new ItemGridItem(stack,tooltip,true,false,false,row.get("edited").getAsBoolean()?ItemGridOutline.WARNING:null));
         }
-        ui.add(new dev.xyat.kineticcore.api.client.gui.widget.KineticCustomControl(22,72,596,240) {
-            private int index(double mx,double my) {
-                int x=(int)mx-24,y=(int)my-74;
-                if(x<0||y<0||x/24>=24||x%24>=22||y%24>=22)return -1;
-                int i=y/24*24+x/24;return i<items.size()?i:-1;
-            }
-            @Override protected void render(KineticGraphics g,int mx,int my,float pt) {
-                int hovered=index(mx,my);setTooltip(hovered<0?null:items.get(hovered).tooltip());
-                for(int i=0;i<items.size();i++) {
-                    int x=24+i%24*24,y=74+i/24*24;
-                    KineticTheme.itemSlot(g,x+2,y+2,18,false);g.item(items.get(i).stack(),x+3,y+3);
-                    if(hovered==i||items.get(i).outline()!=null)KineticTheme.stateOutline(g,x,y,22,22,false,hovered==i,items.get(i).outline()!=null);
-                }
-            }
-            @Override protected boolean onMouseClick(dev.xyat.kineticcore.api.client.gui.input.MouseInput input) {
-                int i=index(input.x(),input.y());if(!input.isLeft()||i<0)return false;
-                playClickSound();send(creating?"template":"open",rows.get(i).getAsJsonObject().get("id").getAsString());return true;
-            }
-        });
+        ui.itemGrid(22,72,596,240,ItemGridDensity.COMPACT,items)
+                .decorations(true)
+                .onClick(i->send(creating?"template":"open",rows.get(i).getAsJsonObject().get("id").getAsString())).build();
         ui.button(22,18,90).text(tr("back")).onClick(this::close).build();
         if(!savedOnly)ui.button(118,320,160).text(tr(creating?"choose_template":"new_recipe")).tooltip(tr("new_recipe_hint"))
                 .onClick(()->{creating=!creating;rebuild();}).build();
@@ -88,13 +74,18 @@ public final class NativeRecipeBrowserPage extends KineticPage {
         NativeRecipeClient.expect(NativeRecipeNetwork.request(action,id,target,(mod.isEmpty()?"":"@"+mod+" ")+query,page,0,"",""),callback);
     }
     private void accept(NativeRecipeNetwork.Response packet) {
-        if(!isOpen()) return;
+        if(!isAttached()) return;
         var body=JsonParser.parseString(packet.body()).getAsJsonObject();
-        if(!packet.success()) { notifyError(body); return; }
-        if(Set.of("list","saved").contains(body.get("action").getAsString())) {
+        String action=body.get("action").getAsString();
+        boolean listing=Set.of("list","saved").contains(action);
+        // An editor refreshes its attached parent while it is hidden; only the displayed page can open a child.
+        if(!listing&&!isOpen()) return;
+        if(!packet.success()) { if(isOpen())notifyError(body); return; }
+        if(listing) {
             mods=body.getAsJsonArray("mods");
-            rows=body.getAsJsonArray("rows"); page=body.get("page").getAsInt(); pages=body.get("pages").getAsInt();total=body.get("total").getAsInt();rebuild();
-        } else if(Set.of("open","template").contains(body.get("action").getAsString())) {
+            rows=body.getAsJsonArray("rows"); page=body.get("page").getAsInt(); pages=body.get("pages").getAsInt();total=body.get("total").getAsInt();
+            if(isOpen())rebuild();
+        } else if(Set.of("open","template").contains(action)) {
             var editor=NativeRecipeEditorPage.create(body,this::refresh);if(editor!=null)openChild(editor);
         }
     }

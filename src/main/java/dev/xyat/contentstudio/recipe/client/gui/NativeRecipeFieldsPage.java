@@ -21,11 +21,11 @@ public final class NativeRecipeFieldsPage extends KineticPage {
     private static final int PAGE_ROWS=8, ROW_Y=76, ROW_PITCH=28;
     private final Map<String,List<ItemStack>> previewCache=new HashMap<>();
     static final class Session {
-        final NativeRecipeDocument document;
-        final List<String> viewPath;
-        final String id, revision, original;
-        final long catalog;
-        final boolean edited,creating,added;
+        NativeRecipeDocument document;
+        List<String> viewPath;
+        String id, revision, original;
+        long catalog;
+        boolean edited,creating,added,vanilla;
         final Runnable refresh;
         final Map<List<String>,String> invalid=new HashMap<>();
         String target;
@@ -38,14 +38,24 @@ public final class NativeRecipeFieldsPage extends KineticPage {
             revision=body.get("revision").getAsString(); catalog=body.get("catalog").getAsLong();
             edited=body.get("edited").getAsBoolean();this.refresh=refresh;
             creating=body.has("creating")&&body.get("creating").getAsBoolean();added=body.has("added")&&body.get("added").getAsBoolean();
+            vanilla=body.has("owner")?body.get("owner").getAsString().equals("minecraft"):NativeRecipeCreation.vanilla(NativeRecipeDocument.serializerId(NativeRecipeView.at(document,viewPath).recipe()));
+        }
+        void saved(JsonObject body) {
+            document=new NativeRecipeDocument(body.getAsJsonObject("recipe"));original=document.json().toString();
+            id=body.get("id").getAsString();target=id;catalog=body.get("catalog").getAsLong();revision=body.get("revision").getAsString();
+            viewPath=body.has("view_path")?body.getAsJsonArray("view_path").asList().stream().map(JsonElement::getAsString).toList():List.of();
+            edited=body.get("edited").getAsBoolean();added=body.has("added")&&body.get("added").getAsBoolean();creating=false;
+            vanilla=body.has("owner")?body.get("owner").getAsString().equals("minecraft"):NativeRecipeCreation.vanilla(NativeRecipeDocument.serializerId(NativeRecipeView.at(document,viewPath).recipe()));
+            invalid.clear();busy=false;
         }
     }
     private final Session session;
-    private final List<String> path;
+    private List<String> path;
     private List<String> keys=List.of();
     private int page;
     private final Consumer<NativeRecipeNetwork.Response> callback=this::accept;
-    public NativeRecipeFieldsPage(JsonObject body,Runnable refresh) {this(new Session(body,refresh),List.of());}
+    public NativeRecipeFieldsPage(JsonObject body,Runnable refresh) {this(new Session(body,refresh));}
+    private NativeRecipeFieldsPage(Session session) {this(session,session.viewPath);}
     NativeRecipeFieldsPage(Session session,List<String> path) {
         super(tr("fields"));this.session=session;this.path=List.copyOf(path);setPausesGame(false);
     }
@@ -84,7 +94,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
             if(session.document.at(path).isJsonArray()) {
                 ui.button(584,y,16).enabled(!session.busy).text(Component.literal("+")).tooltip(tr("duplicate")).onClick(() -> mutate(field,true)).build();
             }
-            if(!field.equals(List.of("type"))) ui.button(604,y,16).enabled(!session.busy).text(Component.literal("−")).tooltip(tr("remove"))
+            if(!field.equals(NativeRecipeLayout.append(session.viewPath,"type"))) ui.button(604,y,16).enabled(!session.busy).text(Component.literal("−")).tooltip(tr("remove"))
                     .onClick(() -> openDialog(tr("remove"),Component.literal(String.join(" / ",field)),tr("remove"),tr("back"),()->mutate(field,false),()->{})).build();
         }
         ui.button(22,18,84).text(tr("back")).onClick(this::close).build();
@@ -94,7 +104,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
             if(!session.invalid.isEmpty()) {KineticOverlays.toast(tr("invalid"));return;}
             openChild(new NativeRecipeAddFieldPage(session.document,path));
         }).build();
-        if(path.isEmpty() && !session.visualOwner) {
+        if(path.equals(session.viewPath) && !session.visualOwner) {
             ui.button(346,320,132).text(tr(session.added?"delete_recipe":"restore")).enabled(session.edited && !session.busy).onClick(() -> openDialog(tr(session.added?"delete_recipe":"restore"),tr(session.added?"delete_recipe_confirm":"restore_confirm"),tr(session.added?"delete_recipe":"restore"),tr("back"),()->send("restore"),()->{})).build();
             ui.button(486,320,132).text(tr("save")).enabled(!session.busy).onClick(() -> send("save")).build();
         }
@@ -129,12 +139,16 @@ public final class NativeRecipeFieldsPage extends KineticPage {
         if(!isAttached()) return;
         session.busy=false;
         var body=JsonParser.parseString(packet.body()).getAsJsonObject();
-        if(packet.success()) {KineticOverlays.toast(tr("saved"));navigateBack();session.refresh.run();}
+        if(packet.success()) {
+            KineticOverlays.toast(tr("saved"));session.refresh.run();
+            if(body.has("deleted")&&body.get("deleted").getAsBoolean())navigateBack();
+            else {session.saved(body);path=session.viewPath;rebuild();}
+        }
         else {NativeRecipeBrowserPage.notifyError(body);rebuild();}
     }
     @Override protected boolean onCloseRequested() {
         if(session.busy) return true;
-        if(path.isEmpty() && !session.visualOwner && (session.creating || !session.invalid.isEmpty() || !session.document.json().toString().equals(session.original)
+        if(path.equals(session.viewPath) && !session.visualOwner && (session.creating || !session.invalid.isEmpty() || !session.document.json().toString().equals(session.original)
                 || !session.id.equals(session.target))) {
             openDialog(tr("discard"),tr("discard_confirm"),tr("discard"),tr("back"),this::navigateBack,()->{});return true;
         }

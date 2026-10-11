@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Bounded on-demand recipe transport: no whole-catalog JSON broadcast. */
 public final class NativeRecipeNetwork {
-    private static final PacketChannel CHANNEL = PacketChannel.create(KineticResourceIds.of("contentstudio", "native_recipes"), "3", NetworkVersionPolicy.EXACT);
+    private static final PacketChannel CHANNEL = PacketChannel.create(KineticResourceIds.of("contentstudio", "native_recipes"), "4", NetworkVersionPolicy.EXACT);
     private static final AtomicLong SEQUENCE = new AtomicLong();
     private static final Set<net.minecraft.server.MinecraftServer> RELOADING = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static boolean registered;
@@ -55,6 +55,23 @@ public final class NativeRecipeNetwork {
                     views.put(id,NativeRecipeView.resolve(value.getAsJsonObject(),branch->RecipeMemoryManager.nativeConditionsMatch(manager,branch)));
                 }catch(RuntimeException inactive){ }
             });
+            var owners=new HashMap<ResourceLocation,String>();
+            views.forEach((id,view)->{
+                ResourceLocation registered=null;
+                var original=RecipeMemoryManager.originalCatalog(manager).entries().get(id);
+                if(!local.has(id.toString()) && original!=null)registered=original.candidate().recipeType();
+                else try {
+                    var decoded=RecipeMemoryManager.decodeNative(manager,id,view.recipe());
+                    //? if >=1.21 {
+                    /*registered=dev.xyat.kineticcore.api.registry.KineticRegistries.recipeTypes().id(decoded.value().getType());
+                    *///?} else {
+                    registered=dev.xyat.kineticcore.api.registry.KineticRegistries.recipeTypes().id(decoded.getType());
+                    //?}
+                }catch(RuntimeException unavailable){ }
+                owners.put(id,NativeRecipeTypes.owner(registered==null?null:registered.toString(),view.recipe()));
+                NativeRecipeStore.recordType(id,registered);
+            });
+            NativeRecipeStore.regroup();
             JsonObject response = new JsonObject();
             response.addProperty("action", packet.action);
             response.addProperty("catalog", version);
@@ -63,18 +80,19 @@ public final class NativeRecipeNetwork {
                 case "stations" -> {
                     if(packet.page<0 || packet.page>100_000)throw new IllegalArgumentException("Invalid page");
                     var counts=new TreeMap<String,Integer>();
-                    views.values().forEach(view->counts.merge(type(view.recipe()),1,Integer::sum));
+                    views.forEach((id,view)->counts.merge(owners.get(id)+"/"+type(view.recipe()),1,Integer::sum));
                     var types=List.copyOf(counts.keySet());
                     int pages=Math.max(1,(types.size()+23)/24), page=Math.min(packet.page,pages-1);
                     response.addProperty("page",page);response.addProperty("pages",pages);
                     var rows=new JsonArray();
                     for(int i=page*24;i<Math.min(types.size(),(page+1)*24);i++) {
-                        String type=types.get(i);var row=new JsonObject();row.addProperty("type",type);
+                        String key=types.get(i);int split=key.indexOf('/');String owner=key.substring(0,split),type=key.substring(split+1);
+                        var row=new JsonObject();row.addProperty("type",type);row.addProperty("owner",owner);
                         String icon=NativeRecipeStations.icon(type);
                         if(icon.equals("minecraft:knowledge_book")) {
                             for(var entry:RecipeMemoryManager.originalCatalog(manager).entries().entrySet()) {
                                 var original=source.get(entry.getKey());
-                                if(original==null || !views.containsKey(entry.getKey()) || !type(views.get(entry.getKey()).recipe()).equals(type) || entry.getValue().recipe().isEmpty())continue;
+                                if(original==null || !views.containsKey(entry.getKey()) || !owner.equals(owners.get(entry.getKey())) || !type(views.get(entry.getKey()).recipe()).equals(type) || entry.getValue().recipe().isEmpty())continue;
                                 try {
                                     //? if >=26.1 {
                                     /*var stack=dev.xyat.contentstudio.recipe.RecipeView.station(entry.getValue().recipe().get().value(),player.getServer().registryAccess());
@@ -83,13 +101,13 @@ public final class NativeRecipeNetwork {
                                     *///?} else {
                                     var stack=entry.getValue().recipe().get().getToastSymbol();
                                     //?}
-                                    if(!stack.isEmpty() && (!stack.is(net.minecraft.world.item.Items.CRAFTING_TABLE) || type.startsWith("minecraft:")))
+                                    if(!stack.isEmpty() && (!stack.is(net.minecraft.world.item.Items.CRAFTING_TABLE) || row.get("owner").getAsString().equals("minecraft")))
                                         icon=dev.xyat.kineticcore.api.registry.KineticRegistries.items().id(stack.getItem()).toString();
                                 }catch(RuntimeException unavailable){ }
                                 break;
                             }
                         }
-                        row.addProperty("icon",icon);row.addProperty("count",counts.get(type));rows.add(row);
+                        row.addProperty("icon",icon);row.addProperty("count",counts.get(key));rows.add(row);
                     }
                     response.add("rows",rows);
                 }
@@ -100,36 +118,41 @@ public final class NativeRecipeNetwork {
                     if(query.startsWith("@")) {int end=query.indexOf(' ');modFilter=end<0?query.substring(1):query.substring(1,end);query=end<0?"":query.substring(end+1);}
                     final String filterMod=modFilter,filterQuery=query;
                     var mods=new JsonArray();views.entrySet().stream().filter(e->!packet.action.equals("saved")||local.has(e.getKey().toString()))
-                            .map(e->type(e.getValue().recipe()).split(":",2)[0]).distinct().sorted().forEach(mods::add);response.add("mods",mods);
+                            .map(e->owners.get(e.getKey())).distinct().sorted().forEach(mods::add);response.add("mods",mods);
                     var ids = source.entrySet().stream().filter(e -> e.getValue().isJsonObject())
                             .filter(e -> views.containsKey(e.getKey()))
                             .filter(e -> !packet.action.equals("saved")||local.has(e.getKey().toString()))
-                            .filter(e -> packet.target.isEmpty() || packet.target.equals("@vanilla")&&NativeRecipeCreation.vanilla(type(views.get(e.getKey()).recipe())) || type(views.get(e.getKey()).recipe()).equals(packet.target))
-                            .filter(e -> filterMod.isEmpty()||type(views.get(e.getKey()).recipe()).startsWith(filterMod+":"))
+                            .filter(e -> packet.target.isEmpty() || packet.target.equals("@vanilla")&&owners.get(e.getKey()).equals("minecraft") || type(views.get(e.getKey()).recipe()).equals(packet.target))
+                            .filter(e -> filterMod.isEmpty()||owners.get(e.getKey()).equals(filterMod))
                             .filter(e -> (e.getKey() + " " + type(views.get(e.getKey()).recipe())+" "+resultIcon(views.get(e.getKey()).recipe())).toLowerCase(Locale.ROOT).contains(filterQuery))
                             .map(Map.Entry::getKey).sorted(Comparator.comparing(ResourceLocation::toString)).toList();
-                    int pages = Math.max(1, (ids.size() + 95) / 96);
-                    int page = Math.min(packet.page, pages - 1);
-                    response.addProperty("page", page); response.addProperty("pages", pages); response.addProperty("total", ids.size());
-                    JsonArray rows = new JsonArray();
-                    for (int i = page * 96; i < Math.min(ids.size(), (page + 1) * 96); i++) {
-                        var id = ids.get(i); JsonObject row = new JsonObject();
+                    var batches=new ArrayList<JsonArray>();var rows=new JsonArray();int chars=0;
+                    for (var id:ids) {
+                        JsonObject row = new JsonObject();
                         var view=views.get(id);
                         row.addProperty("id", id.toString()); row.addProperty("type", type(view.recipe()));
+                        row.addProperty("owner",owners.get(id));row.add("preview",NativeRecipeListIcon.preview(view.recipe()));
                         String icon=resultIcon(view.recipe());
                         var entry=RecipeMemoryManager.originalCatalog(manager).entries().get(id);
                         if(icon.equals("minecraft:knowledge_book") && entry!=null && entry.candidate().outputItemId()!=null)
                             icon=entry.candidate().outputItemId().toString();
                         row.addProperty("icon",icon);
-                        row.addProperty("edited", local.has(id.toString())); rows.add(row);
+                        row.addProperty("edited", local.has(id.toString()));
+                        int length=row.toString().length()+1;
+                        if(rows.size()>0 && (rows.size()>=96 || chars+length>120_000-mods.toString().length())) {batches.add(rows);rows=new JsonArray();chars=0;}
+                        rows.add(row);chars+=length;
                     }
-                    response.add("rows", rows);
+                    if(rows.size()>0||batches.isEmpty())batches.add(rows);
+                    int page=Math.min(packet.page,batches.size()-1);
+                    response.addProperty("page",page);response.addProperty("pages",batches.size());response.addProperty("total",ids.size());
+                    response.add("rows",batches.get(page));
                 }
                 case "open", "template" -> {
                     ResourceLocation id = KineticResourceIds.parse(packet.id);
                     if (!source.containsKey(id)) throw new IllegalArgumentException("Recipe is not in the original datapack catalog");
                     JsonObject json = new NativeRecipeDocument(source.get(id).getAsJsonObject()).json();
                     response.addProperty("id", id.toString()); response.add("recipe", json);
+                    response.addProperty("owner",owners.get(id));
                     var path=new JsonArray();views.get(id).path().forEach(path::add);response.add("view_path",path);
                     response.addProperty("edited", local.has(id.toString()));
                     if(packet.action.equals("template"))response=NativeRecipeCreation.draft(response,"contentstudio:custom/"+UUID.randomUUID().toString().replace("-",""));
@@ -151,6 +174,11 @@ public final class NativeRecipeNetwork {
                         draft = new NativeRecipeDocument(JsonParser.parseString(packet.json).getAsJsonObject()).json();
                         // The installed serializer, registry and condition context are authoritative.
                         var decoded=RecipeMemoryManager.decodeNative(manager, target, draft);
+                        //? if >=1.21 {
+                        /*NativeRecipeStore.recordType(target,dev.xyat.kineticcore.api.registry.KineticRegistries.recipeTypes().id(decoded.value().getType()));
+                        *///?} else {
+                        NativeRecipeStore.recordType(target,dev.xyat.kineticcore.api.registry.KineticRegistries.recipeTypes().id(decoded.getType()));
+                        //?}
                         //? if >=26.1 {
                         /*dev.xyat.contentstudio.recipe.RecipeView.validateOutput(decoded.value());
                         *///?}
@@ -164,6 +192,23 @@ public final class NativeRecipeNetwork {
                                 JsonObject result = new JsonObject(); result.addProperty("action", packet.action);
                                 result.addProperty("id", target.toString());
                                 result.addProperty("message", error == null ? "saved" : "reload_failed");
+                                if(error==null)try {
+                                    var saved=NativeRecipeStore.local();var reloaded=server.getRecipeManager();
+                                    result.addProperty("catalog",RecipeMemoryManager.catalogVersion(reloaded));result.addProperty("revision",NativeRecipeStore.revision(saved));
+                                    var original=RecipeMemoryManager.originalCatalog(reloaded).sources();
+                                    JsonElement current=saved.has(target.toString())?saved.get(target.toString()):original.get(target);
+                                    result.addProperty("deleted",current==null);
+                                    if(current!=null) {
+                                        var json=current.getAsJsonObject();result.add("recipe",json.deepCopy());
+                                        var view=NativeRecipeView.resolve(json,branch->RecipeMemoryManager.nativeConditionsMatch(reloaded,branch));
+                                        var path=new JsonArray();view.path().forEach(path::add);result.add("view_path",path);
+                                        result.addProperty("edited",saved.has(target.toString()));result.addProperty("added",!original.containsKey(target));
+                                        var entry=RecipeMemoryManager.originalCatalog(reloaded).entries().get(target);
+                                        result.addProperty("owner",!saved.has(target.toString())&&entry!=null?NativeRecipeTypes.owner(entry.candidate().recipeType()==null?null:entry.candidate().recipeType().toString(),view.recipe()):NativeRecipeStore.owner(target.toString(),view.recipe()));
+                                    }
+                                }catch(Exception hydrationError) {
+                                    result.addProperty("message",Objects.toString(hydrationError.getMessage(),"reload_failed"));reply(player,packet.sequence,false,result);return;
+                                }
                                 reply(player, packet.sequence, error == null, result);
                             });
                         });

@@ -14,6 +14,6 @@ public final class NativeRecipeCreation {
         if(occupied.contains(target))throw new IllegalArgumentException("ID_EXISTS");
     }
     public static boolean vanilla(String type) {
-        return type.startsWith("minecraft:")||type.startsWith("forge:")||type.startsWith("neoforge:");
+        return type.startsWith("minecraft:");
     }
 }

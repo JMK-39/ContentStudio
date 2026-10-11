@@ -46,7 +46,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
     private int slotSize() {return layout.kind().equals("twilight_entities")?34:18;}
     public static KineticPage create(JsonObject body,Runnable refresh) {
         var draft=new NativeRecipeFieldsPage.Session(body,refresh);
-        if(!NativeRecipeCreation.vanilla(NativeRecipeDocument.serializerId(NativeRecipeView.at(draft.document,draft.viewPath).recipe()))) {
+        if(!draft.vanilla) {
             if(!RecipeJeiBridge.jeiAvailable()) {
                 KineticOverlays.toast(tr("jei_missing"));return null;
             }
@@ -77,7 +77,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
         } else slots=layout.slots();
         jeiPreview=null;jeiSlots=List.of();previewError="";
         previewGeneration=RecipeJeiBridge.generation();
-        boolean thirdParty=!NativeRecipeDocument.serializerId(json).startsWith("minecraft:");
+        boolean thirdParty=!session.vanilla;
         if(thirdParty) {
             try {
                 jeiPreview=RecipeJeiBridge.editor(KineticResourceIds.parse(session.target),json);
@@ -141,7 +141,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
         refreshDiagram();
         ui.textField(90,42,528).enabled(!session.busy).value(session.target).maxLength(256).onChange(v->session.target=v).build();
         fields=NativeRecipeLayout.fields(session.document,selectedPath());
-        if(selected<0)fields=fields.stream().filter(p->p.size()==session.viewPath.size()+1 && !p.get(p.size()-1).equals("type")).toList();
+        if(selected<0)fields=NativeRecipeLayout.parameters(session.document,session.viewPath);
         else if(slots.get(selected).output()) {
             var path=selectedPath();var value=session.document.at(path);
             if(value.isJsonObject() && value.getAsJsonObject().has("item") && value.getAsJsonObject().get("item").isJsonObject()) {
@@ -151,7 +151,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
                 var all=new ArrayList<>(fields);all.add(NativeRecipeLayout.append(path,"count"));fields=List.copyOf(all);
             }
         }
-        fields=fields.stream().sorted(Comparator.comparingInt(p->switch(p.get(p.size()-1)){case "id","item","tag"->0;case "count","amount"->1;case "chance"->2;default->3;})).toList();
+        fields=fields.stream().distinct().sorted(Comparator.comparingInt(p->switch(p.get(p.size()-1)){case "id","item","tag"->0;case "count","amount"->1;case "chance"->2;default->3;})).toList();
         fieldPage=Math.min(fieldPage,Math.max(0,(fields.size()-1)/4));
         for(int row=0;row<4;row++) {
             int index=fieldPage*4+row;if(index>=fields.size())break;
@@ -486,7 +486,10 @@ public final class NativeRecipeEditorPage extends KineticPage {
     }
     private void accept(NativeRecipeNetwork.Response packet) {
         if(!isAttached())return;session.busy=false;var body=JsonParser.parseString(packet.body()).getAsJsonObject();
-        if(packet.success()){KineticOverlays.toast(tr("saved"));navigateBack();session.refresh.run();}else{NativeRecipeBrowserPage.notifyError(body);rebuild();}
+        if(packet.success()) {
+            KineticOverlays.toast(tr("saved"));session.refresh.run();
+            if(body.has("deleted")&&body.get("deleted").getAsBoolean())navigateBack();else {session.saved(body);rebuild();}
+        }else {NativeRecipeBrowserPage.notifyError(body);rebuild();}
     }
     @Override protected boolean onCloseRequested() {
         if(session.busy)return true;

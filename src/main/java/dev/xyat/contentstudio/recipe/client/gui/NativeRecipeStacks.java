@@ -87,9 +87,12 @@ final class NativeRecipeStacks {
             var stack=stack(identifier.getAsString());if(stack.isEmpty())return;
             try {
                 //? if >=1.21 {
-                /*if(object.has("id") && KineticClientRuntime.currentLevel()!=null) {
+                /*if(KineticClientRuntime.currentLevel()!=null) {
                     var ops=net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE,KineticClientRuntime.currentLevel().registryAccess());
-                    stack=ItemStack.CODEC.parse(ops,object).result().orElse(stack);
+                    var nativeStack=object.deepCopy();
+                    if(!nativeStack.has("id"))nativeStack.add("id",identifier.deepCopy());
+                    nativeStack.addProperty("count",1);
+                    stack=ItemStack.CODEC.parse(ops,nativeStack).result().orElse(stack);
                 }
                 *///?} else {
                 if(object.has("nbt")) {

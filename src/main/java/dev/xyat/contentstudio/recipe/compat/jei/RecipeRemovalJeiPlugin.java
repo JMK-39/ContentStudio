@@ -194,7 +194,15 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
             var result = new ArrayList<RecipeJeiBridge.EditorSlot>();
             for (var view : layout.getRecipeSlotsView().getSlotViews()) {
                 if (!(view instanceof IRecipeSlotDrawable drawable)) continue;
-                var rect = drawable.getAreaIncludingBackground();
+                // A category can attach a shared grid background to one slot. Only its ingredient is interactive.
+                //? if >=26.1.2 {
+                /*var background = drawable.getAreaIncludingBackground();
+                int[] bounds = dev.xyat.contentstudio.recipe.nativeedit.JeiRecipeSlotBounds.resolve(background.getX(),background.getY(),background.getWidth(),background.getHeight(),drawable::isMouseOver);
+                var rect = new net.minecraft.client.renderer.Rect2i(bounds[0],bounds[1],bounds[2],bounds[3]);
+                if(rect.getWidth()==0||rect.getHeight()==0)continue;
+                *///?} else {
+                var rect = drawable.getRect();
+                //?}
                 Set<String> values = new LinkedHashSet<>();
                 view.getAllIngredients().forEach(ingredient -> {
                     try { values.add(token(ingredient, runtime)); } catch (RuntimeException ignored) { }

@@ -43,8 +43,8 @@ import java.util.Set;
 public final class RecipeConfigStore {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    public static final Path CONFIG_FILE = KineticPlatform.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/recipe_bundle.json");
-    public static final ResourceLocation DATAPACK_RESOURCE = KineticResourceIds.of("contentstudio", "recipe/recipe_bundle.json");
+    public static final Path CONFIG_FILE = KineticPlatform.configDirectory().resolve("kineticcore/datapack/data/contentstudio/recipe/minecraft.json");
+    public static final ResourceLocation DATAPACK_RESOURCE = KineticResourceIds.of("contentstudio", "recipe/minecraft.json");
 
 //? if >=1.21 {
 /*
@@ -97,11 +97,20 @@ public final class RecipeConfigStore {
         if (resourceManager == null) {
             throw new IOException("Recipe datapack resource manager is unavailable");
         }
-        Resource resource = resourceManager.getResource(DATAPACK_RESOURCE)
-                .orElseThrow(() -> new IOException("Missing recipe datapack resource " + DATAPACK_RESOURCE));
-        try (java.io.Reader reader = resource.openAsReader()) {
-            JsonElement rootElement = GSON.fromJson(reader, JsonElement.class);
-            return parseSnapshot(rootElement);
+        try {
+            JsonObject root = new JsonObject();
+            boolean found = false;
+            for(ResourceLocation id:List.of(KineticResourceIds.of("contentstudio","recipe_bundle.json"),
+                    KineticResourceIds.of("contentstudio","recipe/recipe_bundle.json"),DATAPACK_RESOURCE)) {
+                var resource = resourceManager.getResource(id);
+                if(resource.isEmpty())continue;
+                found = true;
+                try(java.io.Reader reader = resource.get().openAsReader()) {
+                    GSON.fromJson(reader,JsonObject.class).entrySet().forEach(e->root.add(e.getKey(),e.getValue().deepCopy()));
+                }
+            }
+            if(!found)throw new IOException("Missing recipe datapack resource " + DATAPACK_RESOURCE);
+            return parseSnapshot(root);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -116,8 +125,7 @@ public final class RecipeConfigStore {
     private static Snapshot loadRequired() throws IOException {
         ensureFile();
         try {
-            JsonElement rootElement = GSON.fromJson(Files.readString(CONFIG_FILE, StandardCharsets.UTF_8), JsonElement.class);
-            return parseSnapshot(rootElement);
+            return parseSnapshot(dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeFiles.workstation(CONFIG_FILE));
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -188,7 +196,7 @@ public final class RecipeConfigStore {
             List<JsonObject> unresolvedRecipes
     ) throws IOException {
         Files.createDirectories(CONFIG_FILE.getParent());
-        JsonObject root = new JsonObject();
+        JsonObject root = dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeFiles.workstation(CONFIG_FILE);
         root.addProperty("version", 1);
 
         JsonArray recipesJson = new JsonArray();
@@ -221,14 +229,7 @@ public final class RecipeConfigStore {
     private static JsonObject readRootRequired() throws IOException {
         ensureFile();
         try {
-            JsonElement rootElement = GSON.fromJson(
-                    Files.readString(CONFIG_FILE, StandardCharsets.UTF_8),
-                    JsonElement.class
-            );
-            if (rootElement == null || !rootElement.isJsonObject()) {
-                throw new IOException("Recipe datapack root must be a JSON object");
-            }
-            return rootElement.getAsJsonObject();
+            return dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeFiles.workstation(CONFIG_FILE);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -237,21 +238,13 @@ public final class RecipeConfigStore {
     }
 
     private static void writeRootAtomic(JsonObject root) throws IOException {
-        Files.createDirectories(CONFIG_FILE.getParent());
-        Path tempPath = CONFIG_FILE.resolveSibling(CONFIG_FILE.getFileName() + ".tmp");
-        Files.writeString(tempPath, GSON.toJson(root) + System.lineSeparator(), StandardCharsets.UTF_8);
-        try {
-            Files.move(tempPath, CONFIG_FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException e) {
-            Files.move(tempPath, CONFIG_FILE, StandardCopyOption.REPLACE_EXISTING);
-        }
+        dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeFiles.writeMinecraft(CONFIG_FILE,root);
     }
 
     private static void ensureFile() {
-        if (Files.exists(CONFIG_FILE)) {
-            return;
-        }
         try {
+            if(Files.exists(CONFIG_FILE) || Files.exists(CONFIG_FILE.resolveSibling("recipe_bundle.json"))
+                    || Files.exists(CONFIG_FILE.getParent().getParent().resolve("recipe_bundle.json")))return;
             save(List.of(), List.of());
         } catch (IOException e) {
             LOGGER.error("Failed to create recipe datapack {}", CONFIG_FILE, e);

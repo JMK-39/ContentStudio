@@ -17,7 +17,7 @@ public final class NativeRecipeStationsPage extends KineticPage {
         this(mod,group,rows,false);
     }
     NativeRecipeStationsPage(String mod,String group,JsonArray rows,boolean creating) {
-        super(mod.isEmpty()?tr(creating?"new_recipe":"stations"):Component.literal(KineticPlatform.displayName(mod)));
+        super(mod.isEmpty()?tr(creating?"new_recipe":"stations"):mod.equals("minecraft")?tr("vanilla"):Component.literal(KineticPlatform.displayName(mod)));
         setPausesGame(false);menu=new NativeRecipeStationMenu(this::rebuild,this::openChild,this::isAttached,mod,group,rows,creating);
     }
     public static NativeRecipeStationsPage creation() {return new NativeRecipeStationsPage("","",null,true);}

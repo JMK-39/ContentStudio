@@ -16,6 +16,7 @@ public final class NativeRecipeValidation {
     private static JsonObject imported, copied;
     private static String id, originalJson;
     private static String changedOriginal;
+    private static final Map<java.nio.file.Path,String> LEGACY_FILES=new LinkedHashMap<>();
     private static int stage;
     private static boolean started,finished;
     private static long deadline;
@@ -31,6 +32,14 @@ public final class NativeRecipeValidation {
         if(!started && mc.player!=null && mc.level!=null && mc.getSingleplayerServer()!=null) {
             started=true;deadline=System.currentTimeMillis()+120_000;
             onServer(()->{
+                var directory=NativeRecipeStore.file().getParent();
+                try {
+                    for(var base:List.of(directory.getParent(),directory))
+                        for(var name:List.of("recipe_overrides.json","recipe_bundle.json")) {
+                            var path=base.resolve(name);
+                            if(java.nio.file.Files.exists(path))LEGACY_FILES.put(path,java.nio.file.Files.readString(path));
+                        }
+                }catch(java.io.IOException error){throw new AssertionError(error);}
                 var server=mc.getSingleplayerServer();
                 var player=server.getPlayerList().getPlayers().get(0);
                 //? if >=26.1 {
@@ -80,9 +89,9 @@ public final class NativeRecipeValidation {
                         require(RecipeMemoryManager.containsRuntimeRecipe(manager,KineticResourceIds.parse(COPY)),"copy exists after reload");
                         var file=NativeRecipeStore.file();
                         require(file.getParent().getFileName().toString().equals("recipe"),"native edits use recipe directory");
-                        require(!java.nio.file.Files.exists(file.getParent().getParent().resolve("recipe_overrides.json")),"old override location removed");
+                        checkLegacyFilesUnchanged();
                         var resources=Minecraft.getInstance().getSingleplayerServer().getResourceManager();
-                        require(resources.getResource(KineticResourceIds.parse("contentstudio:recipe/recipe_overrides.json")).isPresent(),"new override resource is mounted");
+                        require(resources.listResources("recipe",resource->resource.getNamespace().equals("contentstudio") && resource.getPath().endsWith(".json")).size()>0,"grouped recipe resources are mounted");
                         try {
                             require(NativeRecipeStore.load(resources).containsKey(KineticResourceIds.parse(COPY)),"native edits read from datapack resource");
                         } catch(java.io.IOException error) { throw new AssertionError("Cannot read mounted native overrides",error); }
@@ -171,9 +180,17 @@ public final class NativeRecipeValidation {
         } catch(Throwable error) {fail(error);}
     }
     private static void finishNative() {
+        checkLegacyFilesUnchanged();
         finished=true;LOG.info("CONTENT_NATIVE_PASS stages={} thirdParty={} recipe={}",stage,Boolean.getBoolean("contentstudio.nativeRecipeValidation.thirdParty"),id);
         if(Boolean.getBoolean("contentstudio.nativeRecipeValidation.thenMatrixCaptureOnly"))NativeRecipeMatrixValidation.install();
+        else if(Boolean.getBoolean("contentstudio.nativeRecipeValidation.thenJei"))JeiEditorValidation.install();
         else GuiLongTextValidation.install();
+    }
+    private static void checkLegacyFilesUnchanged() {
+        try {
+            for(var entry:LEGACY_FILES.entrySet())
+                require(java.nio.file.Files.exists(entry.getKey()) && java.nio.file.Files.readString(entry.getKey()).equals(entry.getValue()),"legacy recipe file preserved: "+entry.getKey().getFileName());
+        }catch(java.io.IOException error){throw new AssertionError(error);}
     }
     private static void checkQuantity(int expected) {
         var server=Minecraft.getInstance().getSingleplayerServer();

@@ -2,11 +2,27 @@ package dev.xyat.contentstudio.recipe.nativeedit;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonNull;
 import java.util.List;
 
 /** Browsing must still work when an original recipe is too large for the bounded editor. */
 public final class NativeRecipeListIcon {
     private NativeRecipeListIcon() { }
+    /** The list carries native output data so the client can use the same stack decoder as the editor. */
+    public static JsonElement preview(JsonObject json) {
+        try {
+            var document=new NativeRecipeDocument(json);
+            for(var slot:NativeRecipeLayout.of(json).slots())if(slot.output()) {
+                var result=document.at(slot.path()).deepCopy();
+                if(NativeRecipeDocument.serializerId(json).equals("minecraft:stonecutting") && json.has("count")) {
+                    if(result.isJsonPrimitive()) {var stack=new JsonObject();stack.add("item",result);result=stack;}
+                    if(result.isJsonObject())result.getAsJsonObject().add("count",json.get("count").deepCopy());
+                }
+                return result;
+            }
+        }catch(RuntimeException unsupported){ }
+        return JsonNull.INSTANCE;
+    }
     public static String result(JsonObject json) {
         try {
             var document=new NativeRecipeDocument(json);

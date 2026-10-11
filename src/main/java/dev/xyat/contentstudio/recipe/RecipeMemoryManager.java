@@ -191,6 +191,7 @@ public final class RecipeMemoryManager {
             for (var entry : overrides.entrySet()) {
                 try {
                     var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
+                    dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.recordType(entry.getKey(), KineticRegistries.recipeTypes().id(recipe.value().getType()));
                     configuredRecipes.put(recipe.id(), recipe);
                     added++;
                 } catch (Exception e) {
@@ -198,6 +199,7 @@ public final class RecipeMemoryManager {
                     LOGGER.warn("Skipping invalid native recipe {}: {}", entry.getKey(), safeMessage(e));
                 }
             }
+            dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.regroup();
         } catch (Exception e) {
             LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
         }
@@ -242,6 +244,8 @@ public final class RecipeMemoryManager {
         // The recipe bundle shares the recipe folder but is ContentStudio's configuration, not a recipe.
         source.remove(KineticResourceIds.of("contentstudio", "recipe_bundle"));
         source.remove(KineticResourceIds.of("contentstudio", "recipe_overrides"));
+        source.entrySet().removeIf(entry -> entry.getKey().getNamespace().equals("contentstudio") && entry.getValue().isJsonObject()
+                && !entry.getValue().getAsJsonObject().has("type") && (entry.getValue().getAsJsonObject().has("overrides") || entry.getValue().getAsJsonObject().has("recipes")));
         synchronized (RecipeMemoryManager.class) {
             RELOAD_REGISTRIES.put(manager, registries);
             RELOAD_CONDITIONS.put(manager, conditionContext);
@@ -728,6 +732,7 @@ public final class RecipeMemoryManager {
             for (var entry : overrides.entrySet()) {
                 try {
                     var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
+                    dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.recordType(entry.getKey(), KineticRegistries.recipeTypes().id(recipe.value().getType()));
                     configuredRecipes.put(recipe.id(), recipe);
                     added++;
                 } catch (Exception e) {
@@ -735,6 +740,7 @@ public final class RecipeMemoryManager {
                     LOGGER.warn("Skipping invalid native recipe {}: {}", entry.getKey(), safeMessage(e));
                 }
             }
+            dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.regroup();
         } catch (Exception e) {
             LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
         }
@@ -779,6 +785,8 @@ public final class RecipeMemoryManager {
         // The recipe bundle shares the recipe folder but is ContentStudio's configuration, not a recipe.
         source.remove(KineticResourceIds.of("contentstudio", "recipe_bundle"));
         source.remove(KineticResourceIds.of("contentstudio", "recipe_overrides"));
+        source.entrySet().removeIf(entry -> entry.getKey().getNamespace().equals("contentstudio") && entry.getValue().isJsonObject()
+                && !entry.getValue().getAsJsonObject().has("type") && (entry.getValue().getAsJsonObject().has("overrides") || entry.getValue().getAsJsonObject().has("recipes")));
         synchronized (RecipeMemoryManager.class) {
             RELOAD_REGISTRIES.put(manager, registries);
             RELOAD_CONDITIONS.put(manager, conditionContext);
@@ -1209,6 +1217,7 @@ public final class RecipeMemoryManager {
             for (var entry : overrides.entrySet()) {
                 try {
                     var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
+                    dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.recordType(entry.getKey(), KineticRegistries.recipeTypes().id(recipe.getType()));
                     configuredRecipes.put(recipe.getId(), recipe);
                     added++;
                 } catch (Exception e) {
@@ -1216,6 +1225,7 @@ public final class RecipeMemoryManager {
                     LOGGER.warn("Skipping invalid native recipe {}: {}", entry.getKey(), safeMessage(e));
                 }
             }
+            dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.regroup();
         } catch (Exception e) {
             LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
         }

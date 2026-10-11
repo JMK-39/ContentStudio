@@ -11,13 +11,17 @@ Content Studio gives pack authors and server administrators in-game editors for 
 - Trade-source selection, validation and resumable editing drafts.
 - Searchable item selection, version-specific item data, and native client tooltips.
 
-Supports Minecraft **1.20.1 / Forge 47.4.2+** with **Java 17**, and **1.21.1 / NeoForge 21.1.0+** (build target 21.1.252) with **Java 21**, and **26.1.2 / NeoForge 26.1.2.0+** (build target 26.1.2.112) with **Java 25**. Requires **KineticCore 26.10.7+** matching Minecraft and loader. Install required mods on the server and connecting clients.
+Supports Minecraft **1.20.1 / Forge 47.4.2+** with **Java 17**, and **1.21.1 / NeoForge 21.1.0+** (build target 21.1.252) with **Java 21**, and **26.1.2 / NeoForge 26.1.2.0+** (build target 26.1.2.112) with **Java 25**. Requires **KineticCore 26.10.12+** matching Minecraft and loader. Install required mods on the server and connecting clients.
 
 Optional: **JEI 15.20+ on Forge, JEI 19+ on NeoForge 1.21.1, JEI 29+ on 26.1.2**, EMI, and REI. Tooltips need no KubeJS. Press **F6** to open KineticCore's configuration center; editing requires server permission level **2**. Forge item data uses `{...}` NBT; NeoForge uses native `[...]` components without an old item-NBT converter.
 
 See the [English Wiki tutorial](https://github.com/JMK-39/ContentStudio/wiki/Tutorial) for detailed instructions.
 
-Recipe settings are stored together in `config/kineticcore/datapack/data/contentstudio/recipe/`: `recipe_bundle.json` contains built-in recipes and removal rules; `recipe_overrides.json` contains native recipe edits. Existing override files outside this directory move automatically; edits already in the new directory take priority.
+Recipe entries and saved edits are grouped by the registered runtime recipe type's mod. Vanilla crafting, cooking, smithing and stonecutting types stay under Vanilla even when another mod supplies their recipes or serializers. Conditional recipes use their active branch. Existing recipe IDs remain unchanged.
+
+New saves live in `config/kineticcore/datapack/data/contentstudio/recipe/`, split into `minecraft.json`, `create.json`, `tacz.json` and other type-owner files. Native edits are in each file's `overrides` field; `minecraft.json` also contains built-in recipes and removal rules. Existing ContentStudio files remain readable and are preserved. No automatic TACZ Workshop recipe conversion runs, and legacy recipe files are not removed.
+
+Saving keeps the current editor open for further changes, and returning to the list shows the latest edits. Failed saves retain the draft. Unusable existing entries are preserved without blocking valid edits; saving never replaces an ordinary recipe file with editor settings. Output grids preserve native NBT, components and supported TACZ results, with normal-sized items and lower-right quantities.
 
 ## 简体中文
 
@@ -30,13 +34,17 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 - 交易来源选择、校验与可恢复的编辑草稿。
 - 可搜索物品选择、分版本物品数据与原生客户端提示。
 
-支持 Minecraft **1.20.1 / Forge 47.4.2+**（**Java 17**）与 **1.21.1 / NeoForge 21.1.0+**（构建目标 21.1.252，**Java 21**），以及 **26.1.2 / NeoForge 26.1.2.0+**（构建目标 26.1.2.112，**Java 25**）。必需与 Minecraft 和加载器匹配的 **KineticCore 26.10.7+**。服务端与连接的客户端均需安装必需模组。
+支持 Minecraft **1.20.1 / Forge 47.4.2+**（**Java 17**）与 **1.21.1 / NeoForge 21.1.0+**（构建目标 21.1.252，**Java 21**），以及 **26.1.2 / NeoForge 26.1.2.0+**（构建目标 26.1.2.112，**Java 25**）。必需与 Minecraft 和加载器匹配的 **KineticCore 26.10.12+**。服务端与连接的客户端均需安装必需模组。
 
 可选：**Forge 使用 JEI 15.20+，NeoForge 1.21.1 使用 JEI 19+，26.1.2 使用 JEI 29+**，以及 EMI、REI。物品提示无需 KubeJS。按 **F6** 打开 KineticCore 配置中心；编辑需要服务端 **2 级权限**。Forge 物品数据使用 `{...}` NBT，NeoForge 使用原生 `[...]` 组件，不提供旧物品 NBT 转换器。
 
 详细用法见[中文 Wiki 教程](https://github.com/JMK-39/ContentStudio/wiki/使用教程)。
 
-配方配置统一存放在 `config/kineticcore/datapack/data/contentstudio/recipe/`：`recipe_bundle.json` 保存内置配方与移除规则，`recipe_overrides.json` 保存原生配方修改。目录外已有的覆盖文件会自动移入，同 ID 优先保留新目录中的编辑结果。
+配方入口与已保存修改按运行时注册配方类型所属的模组分类。使用原版合成、烹饪、锻造或切石类型的配方归入原版，即使配方或 serializer 来自其他模组。条件配方按生效分支分类，现有配方 ID 保持不变。
+
+新保存的配置存放在 `config/kineticcore/datapack/data/contentstudio/recipe/`，按类型所属模组拆成 `minecraft.json`、`create.json`、`tacz.json` 等文件。原生修改保存在各文件的 `overrides` 字段，`minecraft.json` 还保存内置配方与移除规则。现有 ContentStudio 配方文件保持读取兼容并保留原文件，不自动转换 TACZ 工坊旧配方，也不删除旧配方文件。
+
+保存后保持当前编辑页，可继续修改同一配方；返回列表时显示最新修改，保存失败保留草稿。无法使用的旧条目保留原样，不阻塞合法修改；编辑配置不会覆盖同名普通配方文件。产物网格保留原生 NBT、组件与受支持的 TACZ 结果，物品按正常大小显示，数量位于右下角。
 
 [GitHub project / 项目仓库](https://github.com/JMK-39/ContentStudio) · [CurseForge](https://www.curseforge.com/minecraft/mc-mods/contentstudio)
 

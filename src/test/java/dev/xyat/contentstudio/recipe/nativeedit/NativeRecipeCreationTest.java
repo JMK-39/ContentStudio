@@ -6,6 +6,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class NativeRecipeCreationTest {
+    @Test void arbitraryLoaderRecipeTypesAreNotClassifiedAsVanillaWorkstations() {
+        assertFalse(NativeRecipeCreation.vanilla("forge:custom_machine"));
+        assertFalse(NativeRecipeCreation.vanilla("neoforge:custom_machine"));
+        assertTrue(NativeRecipeCreation.vanilla("minecraft:smithing_trim"));
+    }
     @Test void newRecipeDraftHasItsOwnIdAndKeepsTheFullTemplate() throws Exception {
         var original=JsonParser.parseString("{\"id\":\"goety:source\",\"recipe\":{\"type\":\"goety:ritual\",\"soulCost\":10,\"custom\":{\"keep\":true}},\"catalog\":8,\"revision\":\"hash\",\"edited\":true,\"view_path\":[]}").getAsJsonObject();
         var created=(JsonObject)Class.forName("dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeCreation")

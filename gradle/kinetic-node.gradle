@@ -13,6 +13,9 @@ def getDynamicVersion() {
         def formatter = new SimpleDateFormat("yy.M.d")
         formatter.timeZone = TimeZone.getTimeZone('Asia/Shanghai')
         resolved = formatter.format(new Date())
+        def revision = project.findProperty('release_revision')?.toString() ?: '0'
+        if (!(revision ==~ /0|[1-9]\d*/)) throw new GradleException('release_revision must be a non-negative integer')
+        if (resolved == project.findProperty('release_revision_date')?.toString() && revision != '0') resolved += ".${revision}"
     } else {
         resolved = project.findProperty('mod_version')?.toString() ?: "0.0.0"
     }

@@ -42,7 +42,7 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
                 .placeholder(NativeRecipeBrowserPage.tr("station_search")).onChange(v->stations.query=v).build();
         ui.button(x+456,y,120).text(NativeRecipeBrowserPage.tr("search_button")).onClick(stations::search).build();
         ui.itemButton(x,y+28,NativeRecipeStationMenu.CARD_WIDTH,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CRAFTING_TABLE))
-                .text(NativeRecipeBrowserPage.tr("vanilla")).onClick(()->openChild(new VanillaRecipeHubPage())).build();
+                .text(NativeRecipeBrowserPage.tr("vanilla")).onClick(()->openChild(new NativeRecipeStationsPage("minecraft","",null))).build();
         stations.build(ui,x,y+76,576,168);
         int bottomBtnW = 108;
         int bottomSpacing = 8;

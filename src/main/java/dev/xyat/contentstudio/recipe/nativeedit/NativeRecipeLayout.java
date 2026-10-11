@@ -204,6 +204,13 @@ public record NativeRecipeLayout(String kind, int width, int height, List<Slot> 
     public static List<List<String>> fields(NativeRecipeDocument document,List<String> path) {
         var result=new ArrayList<List<String>>();collect(document.at(path),path,result);return List.copyOf(result);
     }
+    /** Recipe settings are direct scalar fields; ingredient and result identifiers belong to their slots. */
+    public static List<List<String>> parameters(NativeRecipeDocument document,List<String> path) {
+        var view=NativeRecipeView.at(document,path);
+        var slotPaths=new HashSet<List<String>>();view.layout(0).slots().forEach(slot->slotPaths.add(slot.path()));
+        return fields(document,path).stream().filter(field->field.size()==path.size()+1
+                && !field.get(field.size()-1).equals("type") && !slotPaths.contains(field)).toList();
+    }
     private static void collect(JsonElement value,List<String> path,List<List<String>> result) {
         if(value.isJsonPrimitive()) {result.add(List.copyOf(path));return;}
         if(value.isJsonArray()) {for(int i=0;i<value.getAsJsonArray().size();i++)collect(value.getAsJsonArray().get(i),append(path,Integer.toString(i)),result);}
