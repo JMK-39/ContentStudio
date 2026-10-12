@@ -19,12 +19,12 @@ import java.util.concurrent.CompletableFuture;
 public final class JeiEditorValidation {
     private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(JeiEditorValidation.class);
     private static List<JsonObject> samples;
-    private static boolean started,finished;
+    private static boolean started,finished,checked;
     private static long deadline,due;
     private static int phase,index,captures,visuals,fieldsOnly,hidden;
     private static CompletableFuture<?> reload;
     public static void install() {
-        deadline=System.currentTimeMillis()+180_000;
+        deadline=System.currentTimeMillis()+240_000;
         KineticClientEvents.onTick(KineticClientEvents.TickPhase.END,JeiEditorValidation::tick);
     }
     private static void tick() {
@@ -41,7 +41,10 @@ public final class JeiEditorValidation {
             if(samples==null)return;
             if(reload!=null) {if(!reload.isDone()||mc.getOverlay()!=null)return;reload.join();reload=null;due=System.currentTimeMillis()+800;open();return;}
             if(System.currentTimeMillis()<due)return;
-            if(index<samples.size()) {captureAndCheck();index++;open();return;}
+            if(index<samples.size()) {
+                if(!checked) {checkCurrent();checked=true;due=System.currentTimeMillis()+250;return;}
+                capture();checked=false;index++;open();return;
+            }
             if(phase++==0) {index=0;mc.getLanguageManager().setSelected("zh_cn");mc.options.languageCode="zh_cn";reload=mc.reloadResourcePacks();return;}
             finished=true;LOG.info("CONTENT_JEI_EDITOR_PASS visuals={} fieldsOnly={} hidden={} captures={} jei={}",visuals,fieldsOnly,hidden,captures,RecipeJeiBridge.jeiAvailable());
             if(Boolean.getBoolean("contentstudio.jeiEditorValidation.thenMatrix"))NativeRecipeMatrixValidation.install();
@@ -77,7 +80,7 @@ public final class JeiEditorValidation {
         var page=NativeRecipeEditorPage.create(samples.get(index),()->{});if(page!=null)KineticGui.open(page);
         dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.clearToasts();due=System.currentTimeMillis()+650;
     }
-    private static void captureAndCheck() throws Exception {
+    private static void checkCurrent() throws Exception {
         var body=samples.get(index);var json=NativeRecipeView.at(new NativeRecipeDocument(body.getAsJsonObject("recipe")),
                 body.getAsJsonArray("view_path").asList().stream().map(JsonElement::getAsString).toList()).recipe();
         String type=NativeRecipeDocument.serializerId(json);KineticPage page=KineticGui.currentPage();
@@ -92,11 +95,32 @@ public final class JeiEditorValidation {
                 var slots=(List<NativeRecipeLayout.Slot>)field(editor,"slots");
                 var bounds=(List<RecipeJeiBridge.EditorSlot>)field(editor,"jeiSlots");
                 if(!slots.isEmpty()) {
-                    int x=(int)field(editor,"diagramX")+bounds.get(0).x()+bounds.get(0).width()/2;
-                    int y=(int)field(editor,"diagramY")+bounds.get(0).y()+bounds.get(0).height()/2;
-                    var click=new MouseInput(x,y,MouseButton.RIGHT,1,0);
-                    var method=editor.getClass().getDeclaredMethod("onMouseClick",MouseInput.class);method.setAccessible(true);
-                    if(x>=26&&x<400&&y>=100&&y<266&&!((boolean)method.invoke(editor,click)))throw new AssertionError("JEI slot cannot be edited: "+type);
+                    int selected=-1;
+                    for(int i=0;i<bounds.size();i++) {
+                        int x=(int)field(editor,"diagramX")+bounds.get(i).x()+bounds.get(i).width()/2;
+                        int y=(int)field(editor,"diagramY")+bounds.get(i).y()+bounds.get(i).height()/2;
+                        if(x<26||x>=400||y<100||y>=266)continue;
+                        var screen=Minecraft.getInstance().screen;
+                        int canvasX=(int)screen.getClass().getMethod("canvasX").invoke(screen);
+                        int canvasY=(int)screen.getClass().getMethod("canvasY").invoke(screen);
+                        float scale=(float)screen.getClass().getMethod("canvasScale").invoke(screen);
+                        boolean handled=click(canvasX+x*scale,canvasY+y*scale);
+                        if((int)field(editor,"selected")!=i) {
+                            capture();
+                            throw new AssertionError("JEI mouse click selected another slot: "+type
+                                +" expected="+i+" actual="+field(editor,"selected")+" logical="+x+","+y
+                                +" canvas="+canvasX+","+canvasY+" scale="+scale+" bounds="+bounds.get(i)+" slots="+slots
+                                +" afterSlots="+field(editor,"slots")+" error="+field(editor,"previewError")
+                                +" busy="+field(field(editor,"session"),"busy")+" handled="+handled
+                                +" pageSame="+(KineticGui.currentPage()==editor)+" hits="+screen.children().stream()
+                                .filter(child->child.isMouseOver(x,y)).map(child->child.getClass().getName()).toList());
+                        }
+                        var runtime=field(screen,"runtime");var overlays=runtime.getClass().getMethod("overlays").invoke(runtime);
+                        if(field(overlays,"contextMenu")==null)throw new AssertionError("JEI slot menu did not open: "+type);
+                        selected=i;break;
+                    }
+                    if(selected<0)throw new AssertionError("No editable JEI slot is visible: "+type);
+                    LOG.info("CONTENT_JEI_SLOT_MENU_PASS type={} selected={}",type,selected);
                 }else LOG.info("CONTENT_JEI_CATEGORY_FIELDS type={} jsonFields={}",type,json.keySet());
                 LOG.info("CONTENT_JEI_CATEGORY_PASS type={} category={} editableSlots={} viewerSlots={} size={}x{}",type,preview.category().getString(),slots.size(),preview.slots().size(),preview.width(),preview.height());
             }
@@ -106,9 +130,27 @@ public final class JeiEditorValidation {
             if(type.startsWith("minecraft:"))throw new AssertionError("Vanilla recipe lost its visual editor");
             fieldsOnly++;LOG.info("CONTENT_JEI_FIELDS_ONLY type={} jei={}",type,RecipeJeiBridge.jeiAvailable());
         }
+    }
+    private static void capture() throws Exception {
+        var json=NativeRecipeView.at(new NativeRecipeDocument(samples.get(index).getAsJsonObject("recipe")),
+                samples.get(index).getAsJsonArray("view_path").asList().stream().map(JsonElement::getAsString).toList()).recipe();
+        String type=NativeRecipeDocument.serializerId(json);
         Path path=Path.of(System.getProperty("contentstudio.jeiEditorValidation.output"),phase+"-"+type.replace(':','-')+".png");
         Files.createDirectories(path.getParent());var mc=Minecraft.getInstance();
         try(var image=Screenshot.takeScreenshot(mc.getMainRenderTarget())){image.writeToFile(path);}captures++;
     }
-    private static Object field(Object value,String name)throws Exception {var field=value.getClass().getDeclaredField(name);field.setAccessible(true);return field.get(value);}
+    private static boolean click(double x,double y) {
+        //? if >=26.1 {
+        /*return Minecraft.getInstance().screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x,y,
+                new net.minecraft.client.input.MouseButtonInfo(1,0)),false);*/
+        //?} else {
+        return Minecraft.getInstance().screen.mouseClicked(x,y,1);
+        //?}
+    }
+    private static Object field(Object value,String name)throws Exception {
+        for(Class<?> type=value.getClass();type!=null;type=type.getSuperclass())try {
+            var field=type.getDeclaredField(name);field.setAccessible(true);return field.get(value);
+        }catch(NoSuchFieldException ignored) { }
+        throw new NoSuchFieldException(name);
+    }
 }
