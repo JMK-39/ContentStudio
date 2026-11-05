@@ -29,25 +29,26 @@ import java.util.Map;
 import java.util.Set;
 
 public final class VillagerFollowItemEditorPage extends KineticPage {
-    private static final int PANEL_X = 42;
-    private static final int PANEL_WIDTH = 556;
-    private static final int GRID_X = 69;
-    private static final int SLOT_SIZE = 18;
-    private static final int SLOT_GAP = 1;
+    private static final int PANEL_X = 0;
+    private static final int PANEL_WIDTH = 640;
+    private static final int GRID_X = 7;
+    // Standard item slots, the same size in every add-on.
+    private static final int SLOT_SIZE = dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT;
+    private static final int SLOT_GAP = dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_GAP;
     private static final int CELL_SIZE = SLOT_SIZE + SLOT_GAP;
-    private static final int COLUMNS = 27;
+    private static final int COLUMNS = 25;
     private static final int GRID_WIDTH = COLUMNS * CELL_SIZE - SLOT_GAP;
     private static final int SCROLL_X = GRID_X + GRID_WIDTH + 6;
-    // The grid shows the rows its items need plus one free row (4 to 13), and the panel sits in the middle of the canvas.
-    private static final int MIN_ROWS = 4;
+    // Standard full editor canvas: all buttons sit in the header row, so the grid keeps 13 complete rows below it.
     private static final int MAX_ROWS = 13;
+    private static final int ADD_BUTTON_W = 64;
     private int panelY, panelHeight, gridY, rowsVisible = MAX_ROWS, gridHeight;
 
     private final List<String> items = new ArrayList<>();
     private final Map<String, ItemStack> previewCache = new HashMap<>();
     private final KineticScrollController scroll = new KineticScrollController();
     private int hoveredIndex = -1;
-    // 本页无选中概念：中键跳转目标为最近左键点击的格子，-1 表示无 / This page has no selection: the middle-click target is the last left-clicked cell; -1 means none.
+    // The last clicked item is the shared middle-click and Delete target; -1 means none.
     private int lastClickedIndex = -1;
 
     private VillagerFollowItemEditorPage(List<String> initialItems) {
@@ -74,22 +75,22 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
 
     @Override
     protected void build(KineticUi ui) {
+        bindDeleteAction(() -> lastClickedIndex >= 0 && lastClickedIndex < items.size(), () -> removeItem(lastClickedIndex));
         rowsVisible = wantedRows();
         gridHeight = rowsVisible * CELL_SIZE - SLOT_GAP;
-        // Title row, the grid, the buttons and their margins.
-        panelHeight = 42 + gridHeight + 10 + 20 + 12;
-        panelY = Math.max(0, (height() - panelHeight) / 2);
-        gridY = panelY + 42;
+        // Header row: Back, title, Add and Save; the grid starts 4 px under the header.
+        panelHeight = 360;
+        panelY = 0;
+        gridY = 28;
         updateScrollRange();
 
-        int buttonY = gridY + gridHeight + 10;
-        ui().button(70, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.items.list_editor.add")).onClick(this::openSelector).build();
-        ui().button(70, panelY + 8, 130).text(KineticI18n.translatable("gui.kineticcore.config.back")).onClick(this::close).build();
-        ui().button(440, buttonY, 130).text(KineticI18n.translatable("gui.kineticcore.hud_editor.save")).onClick(this::save).build();
+        ui().button(4, 4, 40).text(KineticI18n.translatable("gui.kineticcore.config.back")).onClick(this::close).build();
+        ui().button(width() - 44 - 4 - ADD_BUTTON_W, 4, ADD_BUTTON_W).text(KineticI18n.translatable("gui.kineticcore.items.list_editor.add")).onClick(this::openSelector).build();
+        ui().button(width() - 44, 4, 40).text(KineticI18n.translatable("gui.kineticcore.hud_editor.save")).onClick(this::save).build();
     }
 
     private int wantedRows() {
-        return Math.max(MIN_ROWS, Math.min(MAX_ROWS, totalRows() + 1));
+        return MAX_ROWS;
     }
 
     // The window grows or shrinks when an added or removed item changes the row count.
@@ -140,9 +141,11 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             float partialTick
     ) {
         KineticTheme.panel(graphics, PANEL_X, panelY, PANEL_WIDTH, panelHeight);
-        graphics.scrollingText(title(), 208, panelY + 12, PANEL_X + PANEL_WIDTH - 216, 0xFFFFAA00, true);
-        // The frame sits 3 px outside the slots so no slot lies on its lines.
-        KineticTheme.panel(graphics, GRID_X - 3, gridY - 3, GRID_WIDTH + 6, gridHeight + 6);
+        // Centred on the screen, clear of Back and the Add and Save buttons.
+        graphics.scrollingTextCentered(title(), PANEL_WIDTH / 2, panelY + 8, PANEL_WIDTH - 2 * (44 + 4 + ADD_BUTTON_W + 4), 0xFFFFAA00, true);
+        // Header divider and content surface span the canvas (4..636), scrollbar included.
+        KineticTheme.surface(graphics, 4, gridY - 3, PANEL_WIDTH - 8, gridHeight + 6, KineticTheme.Surface.PANEL);
+        graphics.hLine(4, PANEL_WIDTH - 4, gridY - 4, KineticTheme.current().accentHover());
         renderItems(graphics, mouseX, mouseY);
         scroll.render(graphics,
                 mouseX,
@@ -174,6 +177,8 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         int last = Math.min(items.size(), first + (rowsVisible + 2) * COLUMNS);
 
         graphics.scissor(GRID_X, gridY, GRID_X + GRID_WIDTH, gridY + gridHeight);
+        // All icons of the grid are drawn together (one batch instead of one draw call each).
+        graphics.batchItems(() -> {
         for (int index = first; index < last; index++) {
             int visible = index - first;
             int column = visible % COLUMNS;
@@ -183,6 +188,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             boolean hovered = index == hoveredIndex;
 
             KineticTheme.itemSlot(graphics, x, y, SLOT_SIZE, 4, hovered);
+            KineticTheme.stateOutline(graphics, x, y, SLOT_SIZE, SLOT_SIZE, index == lastClickedIndex, hovered, false);
             ItemStack stack = previewStack(items.get(index));
             if (!stack.isEmpty()) {
                 KineticTheme.item(
@@ -197,6 +203,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             }
             scroll.renderSelectionFlash(graphics, index, x, y, SLOT_SIZE, SLOT_SIZE);
         }
+        });
         graphics.endScissor();
     }
 
@@ -222,7 +229,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         int column = localX / CELL_SIZE;
         int row = localY / CELL_SIZE;
         if (column >= COLUMNS || row > rowsVisible) return -1;
-        if (localX % CELL_SIZE == SLOT_SIZE || localY % CELL_SIZE == SLOT_SIZE) return -1;
+        if (localX % CELL_SIZE >= SLOT_SIZE || localY % CELL_SIZE >= SLOT_SIZE) return -1;
         int index = (scroll.smoothIndexOffset() + row) * COLUMNS + column;
         return index >= 0 && index < items.size() ? index : -1;
     }
@@ -249,10 +256,7 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
         if (input.isRight()) {
             int index = indexAt(mouseX, mouseY);
             if (index >= 0) {
-                items.remove(index);
-                if (lastClickedIndex == index) lastClickedIndex = -1;
-                else if (lastClickedIndex > index) lastClickedIndex--;
-                refreshLayout();
+                removeItem(index);
                 return true;
             }
         }
@@ -261,6 +265,14 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
             if (index >= 0) lastClickedIndex = index;
         }
         return false;
+    }
+
+    private void removeItem(int index) {
+        if (index < 0 || index >= items.size()) return;
+        items.remove(index);
+        if (lastClickedIndex == index) lastClickedIndex = -1;
+        else if (lastClickedIndex > index) lastClickedIndex--;
+        refreshLayout();
     }
 
     @Override
@@ -285,12 +297,14 @@ public final class VillagerFollowItemEditorPage extends KineticPage {
 
     @Override
     protected void renderTooltips(int mouseX, int mouseY) {
-        if (hoveredIndex < 0 || hoveredIndex >= items.size()) return;
-        String itemId = items.get(hoveredIndex);
+        int index = indexAt(mouseX, mouseY);
+        if (index < 0 || index >= items.size()) return;
+        String itemId = items.get(index);
         List<Component> lines = new ArrayList<>();
         ItemStack stack = previewStack(itemId);
         if (!stack.isEmpty()) {
-            lines.add(stack.getHoverName());
+            showItemTooltip(stack, List.of(Component.literal(itemId), KineticI18n.translatable("gui.kineticcore.items.list_editor.remove_hint")));
+            return;
         }
         lines.add(Component.literal(itemId));
         lines.add(KineticI18n.translatable("gui.kineticcore.items.list_editor.remove_hint"));

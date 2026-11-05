@@ -31,7 +31,7 @@ public final class LootNetwork {
             PROTOCOL,
             NetworkVersionPolicy.ANY
     );
-    private static final boolean[] PACKET_REGISTERED = new boolean[17];
+    private static final boolean[] PACKET_REGISTERED = new boolean[19];
     private static boolean registered;
 
     private LootNetwork() {
@@ -60,6 +60,8 @@ public final class LootNetwork {
                 () -> registerServerbound(14, SaveGlobalExcludePacket.class, (buffer, packet) -> packet.encode(buffer), SaveGlobalExcludePacket::decode, SaveGlobalExcludePacket::handle),
                 () -> registerClientbound(15, GlobalExcludeSaveResultPacket.class, (buffer, packet) -> packet.encode(buffer), GlobalExcludeSaveResultPacket::decode, GlobalExcludeSaveResultPacket::handle),
                 () -> registerServerbound(16, RequestOpenScreenPacket.class, (buffer, packet) -> packet.encode(buffer), RequestOpenScreenPacket::decode, RequestOpenScreenPacket::handle),
+                () -> registerServerbound(17, RequestOpenTablePacket.class, (buffer, packet) -> packet.encode(buffer), RequestOpenTablePacket::decode, RequestOpenTablePacket::handle),
+                () -> registerClientbound(18, OpenTablePacket.class, (buffer, packet) -> packet.encode(buffer), OpenTablePacket::decode, OpenTablePacket::handle),
                 () -> registered = allPacketsRegistered()
         );
     }
@@ -109,6 +111,10 @@ public final class LootNetwork {
 
     public static void requestOpenEditor(int mode) {
         sendToServer(new RequestOpenScreenPacket(mode));
+    }
+
+    public static void requestOpenTable(String lootTableId) {
+        sendToServer(new RequestOpenTablePacket(lootTableId));
     }
 
     private static void writeStringList(NetworkBuffer buffer, List<String> values) {
@@ -181,6 +187,53 @@ public final class LootNetwork {
                 ));
             }
             
+        }
+    }
+
+    /** Opens the chest loot editor with one table selected, such as a table of a structure's container. */
+    public record RequestOpenTablePacket(String lootTableId) {
+        public void encode(NetworkBuffer buf) {
+            buf.writeUtf(lootTableId);
+        }
+
+        public static RequestOpenTablePacket decode(NetworkBuffer buf) {
+            return new RequestOpenTablePacket(buf.readUtf());
+        }
+
+        public static void handle(RequestOpenTablePacket packet, ServerPacketContext context) {
+            ServerPlayer player = context.sender();
+            ResourceLocation lootTableId = KineticResourceIds.tryParse(packet.lootTableId);
+            if (player == null || !player.hasPermissions(2) || lootTableId == null) {
+                return;
+            }
+            List<LootEntryInfo> entries = new ArrayList<>(LootTableOverrideStore.buildEntries(player.getServer(), LootEntryInfo.MODE_CHEST));
+            if (entries.stream().noneMatch(entry -> entry.lootTableId().equals(packet.lootTableId))) {
+                entries.add(new LootEntryInfo(LootEntryInfo.MODE_CHEST, packet.lootTableId, packet.lootTableId, LootTableOverrideStore.hasOverride(lootTableId)));
+            }
+            sendToPlayer(player, new OpenTablePacket(entries, packet.lootTableId));
+        }
+    }
+
+    public record OpenTablePacket(List<LootEntryInfo> entries, String lootTableId) {
+        public void encode(NetworkBuffer buf) {
+            buf.writeVarInt(entries.size());
+            for (LootEntryInfo entry : entries) {
+                entry.encode(buf);
+            }
+            buf.writeUtf(lootTableId);
+        }
+
+        public static OpenTablePacket decode(NetworkBuffer buf) {
+            int size = buf.readVarInt();
+            List<LootEntryInfo> entries = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                entries.add(LootEntryInfo.decode(buf));
+            }
+            return new OpenTablePacket(entries, buf.readUtf());
+        }
+
+        public static void handle(OpenTablePacket packet) {
+            LootClientHandler.openTable(packet.entries, packet.lootTableId);
         }
     }
 

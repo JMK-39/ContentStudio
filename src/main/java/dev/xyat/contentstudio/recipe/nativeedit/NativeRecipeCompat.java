@@ -21,9 +21,10 @@ public final class NativeRecipeCompat {
         if(!KineticPlatform.isModLoaded("tacz"))return ItemStack.EMPTY;
         try {
             Class<?> assets=Class.forName("com.tacz.guns.resource.CommonAssetsManager");
-            Class<?> raw=Class.forName("com.tacz.guns.crafting.result.RawGunTableResult");
+            Class<?> nativeResult=Class.forName("com.tacz.guns.crafting.result.GunSmithTableResult");
             Gson gson=(Gson)assets.getField("GSON").get(null);
-            Object result=raw.getMethod("init",raw).invoke(null,gson.fromJson(json,raw));
+            Object result=gson.fromJson(json,nativeResult);
+            nativeResult.getMethod("init").invoke(result);
             return ((ItemStack)result.getClass().getMethod("getResult").invoke(result)).copy();
         }catch(ReflectiveOperationException | RuntimeException unavailable){return ItemStack.EMPTY;}
     }

@@ -172,11 +172,20 @@ public record NativeRecipeLayout(String kind, int width, int height, List<Slot> 
                     slots.add(new Slot(List.of("steps",Integer.toString(step),"items",Integer.toString(i)),0,0,false));
             }
         }
+        // Rows that wrap an ingredient with extra settings (Cuisine Delight's "list": [{"ingredient":..,"min":..}]) hold
+        // one input per row, whatever the array is called.
+        for(var entry:json.entrySet()) {
+            if(!entry.getValue().isJsonArray()||slots.stream().anyMatch(slot->slot.path().get(0).equals(entry.getKey())))continue;
+            var rows=entry.getValue().getAsJsonArray();
+            for(int i=0;i<rows.size();i++)
+                if(rows.get(i).isJsonObject()&&rows.get(i).getAsJsonObject().has("ingredient"))
+                    slots.add(new Slot(List.of(entry.getKey(),Integer.toString(i),"ingredient"),0,0,false));
+        }
         // Each root field is a separate group. Never recursively mistake component/NBT data for ingredients.
         int n=0;for(var slot:List.copyOf(slots)) {
             int columns=crafting?3:4;slots.set(n,new Slot(slot.path(),(n%columns)*20,(n/columns)*20,false));n++;
         }
-        for(String key:List.of("result","results","output","outputs","item_result","item_output","itemOutput","main_output","mainOutput","secondary_output","secondaryOutput",
+        for(String key:List.of("result","results","output","outputs","holderItem","item_result","item_output","itemOutput","main_output","mainOutput","secondary_output","secondaryOutput",
                 "chemical_output","gasOutput","fluid_output","fluidOutput","left_chemical_output","leftGasOutput","right_chemical_output","rightGasOutput","secondaryOutputs","strippingSecondaries","slag"))add(json,key,slots,112,0,3,true);
         int output=0;
         for(int i=0;i<slots.size();i++)if(slots.get(i).output()) {

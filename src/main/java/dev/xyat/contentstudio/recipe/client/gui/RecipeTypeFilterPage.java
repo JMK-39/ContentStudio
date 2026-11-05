@@ -6,6 +6,7 @@ import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticSizes;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
@@ -21,12 +22,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Map;
 
-/** Browse the selected item's real recipe types with an icon and recipe count. */
+/** Browse the selected item's real recipe types as cards (icon, name, recipe count, ID), four per row. */
 final class RecipeTypeFilterPage extends KineticPage {
-    private static final int NAME_X = 44;
-    private static final int TYPE_X = 370;
-    private static final int ROW_RIGHT = 624;
     private static final int TEXT_GAP = 4;
+    private static final int SEARCH_W = 196;
+    // Cards: four per row, 2 px apart, below the header row and its divider.
+    private static final int GRID_X = 4, GRID_Y = 28, GRID_BOTTOM = 356;
+    // A card holds a standard item slot (KineticSizes) with 2 px around it and two text lines beside it.
+    private static final int COLS = 4, GAP = 2, CARD_H = KineticSizes.ITEM_SLOT + 4, ROW_PITCH = CARD_H + GAP;
+    private static final int SCROLL_X = 632, GRID_W = SCROLL_X - 2 - GRID_X;
+    private static final int CARD_W = (GRID_W - (COLS - 1) * GAP) / COLS, COL_PITCH = CARD_W + GAP;
+    private static final int VISIBLE_ROWS = (GRID_BOTTOM - GRID_Y + GAP) / ROW_PITCH;
+    private static final int GRID_H = VISIBLE_ROWS * ROW_PITCH - GAP;
     private record Row(ResourceLocation type, long count) { }
 
     private final RecipeRemovalPage parent;
@@ -45,23 +52,25 @@ final class RecipeTypeFilterPage extends KineticPage {
         this.parent = parent;
         this.selected = selected;
         counts.forEach((type, count) -> all.add(new Row(type, count)));
-        // 中键跳回当前生效的类型筛选行 / Middle-click jumps back to the row of the active type filter.
-        scroll.bindSelection(this::selectedRowIndex);
+        // 中键跳回当前生效的类型筛选卡片所在行 / Middle-click jumps back to the row of the active type filter.
+        scroll.bindSelection(() -> {
+            int index = selectedIndex();
+            return index < 0 ? -1 : index / COLS;
+        });
     }
 
-    private int selectedRowIndex() {
+    private int selectedIndex() {
         for (int i = 0; i < visible.size(); i++) {
-            ResourceLocation type = visible.get(i).type();
-            if (Objects.equals(type, selected)) return i;
+            if (Objects.equals(visible.get(i).type(), selected)) return i;
         }
         return -1;
     }
 
     @Override protected void build(KineticUi ui) {
-        search = ui().autoComplete(16, 36, 608, KineticSuggestion.fromStrings(() -> all.stream()
+        ui().button(4, 4, 40).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
+        search = ui().autoComplete(48, 4, SEARCH_W, KineticSuggestion.fromStrings(() -> all.stream()
                         .map(row -> row.type().toString()).toList())).label(RecipeRemovalPage.tr("filter_type_search")).placeholder(RecipeRemovalPage.tr("filter_type_search")).build();
         search.onTextChange(value -> { query = value; refresh(); scroll.setOffset(0); });
-        ui().button(16, 6, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
         refresh();
     }
 
@@ -72,38 +81,65 @@ final class RecipeTypeFilterPage extends KineticPage {
             if (KineticSearch.match(row.type().toString() + " "
                     + RecipeRemovalPage.typeName(row.type()).getString(), query)) visible.add(row);
         }
-        scroll.update(visible.size(), 10);
+        scroll.update(rowCount(), VISIBLE_ROWS);
+    }
+
+    private int rowCount() {
+        return (visible.size() + COLS - 1) / COLS;
     }
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.scrollingText(title(), 82, 12, ROW_RIGHT - 82, KineticTheme.current().text(), false);
-        scroll.update(visible.size(), 10);
-        graphics.scissor(16, 68, 624, 308);
-        int start = scroll.smoothIndexOffset(), shift = scroll.visualShift(24);
-        for (int i = start; i < Math.min(visible.size(), start + 11); i++) {
-            Row row = visible.get(i);
-            int y = 68 + (i - start) * 24 - shift;
-            boolean hovered = mouseX >= 16 && mouseX < 624 && mouseY >= y && mouseY < y + 24;
-            KineticTheme.stateSurface(graphics, 16, y + 1, 608, 22, KineticTheme.Surface.PANEL_ALT,
-                    row.type() == null ? selected == null : row.type().equals(selected), hovered, false);
-            if (row.type() != null) {
-                ItemStack icon = RecipeRemovalPage.typeIcon(row.type());
-                if (!icon.isEmpty()) {
-                    KineticTheme.itemSlot(graphics, 21, y + 2, 20, false);
-                    KineticTheme.item(graphics, icon, 21, y + 2, 20, 1.0F, false);
+        int titleX = 48 + SEARCH_W + TEXT_GAP;
+        graphics.scrollingText(title(), titleX, 8, 636 - titleX, KineticTheme.current().text(), false);
+        graphics.hLine(4, 636, GRID_Y - 3, KineticTheme.current().accentHover());
+        scroll.update(rowCount(), VISIBLE_ROWS);
+        graphics.scissor(GRID_X, GRID_Y, GRID_X + GRID_W, GRID_Y + GRID_H);
+        int startRow = scroll.smoothIndexOffset(), shift = scroll.visualShift(ROW_PITCH);
+        for (int row = startRow; row <= startRow + VISIBLE_ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                int i = row * COLS + col;
+                if (i >= visible.size()) break;
+                Row entry = visible.get(i);
+                int x = GRID_X + col * COL_PITCH, y = GRID_Y + (row - startRow) * ROW_PITCH - shift;
+                boolean hovered = mouseX >= x && mouseX < x + CARD_W && mouseY >= y && mouseY < y + CARD_H
+                        && mouseY >= GRID_Y && mouseY < GRID_Y + GRID_H;
+                boolean current = entry.type() == null ? selected == null : entry.type().equals(selected);
+                KineticTheme.stateSurface(graphics, x, y, CARD_W, CARD_H, KineticTheme.Surface.PANEL_ALT, current, hovered, false);
+                int textX = x + 4;
+                if (entry.type() != null) {
+                    ItemStack icon = RecipeRemovalPage.typeIcon(entry.type());
+                    int slot = KineticSizes.ITEM_SLOT;
+                    KineticTheme.itemSlot(graphics, x + 2, y + 2, slot, false);
+                    if (!icon.isEmpty()) KineticTheme.item(graphics, icon, x + 2, y + 2, slot, KineticSizes.ITEM_SCALE, false);
+                    textX = x + 2 + slot + 4;
+                }
+                String name = entry.type() == null ? RecipeRemovalPage.tr("all_types").getString()
+                        : RecipeRemovalPage.typeName(entry.type()).getString();
+                int textW = x + CARD_W - 3 - textX;
+                Component label = Component.literal(name + " · " + entry.count());
+                if (entry.type() == null) {
+                    graphics.scrollingText(label, textX, y + (CARD_H - 8) / 2, textW, KineticTheme.current().text(), false);
+                } else {
+                    graphics.scrollingText(label, textX, y + 3, textW, KineticTheme.current().text(), false);
+                    graphics.scrollingText(Component.literal(entry.type().toString()), textX, y + 14, textW,
+                            KineticTheme.current().mutedText(), false);
                 }
             }
-            String name = row.type() == null ? RecipeRemovalPage.tr("all_types").getString()
-                    : RecipeRemovalPage.typeName(row.type()).getString();
-            graphics.scrollingText(Component.literal(name + " · " + row.count()), NAME_X, y + 8,
-                    TYPE_X - NAME_X - TEXT_GAP, KineticTheme.current().text(), false);
-            if (row.type() != null) graphics.scrollingText(Component.literal(row.type().toString()), TYPE_X, y + 8,
-                    ROW_RIGHT - TYPE_X - TEXT_GAP, KineticTheme.current().mutedText(), false);
-            scroll.renderSelectionFlash(graphics, i, 16, y + 1, 608, 22);
+            scroll.renderSelectionFlash(graphics, row, GRID_X, GRID_Y + (row - startRow) * ROW_PITCH - shift, GRID_W, CARD_H);
         }
         graphics.endScissor();
-        scroll.render(graphics, mouseX, mouseY, 628, 68, 4, 240, 16);
+        scroll.render(graphics, mouseX, mouseY, SCROLL_X, GRID_Y, 4, GRID_H, 16);
+    }
+
+    private int indexAt(double x, double y) {
+        if (x < GRID_X || x >= GRID_X + GRID_W || y < GRID_Y || y >= GRID_Y + GRID_H) return -1;
+        int col = (int) ((x - GRID_X) / COL_PITCH);
+        if (col >= COLS || (x - GRID_X) - col * COL_PITCH >= CARD_W) return -1;
+        double rowPos = (y - GRID_Y + scroll.visualShift(ROW_PITCH)) / ROW_PITCH;
+        if ((rowPos - Math.floor(rowPos)) * ROW_PITCH >= CARD_H) return -1;
+        int index = (scroll.smoothIndexOffset() + (int) Math.floor(rowPos)) * COLS + col;
+        return index >= 0 && index < visible.size() ? index : -1;
     }
 
     @Override protected boolean onMouseClick(MouseInput input) {
@@ -112,13 +148,11 @@ final class RecipeTypeFilterPage extends KineticPage {
         double y = input.y();
         blur(search);
         if (!input.isLeft()) return false;
-        if (scroll.beginDrag(x, y, input.button(), 628, 68, 4, 240, 16, 1)) return true;
-        if (x >= 16 && x < 624 && y >= 68 && y < 308) {
-            int index = scroll.smoothIndexOffset() + (int) ((y - 68 + scroll.visualShift(24)) / 24);
-            if (index >= 0 && index < visible.size()) {
-                parent.setTypeFilter(visible.get(index).type());
-                close();
-            }
+        if (scroll.beginDrag(x, y, input.button(), SCROLL_X, GRID_Y, 4, GRID_H, 16, 1)) return true;
+        int index = indexAt(x, y);
+        if (index >= 0) {
+            parent.setTypeFilter(visible.get(index).type());
+            close();
             return true;
         }
         return false;
@@ -127,14 +161,11 @@ final class RecipeTypeFilterPage extends KineticPage {
     @Override protected boolean onMouseScroll(ScrollInput input) {
         double x = input.x();
         double y = input.y();
-        double delta = input.deltaY();
-        return x >= 16 && x < 634 && y >= 68 && y < 308
-                && scroll.scroll(delta);
+        return x >= GRID_X && x < 640 && y >= GRID_Y && y < GRID_Y + GRID_H && scroll.scroll(input.deltaY());
     }
 
     @Override protected boolean onMouseDrag(MouseDragInput input) {
-        double y = input.y();
-        return scroll.drag(y, 68, 240, 16);
+        return scroll.drag(input.y(), GRID_Y, GRID_H, 16);
     }
 
     @Override protected boolean onMouseRelease(MouseInput input) {

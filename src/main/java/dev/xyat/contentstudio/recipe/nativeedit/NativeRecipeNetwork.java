@@ -52,7 +52,8 @@ public final class NativeRecipeNetwork {
             var views=new HashMap<ResourceLocation,NativeRecipeView>();
             source.forEach((id,value)->{
                 if(value.isJsonObject())try {
-                    views.put(id,NativeRecipeView.resolve(value.getAsJsonObject(),branch->RecipeMemoryManager.nativeConditionsMatch(manager,branch)));
+                    var view=NativeRecipeView.resolve(value.getAsJsonObject(),branch->RecipeMemoryManager.nativeConditionsMatch(manager,branch));
+                    if(!NativeRecipeTypes.hidden(type(view.recipe())))views.put(id,view);
                 }catch(RuntimeException inactive){ }
             });
             var owners=new HashMap<ResourceLocation,String>();
@@ -124,7 +125,7 @@ public final class NativeRecipeNetwork {
                             .filter(e -> !packet.action.equals("saved")||local.has(e.getKey().toString()))
                             .filter(e -> packet.target.isEmpty() || packet.target.equals("@vanilla")&&owners.get(e.getKey()).equals("minecraft") || type(views.get(e.getKey()).recipe()).equals(packet.target))
                             .filter(e -> filterMod.isEmpty()||owners.get(e.getKey()).equals(filterMod))
-                            .filter(e -> (e.getKey() + " " + type(views.get(e.getKey()).recipe())+" "+resultIcon(views.get(e.getKey()).recipe())).toLowerCase(Locale.ROOT).contains(filterQuery))
+                            .filter(e -> NativeRecipeSearch.matches(e.getKey().toString(),views.get(e.getKey()).recipe(),filterQuery))
                             .map(Map.Entry::getKey).sorted(Comparator.comparing(ResourceLocation::toString)).toList();
                     var batches=new ArrayList<JsonArray>();var rows=new JsonArray();int chars=0;
                     for (var id:ids) {
@@ -139,7 +140,8 @@ public final class NativeRecipeNetwork {
                         row.addProperty("icon",icon);
                         row.addProperty("edited", local.has(id.toString()));
                         int length=row.toString().length()+1;
-                        if(rows.size()>0 && (rows.size()>=96 || chars+length>120_000-mods.toString().length())) {batches.add(rows);rows=new JsonArray();chars=0;}
+                        // The browser loads every batch into one list; larger batches mean fewer requests, still within one packet.
+                        if(rows.size()>0 && (rows.size()>=512 || chars+length>120_000-mods.toString().length())) {batches.add(rows);rows=new JsonArray();chars=0;}
                         rows.add(row);chars+=length;
                     }
                     if(rows.size()>0||batches.isEmpty())batches.add(rows);
@@ -157,6 +159,7 @@ public final class NativeRecipeNetwork {
                     response.addProperty("edited", local.has(id.toString()));
                     if(packet.action.equals("template"))response=NativeRecipeCreation.draft(response,"contentstudio:custom/"+UUID.randomUUID().toString().replace("-",""));
                     response.addProperty("added",!RecipeMemoryManager.originalCatalog(manager).sources().containsKey(id));
+                    response.addProperty("removed",dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager.isRecipeRemoved(id));
                 }
                 case "save", "create", "restore" -> {
                     if (packet.catalogVersion != version || !packet.revision.equals(NativeRecipeStore.revision(local)))
@@ -213,6 +216,31 @@ public final class NativeRecipeNetwork {
                             });
                         });
                     } catch(RuntimeException error) {RELOADING.remove(server);throw error;}
+                    return;
+                }
+                case "disable", "enable" -> {
+                    // Removing an original recipe uses the same exact-ID rule as the removal page, so both stay in step.
+                    ResourceLocation id = KineticResourceIds.parse(packet.id);
+                    if (!RecipeMemoryManager.originalCatalog(manager).sources().containsKey(id))
+                        throw new IllegalArgumentException("Only original recipes can be removed");
+                    boolean removing = packet.action.equals("disable");
+                    var server = player.getServer();
+                    RELOADING.add(server);
+                    try {
+                        dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager.setRecipeRemoved(player, id, removing).whenComplete((applied, error) -> {
+                            RELOADING.remove(server);
+                            server.execute(() -> {
+                                JsonObject result = new JsonObject(); result.addProperty("action", packet.action);
+                                result.addProperty("id", id.toString()); result.addProperty("removed", removing);
+                                boolean ok = error == null && Boolean.TRUE.equals(applied);
+                                result.addProperty("message", ok ? "saved" : "reload_failed");
+                                result.addProperty("catalog", RecipeMemoryManager.catalogVersion(server.getRecipeManager()));
+                                try { result.addProperty("revision", NativeRecipeStore.revision(NativeRecipeStore.local())); }
+                                catch (java.io.IOException unreadable) { result.addProperty("revision", ""); }
+                                reply(player, packet.sequence, ok, result);
+                            });
+                        });
+                    } catch (RuntimeException error) { RELOADING.remove(server); throw error; }
                     return;
                 }
                 default -> throw new IllegalArgumentException("Unknown recipe action");

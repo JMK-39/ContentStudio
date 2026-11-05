@@ -32,9 +32,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class LootEntryEditPage extends KineticPage {
-    private static final int WIDTH = 520;
-    private static final int COMPACT_HEIGHT = 250;
-    private static final int ENTITY_HEIGHT = 286;
+    private static final int WIDTH = 640;
+    private static final int COMPACT_HEIGHT = 360;
+    private static final int ENTITY_HEIGHT = 360;
     private static final int ITEM_X = 24;
     private static final int ITEM_Y = 40;
     private static final int ITEM_SIZE = 28;
@@ -49,6 +49,8 @@ final class LootEntryEditPage extends KineticPage {
     private static final int ENTITY_TITLE_Y = 203;
     private static final int ENTITY_BUTTON_Y = 218;
     private static final int TEXT_GAP = 4;
+    private static final int APPLY_W = 40;
+    private static final int HEADER_RIGHT = WIDTH - 4 - APPLY_W - TEXT_GAP;
     private static final int CONTENT_RIGHT = WIDTH - 24;
     private static final int TABLE_NAME_X = 170;
     private static final int FUNCTION_HELP_X = 94;
@@ -117,7 +119,7 @@ final class LootEntryEditPage extends KineticPage {
         this.itemEntry = type.isBlank() || type.endsWith("item");
         this.entityMode = parent.editorMode() == LootEntryInfo.MODE_ENTITY;
         this.screenHeight = entityMode ? ENTITY_HEIGHT : COMPACT_HEIGHT;
-        useCanvas(WIDTH, screenHeight, 6);
+        useCanvas(WIDTH, screenHeight, 4);
         this.selectedItemId = LootJsonEditUtil.string(workingEntry.get("name"));
         this.selectedItemStack = visual.stack == null ? ItemStack.EMPTY : visual.stack.copy();
         this.randomEnchant = LootJsonEditUtil.hasFunction(workingEntry, "enchant_randomly");
@@ -179,9 +181,9 @@ final class LootEntryEditPage extends KineticPage {
 
         ui().button(NBT_BUTTON_X, NBT_BUTTON_Y, NBT_BUTTON_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.nbt")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.nbt")).onClick(this::openNbtEditor).build();
 
-        int actionY = screenHeight - 38;
-        ui().button(360, actionY, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.apply")).onClick(this::applyChanges).build();
-        ui().button(24, 15, 64).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.cancel")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.cancel")).onClick(this::closeToParent).build();
+        // Apply sits in the header's top-right corner, like the other editors.
+        ui().button(WIDTH - 4 - APPLY_W, 4, APPLY_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.apply")).onClick(this::applyChanges).build();
+        ui().button(4, 4, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.cancel")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.cancel")).onClick(this::closeToParent).build();
         updateToggleValues();
     }
 
@@ -385,24 +387,15 @@ final class LootEntryEditPage extends KineticPage {
     @Override
     protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
         KineticTheme.panel(g, 0, 0, WIDTH, screenHeight);
-        KineticTheme.stateSurface(
-                g,
-                12,
-                12,
-                WIDTH - 24,
-                screenHeight - 24,
-                KineticTheme.Surface.PANEL_ALT,
-                true,
-                false,
-                false
-        );
+        KineticTheme.separator(g, 4, 24, WIDTH - 8);
     }
 
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
-        g.scrollingText(title(), 96, 21, TABLE_NAME_X - 96 - TEXT_GAP, 0xFFFFAA00, false);
-        g.scrollingText(Component.literal(parent.selectedTableName().getString()), TABLE_NAME_X, 21, CONTENT_RIGHT - TABLE_NAME_X, 0xFFFFD75F, false);
+        // Title and loot table on one line, centred on the screen between Back and Apply.
+        Component heading = title().copy().append(Component.literal(" · " + parent.selectedTableName().getString()).withStyle(net.minecraft.ChatFormatting.YELLOW));
+        g.scrollingTextCentered(heading, WIDTH / 2, 8, WIDTH - 2 * (4 + APPLY_W + 8), 0xFFFFAA00, false);
         drawItem(g, mx, my);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.chance", 24, 101);
         fieldLabel(g, "gui.contentstudio.loot.loots.entry.count_min", 101, 178);
@@ -413,7 +406,6 @@ final class LootEntryEditPage extends KineticPage {
             fieldLabel(g, "gui.contentstudio.loot.loots.entry.looting_max", 409, CONTENT_RIGHT);
         }
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions"), 24, FUNCTION_TITLE_Y, FUNCTION_HELP_X - 24 - TEXT_GAP, 0xFFFF55FF, false);
-        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.functions_help"), FUNCTION_HELP_X, FUNCTION_TITLE_Y, FUNCTION_STATUS_X - FUNCTION_HELP_X - TEXT_GAP, 0xFFAAAAAA, false);
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.enchant_levels"), 24, ENCHANT_FIELD_Y + 6, ENCHANT_MIN_X - 24 - TEXT_GAP, 0xFFDD77FF, false);
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.damage"), 204, ENCHANT_FIELD_Y + 6, DAMAGE_MIN_X - 204 - TEXT_GAP, damageableItem ? 0xFFFFD75F : 0xFF777777, false);
         Component damageHelp = KineticI18n.translatable(damageableItem
@@ -422,7 +414,6 @@ final class LootEntryEditPage extends KineticPage {
         g.scrollingText(damageHelp, DAMAGE_HELP_X, ENCHANT_FIELD_Y + 6, CONTENT_RIGHT - DAMAGE_HELP_X, damageableItem ? 0xFF55FF55 : 0xFF777777, false);
         if (entityMode) {
             g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_conditions"), 24, ENTITY_TITLE_Y, ENTITY_HELP_X - 24 - TEXT_GAP, 0xFF55FFFF, false);
-            g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.entry.entity_help"), ENTITY_HELP_X, ENTITY_TITLE_Y, CONTENT_RIGHT - ENTITY_HELP_X, 0xFFAAAAAA, false);
         }
         renderUnknownFunctions(g, mx, my);
     }
@@ -447,10 +438,8 @@ final class LootEntryEditPage extends KineticPage {
         int itemTextWidth = NBT_BUTTON_X - ITEM_TEXT_X - TEXT_GAP;
         g.scrollingText(Component.literal(itemName.getString()), ITEM_TEXT_X, ITEM_Y + 1, itemTextWidth, 0xFFFFAA00, false);
         g.scrollingText(Component.literal(selectedItemId), ITEM_TEXT_X, ITEM_Y + 13, itemTextWidth, 0xFF55FFFF, false);
-        Component hint = KineticI18n.translatable(itemEntry
-                ? "gui.contentstudio.loot.loots.entry.item_hint"
-                : "gui.contentstudio.loot.loots.tip.entry.locked_type");
-        g.scrollingText(hint, ITEM_TEXT_X, ITEM_Y + 25, itemTextWidth, itemEntry ? 0xFF55FF55 : 0xFFFFDD55, false);
+        // How to change the item lives in the tooltip; only a locked entry type is spelled out.
+        if (!itemEntry) g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"), ITEM_TEXT_X, ITEM_Y + 25, itemTextWidth, 0xFFFFDD55, false);
         if (mx >= ITEM_X && mx < WIDTH - 24 && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE + 10) {
             deferredTooltip = stack.isEmpty()
                     ? List.of(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.locked_type"))
@@ -521,6 +510,13 @@ final class LootEntryEditPage extends KineticPage {
 
     @Override
     protected void renderTooltips(int mx, int my) {
+        if (mx >= ITEM_X && mx < ITEM_X + ITEM_SIZE && my >= ITEM_Y && my < ITEM_Y + ITEM_SIZE) {
+            ItemStack stack = itemStack();
+            if (!stack.isEmpty()) {
+                showItemTooltip(stack);
+                return;
+            }
+        }
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
             showTooltip(deferredTooltip);
         }

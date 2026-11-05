@@ -111,10 +111,10 @@ public final class TooltipNetwork {
         );
     }
 
-    public static void requestEditor() {
-        if (registered) {
-            CHANNEL.sendToServer(new RequestEditorPacket());
-        }
+    public static boolean requestEditor() {
+        if (!registered) return false;
+        CHANNEL.sendToServer(new RequestEditorPacket());
+        return true;
     }
 
     public static void saveToServer(String jsonPayload) {

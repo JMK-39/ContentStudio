@@ -15,7 +15,12 @@
     }
     tasks.register('runtimeValidationJar', Jar) {
         dependsOn 'testClasses', writeMetadata
-        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/*.class' }
+        // Entries of the separate villager-parity and GUI-capture jars declare their own mod IDs; NeoForge refuses
+        // to load a jar whose @Mod classes its metadata does not list.
+        from(sourceSets.test.output) {
+            include 'dev/xyat/contentstudiovalidation/*.class'
+            exclude 'dev/xyat/contentstudiovalidation/VillagerParityEntry*.class', 'dev/xyat/contentstudiovalidation/GuiCapture*Entry*.class'
+        }
         from({ configurations.testRuntimeClasspath.files.findAll { it.name.startsWith('junit-') || it.name.startsWith('opentest4j-') || it.name.startsWith('apiguardian-') }.collect { zipTree(it) } }) { exclude 'META-INF/**', 'module-info.class' }
         from metadata
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE

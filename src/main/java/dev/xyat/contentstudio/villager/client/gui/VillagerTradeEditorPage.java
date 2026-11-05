@@ -411,6 +411,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     @Override
     protected void build(KineticUi ui) {
+        bindDeleteAction(() -> !isSavePending() && findSelectedEntry() != null && !findSelectedEntry().header(), this::deleteSelectedEntry);
         editorWidgets.clear();
         levelWidgets.clear();
         levelExpandButtons.clear();
@@ -418,7 +419,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         setupLayout();
         listScroll.setOffset(lastListScroll);
 
-        int topY = rootY + 8;
+        int topY = rootY + 4;
         int searchLeftPadding = 6;
         int searchRightPadding = 6;
         int clearButtonWidth = 40;
@@ -426,7 +427,9 @@ public class VillagerTradeEditorPage extends KineticPage {
         int searchFieldWidth = leftW - searchLeftPadding - searchRightPadding - clearButtonWidth - searchClearGap;
         int clearButtonX = leftX + searchLeftPadding + searchFieldWidth + searchClearGap;
 
-        this.professionBox = ui().autoComplete(leftX + searchLeftPadding + 64, topY, searchFieldWidth - 64, VillagerTradeEditorPage::getProfessionDictionary).label(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search")).placeholder(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip")).build();
+        // The profession search starts 4 px after Back (4..44) and ends 4 px before its Clear button.
+        int professionX = rootX + 48;
+        this.professionBox = ui().autoComplete(professionX, topY, clearButtonX - searchClearGap - professionX, VillagerTradeEditorPage::getProfessionDictionary).label(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search")).placeholder(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.placeholder")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.profession.search.tooltip")).build();
         this.professionBox.setTextValue(lastProfessionText);
         this.professionBox.onTextChange(value -> {
             if (!suppressProfessionResponder) {
@@ -435,7 +438,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             }
         });
 
-        toolbarWidgets.add(ui().button(clearButtonX, topY, clearButtonWidth).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip")).onClick(this::clearProfessionSearch).build());
+        toolbarWidgets.add(ui().button(clearButtonX, topY, 40).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.tooltip")).onClick(this::clearProfessionSearch).build());
 
         this.tradeSearchBox = ui().textField(leftX + searchLeftPadding, leftY + 6, searchFieldWidth).label(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search")).placeholder(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.placeholder")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.tooltip")).build();
         this.tradeSearchBox.limitTextLength(128);
@@ -447,11 +450,11 @@ public class VillagerTradeEditorPage extends KineticPage {
             refreshEntries();
         });
 
-        toolbarWidgets.add(ui().button(clearButtonX, leftY + 6, clearButtonWidth).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip")).onClick(this::clearTradeSearch).build());
+        toolbarWidgets.add(ui().button(clearButtonX, leftY + 6, 40).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.search.clear.short")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.clear.tooltip")).onClick(this::clearTradeSearch).build());
 
         int gap = 6;
-        int backW = 58;
-        int saveW = 58;
+        int backW = 40;
+        int saveW = 40;
         int undoW = 78;
         int previewW = 94;
         int backX = rootX + rootW - 8 - backW;
@@ -475,14 +478,14 @@ public class VillagerTradeEditorPage extends KineticPage {
         this.undoButton = ui().button(undoX, topY, undoW).text(undoButtonText()).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.undo.tooltip")).onClick(this::undoLastChange).build();
         updateUndoButtonState();
 
-        toolbarWidgets.add(ui().button(saveX, topY, saveW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save.tooltip")).onClick(this::saveValidTradeConfig).build());
+        toolbarWidgets.add(ui().button(saveX, topY, 40).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.save.tooltip")).onClick(this::saveValidTradeConfig).build());
 
-        toolbarWidgets.add(ui().button(leftX + searchLeftPadding, topY, backW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")).onClick(this::close).build());
+        toolbarWidgets.add(ui().button(rootX + 4, topY, 40).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.back.tooltip")).onClick(this::close).build());
 
-        // The footer already has room after the reward/restock controls; keep the toolbar and trade slots fixed.
-        int sourceX = rightX + 246;
-        int sourceY = rightY + 268;
-        tradeSourceButton = ui().button(sourceX, sourceY, 110).compact()
+        // At the top right of the editor panel, on the row of the trade buttons.
+        int sourceX = rightX + rightW - 44;
+        int sourceY = rightY + 40;
+        tradeSourceButton = ui().button(sourceX, sourceY, 40).compact()
                 .text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.source_mode.button"))
                 .onClick(() -> openTradeSourceMenu(sourceX, sourceY + CONTROL_HEIGHT)).build();
         previousIssueButton = ui().button(rightX + rightW - 54, rightY + 65, 22).compact()
@@ -907,15 +910,16 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void setupLayout() {
-        this.rootW = Math.min(this.width() - 8, 632);
-        this.rootH = Math.min(this.height() - 8, 352);
+        this.rootW = this.width();
+        this.rootH = this.height();
         this.rootX = (this.width() - rootW) / 2;
         this.rootY = (this.height() - rootH) / 2;
 
-        this.leftX = rootX + 8;
-        this.leftY = rootY + 36;
-        this.leftW = 230;
-        this.leftPanelHeight = rootH - 44;
+        this.leftX = rootX + 4;
+        // Columns start 4 px under the 16 px header row.
+        this.leftY = rootY + 24;
+        this.leftW = 270;
+        this.leftPanelHeight = rootY + rootH - leftY - 4;
 
         this.listX = leftX + 6;
         this.listY = leftY + 32;
@@ -924,7 +928,7 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         this.rightX = leftX + leftW + 8;
         this.rightY = leftY;
-        this.rightW = rootX + rootW - rightX - 8;
+        this.rightW = rootX + rootW - rightX - 4;
         this.rightPanelHeight = leftPanelHeight;
     }
 
@@ -968,7 +972,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         int previewY = rightY + 90;
         int contentX = rightX + 14;
         int bX = contentX + 112;
-        int sellX = contentX + 270;
+        int sellX = contentX + 252;
 
         buyACountBox = addSmallNumberBox(contentX + SLOT_CONTROL_OFFSET, previewY + 18, buyACount, "gui.contentstudio.villager.villager.trade.count.buy_a.tooltip", 1);
         addNbtButton(0, contentX + SLOT_CONTROL_OFFSET, previewY + 40);
@@ -1023,7 +1027,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void addClearSlotButton(int slot, int x, int y) {
-        KineticButton clear = ui().button(x, y, 36).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.slot.clear")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.slot.clear.tooltip")).compact().onClick(() -> clearTradeItemSlot(slot)).build();
+        KineticButton clear = ui().button(x, y, 40).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.slot.clear")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.slot.clear.tooltip")).compact().onClick(() -> clearTradeItemSlot(slot)).build();
         addEditorWidget(clear);
     }
 
@@ -1112,10 +1116,10 @@ public class VillagerTradeEditorPage extends KineticPage {
     private void addEditorButtons() {
         int y = rightY + 40;
         int x = rightX + 8;
-        int saveW = 84;
-        int deleteW = 84;
-        int clearW = 96;
-        int gap = 8;
+        int saveW = 56;
+        int deleteW = 56;
+        int clearW = 56;
+        int gap = 4;
 
         KineticButton saveButton = ui().button(x, y, saveW).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.offer.save")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.save.tooltip")).onClick(this::saveCurrentOffer).build();
         addEditorWidget(saveButton);
@@ -1166,10 +1170,11 @@ public class VillagerTradeEditorPage extends KineticPage {
     protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
         updateLevelExpandButtons();
         KineticTheme.panel(g, rootX, rootY, rootW, rootH);
-        KineticTheme.panelAlt(g, leftX, leftY, leftW, leftPanelHeight);
-        KineticTheme.panelAlt(g, rightX, rightY, rightW, rightPanelHeight);
+        KineticTheme.surface(g, leftX, leftY, leftW, leftPanelHeight, KineticTheme.Surface.PANEL_ALT);
+        KineticTheme.surface(g, rightX, rightY, rightW, rightPanelHeight, KineticTheme.Surface.PANEL_ALT);
+        g.vLine((leftX + leftW + rightX) / 2, Math.min(leftY, rightY), rootY + rootH - 4, KineticTheme.current().accentHover());
         if (!problemTargets.isEmpty()) {
-            KineticTheme.panelAlt(g, rightX + 8, rightY + 64, rightW - 16, 18);
+            KineticTheme.surface(g, rightX + 8, rightY + 64, rightW - 16, 18, KineticTheme.Surface.PANEL_ALT);
         }
         if (!selectedOwner.isEmpty() && editorActive && !levelSettingsActive) {
             renderTradeSlotPanels(g);
@@ -1214,11 +1219,13 @@ public class VillagerTradeEditorPage extends KineticPage {
 
     private void renderLeftPanel(KineticGraphics g, int mx, int my) {
         if (canUseTradeList()) {
-            KineticTheme.panelAlt(g, listX, listY, listW, listH);
+            KineticTheme.surface(g, listX, listY, listW, listH, KineticTheme.Surface.PANEL_ALT);
+            g.hLine(listX, listX + listW, listY - 2, KineticTheme.current().accentHover());
             return;
         }
 
-        KineticTheme.panelAlt(g, listX, listY, listW, listH);
+        KineticTheme.surface(g, listX, listY, listW, listH, KineticTheme.Surface.PANEL_ALT);
+        g.hLine(listX, listX + listW, listY - 2, KineticTheme.current().accentHover());
 
         if (isTradeSearching() && entries.isEmpty()) {
             g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.content_search.empty"), listX + listW / 2, listY + 10, listW - 8, 0xFFFFFF55, true);
@@ -1495,7 +1502,8 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         int noticeX = rightX + 8;
         int noticeY = rightY + 64;
-        KineticTheme.panelAlt(g, noticeX, noticeY, rightW - (problemTargets.isEmpty() ? 16 : 76), 18);
+        KineticTheme.surface(g, noticeX, noticeY, rightW - (problemTargets.isEmpty() ? 16 : 76), 18, KineticTheme.Surface.PANEL_ALT);
+        g.hLine(rightX + 4, rightX + rightW - 4, noticeY + 20, KineticTheme.current().accentHover());
         Component state = editingDefault ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.editing_default") : (editingCustomIndex >= 0 ? KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.editing_custom") : KineticI18n.translatable("gui.contentstudio.villager.villager.trade.inline.creating"));
         if (problemTargets.isEmpty()) {
             g.scrollingText(state, noticeX + 6, noticeY + 5, rightW - 28, 0xFFFF55FF, false);
@@ -1540,17 +1548,16 @@ public class VillagerTradeEditorPage extends KineticPage {
         // The settings title shares its row with the bottom of the action controls.
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.title"), rightX + 8, rightY + 48, summaryWidth, 0xFFFFFF55, false);
         if (problemTargets.isEmpty()) {
-            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.level.settings.tip"), rightX + 8, rightY + 64, rightW - 20, 0xFFFFFFFF, false);
         }
 
-        KineticTheme.stateOutline(g, countX - 8, buttonY - 4, buttonW + 82, 52, false, false, false);
+        g.vLine(countX - 8, buttonY - 4, buttonY + 48, KineticTheme.current().accentHover());
     }
 
     private void renderTradeSlotPanels(KineticGraphics g) {
         int previewY = rightY + 90;
         int contentX = rightX + 14;
         int bX = contentX + 112;
-        int sellX = contentX + 270;
+        int sellX = contentX + 252;
 
         renderTradeSlotSection(g, contentX, previewY);
         renderTradeSlotSection(g, bX, previewY);
@@ -1561,9 +1568,9 @@ public class VillagerTradeEditorPage extends KineticPage {
         int previewY = rightY + 90;
         int contentX = rightX + 14;
         int bX = contentX + 112;
-        int sellX = contentX + 270;
+        int sellX = contentX + 252;
         int arrow1X = contentX + 88;
-        int arrow2X = contentX + 230;
+        int arrow2X = contentX + 216;
 
         renderSlotCell(g, mx, my, 0, contentX, previewY, buyAId, buyACount, buyANbt);
         renderLargeTradeSymbol(g, "+", arrow1X, previewY + 32);
@@ -1573,7 +1580,7 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private void renderTradeSlotSection(KineticGraphics g, int x, int y) {
-        KineticTheme.panelAlt(g, x - 6, y - 6, TRADE_SLOT_PANEL_WIDTH, 91);
+        KineticTheme.surface(g, x - 6, y - 6, TRADE_SLOT_PANEL_WIDTH, 91, KineticTheme.Surface.PANEL_ALT);
     }
 
     private void renderLargeTradeSymbol(KineticGraphics g, String text, int centerX, int centerY) {
@@ -1638,7 +1645,16 @@ public class VillagerTradeEditorPage extends KineticPage {
                 showTooltip(issues);
                 return;
             }
+            String id = hoverSlot == 0 ? buyAId : hoverSlot == 1 ? buyBId : sellId;
+            String count = hoverSlot == 0 ? buyACount : hoverSlot == 1 ? buyBCount : sellCount;
+            String nbt = hoverSlot == 0 ? buyANbt : hoverSlot == 1 ? buyBNbt : sellNbt;
+            ItemStack stack = createStack(id, VillagerConfig.parseIntValue(count, hoverSlot == 1 ? 0 : 1,
+                    hoverSlot == 1 ? 0 : 1, 64), nbt);
             String key = hoverSlot == 0 ? "gui.contentstudio.villager.villager.trade.slot.buy_a.tooltip" : hoverSlot == 1 ? "gui.contentstudio.villager.villager.trade.slot.buy_b.tooltip" : "gui.contentstudio.villager.villager.trade.slot.sell.tooltip";
+            if (!stack.isEmpty()) {
+                showItemTooltip(stack, List.of(KineticI18n.translatable(key)));
+                return;
+            }
             showTooltip(KineticI18n.translatable(key));
             return;
         }
@@ -1826,13 +1842,6 @@ public class VillagerTradeEditorPage extends KineticPage {
             }
             return true;
         }
-        if (isFocused(professionBox)
-                && (input.is(KineticKeyBindings.Key.ENTER)
-                || input.is(KineticKeyBindings.Key.KP_ENTER))) {
-            syncSelectedOwnerFromBox();
-            closeProfessionBoxFocus();
-            return true;
-        }
         return false;
     }
 
@@ -1900,7 +1909,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         }
         int previewY = rightY + 90;
         int contentX = rightX + 14;
-        int[] xs = {contentX, contentX + 112, contentX + 270};
+        int[] xs = {contentX, contentX + 112, contentX + 252};
         int slotY = previewY + 20;
         for (int i = 0; i < xs.length; i++) {
             if (mx >= xs[i] && mx <= xs[i] + 24 && my >= slotY && my <= slotY + 24) {
@@ -3172,7 +3181,8 @@ public class VillagerTradeEditorPage extends KineticPage {
     }
 
     private static class RemovedDefaultTradesPage extends KineticPage {
-        private static final int ROW_HEIGHT = 42;
+        // One line per trade: the label, then the two costs and the result as standard 22 px slots.
+        private static final int ROW_HEIGHT = 26;
 
         private final VillagerTradeEditorPage parentScreen;
         private final String owner;
@@ -3200,19 +3210,19 @@ public class VillagerTradeEditorPage extends KineticPage {
 
         @Override
         protected void build(KineticUi ui) {
-            this.rootW = Math.min(this.width() - 8, 512);
-            this.rootH = Math.min(this.height() - 8, 312);
+            this.rootW = this.width();
+            this.rootH = this.height();
             this.rootX = (this.width() - rootW) / 2;
             this.rootY = (this.height() - rootH) / 2;
-            this.listX = rootX + 10;
+            this.listX = rootX + 4;
             this.listY = rootY + 32;
-            this.listW = rootW - 20;
+            this.listW = rootW - 8;
             this.listH = rootH - 44;
 
-            int buttonY = rootY + 8;
+            int buttonY = rootY + 4;
             ui().button(rootX + rootW - 118, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.restore_all.tooltip")).onClick(this::restoreAllRemovedTrades).build();
             ui().button(rootX + rootW - 60, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.reset")).tooltip(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.reset.tooltip")).onClick(this::openResetConfirmPopup).build();
-            ui().button(rootX + 10, buttonY, 50).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.back")).onClick(this::returnToParent).build();
+            ui().button(rootX + 4, buttonY, 40).text(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.back")).onClick(this::returnToParent).build();
 
             refreshRemovedEntries();
         }
@@ -3236,10 +3246,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                     }
                 }
             }
-            listScroll.update(
-                    removedEntries.size(),
-                    getVisibleRows()
-            );
+            listScroll.updateContent(Math.max(0, removedEntries.size() * ROW_HEIGHT - 2), listH - 8, ROW_HEIGHT);
         }
 
         @Override
@@ -3250,7 +3257,8 @@ public class VillagerTradeEditorPage extends KineticPage {
             int titleRight = rootX + rootW - 118 - TEXT_GAP;
             int titleWidth = Math.max(1, 2 * Math.min(titleCenter - titleLeft, titleRight - titleCenter));
             g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.title"), titleCenter, rootY + 12, titleWidth, 0xFFFFFF55, true);
-            KineticTheme.panelAlt(g, listX, listY, listW, listH);
+            KineticTheme.surface(g, listX, listY, listW, listH, KineticTheme.Surface.PANEL_ALT);
+            g.hLine(listX, listX + listW, listY - 2, KineticTheme.current().accentHover());
         }
 
         @Override
@@ -3291,7 +3299,8 @@ public class VillagerTradeEditorPage extends KineticPage {
         }
 
         private void renderRemovedEntry(KineticGraphics g, int mx, int my, RemovedDefaultEntry entry, int y) {
-            boolean hover = mx >= listX + 4 && mx <= listX + listW - 12 && my >= y && my < y + ROW_HEIGHT - 2;
+            boolean hover = mx >= listX + 4 && mx < listX + listW - 12 && my >= Math.max(listY + 4, y)
+                    && my < Math.min(listY + listH - 4, y + ROW_HEIGHT - 2);
             KineticTheme.stateSurface(
                     g,
                     listX + 4,
@@ -3303,21 +3312,21 @@ public class VillagerTradeEditorPage extends KineticPage {
                     hover,
                     false
             );
-            int iconX = listX + 126;
-            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.entry", entry.level(), entry.index()), listX + 10, y + 5, iconX - (listX + 10) - TEXT_GAP, 0xFFFFFF55, false);
-            int iconY = y + 13;
+            int iconX = listX + listW - 16 - 4 - 104;
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.villager.villager.trade.removed.entry", entry.level(), entry.index()), listX + 10, y + 8, iconX - (listX + 10) - TEXT_GAP, 0xFFFFFF55, false);
+            int iconY = y + 1;
             renderRemovedMiniStack(g, entry.offer().getBaseCostA(), iconX, iconY);
-            g.text("+", iconX + 24, iconY + 6, 0xFFFFFF55, false);
-            renderRemovedMiniStack(g, entry.offer().getCostB(), iconX + 42, iconY);
-            g.text("→", iconX + 68, iconY + 6, 0xFF55FF55, false);
-            renderRemovedMiniStack(g, entry.offer().getResult(), iconX + 90, iconY);
+            g.text("+", iconX + 25, iconY + 7, 0xFFFFFF55, false);
+            renderRemovedMiniStack(g, entry.offer().getCostB(), iconX + 34, iconY);
+            g.text("→", iconX + 59, iconY + 7, 0xFF55FF55, false);
+            renderRemovedMiniStack(g, entry.offer().getResult(), iconX + 82, iconY);
         }
 
         private void renderRemovedMiniStack(KineticGraphics g, ItemStack stack, int x, int y) {
             ItemStack safeStack = stack == null ? ItemStack.EMPTY : stack;
             renderRemovedFlatSlot(g, x, y);
             if (!safeStack.isEmpty()) {
-                KineticTheme.item(g, safeStack, x, y, 18, 1.0F, true);
+                KineticTheme.item(g, safeStack, x, y, 22, 1.0F, true);
             }
         }
 
@@ -3326,14 +3335,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                 int x,
                 int y
         ) {
-            KineticTheme.itemSlot(
-                    graphics,
-                    x,
-                    y,
-                    18,
-                    4,
-                    false
-            );
+            KineticTheme.itemSlot(graphics, x, y, 22, false);
         }
 
         private void renderRemovedScrollbar(
@@ -3341,10 +3343,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                 int mouseX,
                 int mouseY
         ) {
-            listScroll.update(
-                    removedEntries.size(),
-                    getVisibleRows()
-            );
+            listScroll.updateContent(Math.max(0, removedEntries.size() * ROW_HEIGHT - 2), listH - 8, ROW_HEIGHT);
 
             listScroll.render(
                     graphics,
@@ -3363,10 +3362,7 @@ public class VillagerTradeEditorPage extends KineticPage {
             // 原 canvasMouseClicked 在控件之前处理 / The old canvasMouseClicked handled this before controls.
             double mx = input.x();
             double my = input.y();
-            listScroll.update(
-                    removedEntries.size(),
-                    getVisibleRows()
-            );
+            listScroll.updateContent(Math.max(0, removedEntries.size() * ROW_HEIGHT - 2), listH - 8, ROW_HEIGHT);
 
             if (listScroll.beginDrag(
                     mx,
@@ -3420,10 +3416,7 @@ public class VillagerTradeEditorPage extends KineticPage {
                     && mx <= listX + listW
                     && my >= listY
                     && my <= listY + listH) {
-                listScroll.update(
-                        removedEntries.size(),
-                        getVisibleRows()
-                );
+                listScroll.updateContent(Math.max(0, removedEntries.size() * ROW_HEIGHT - 2), listH - 8, ROW_HEIGHT);
 
                 return listScroll.scroll(delta);
             }
@@ -3432,7 +3425,7 @@ public class VillagerTradeEditorPage extends KineticPage {
         }
 
         private RemovedDefaultEntry findEntryAt(double mx, double my) {
-            if (mx < listX || mx > listX + listW || my < listY || my > listY + listH) {
+            if (mx < listX + 4 || mx >= listX + listW - 12 || my < listY + 4 || my >= listY + listH - 4) {
                 return null;
             }
             int y = listY + 4 - listScroll.visualShift(ROW_HEIGHT);
@@ -3449,8 +3442,23 @@ public class VillagerTradeEditorPage extends KineticPage {
             return null;
         }
 
+        @Override
+        protected void renderTooltips(int mx, int my) {
+            RemovedDefaultEntry entry = findEntryAt(mx, my);
+            if (entry == null) return;
+            int row = removedEntries.indexOf(entry);
+            int y = listY + 4 + (row - listScroll.smoothIndexOffset()) * ROW_HEIGHT
+                    - listScroll.visualShift(ROW_HEIGHT) + 13;
+            if (my < y || my >= y + 18) return;
+            int x = listX + 126;
+            ItemStack stack = mx >= x && mx < x + 18 ? entry.offer().getBaseCostA()
+                    : mx >= x + 42 && mx < x + 60 ? entry.offer().getCostB()
+                    : mx >= x + 90 && mx < x + 108 ? entry.offer().getResult() : ItemStack.EMPTY;
+            if (!stack.isEmpty()) showItemTooltip(stack);
+        }
+
         private int getVisibleRows() {
-            return Math.max(1, listH / ROW_HEIGHT);
+            return Math.max(1, (listH - 8) / ROW_HEIGHT);
         }
 
         private void restoreOneRemovedTrade(RemovedDefaultEntry entry) {

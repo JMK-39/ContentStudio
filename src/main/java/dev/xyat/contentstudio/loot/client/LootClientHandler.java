@@ -17,6 +17,18 @@ public class LootClientHandler {
         LootNetwork.requestOpenEditor(mode);
     }
 
+    /**
+     * Opens the chest loot editor on one table, as a child of the current page so Back returns there. Other mods
+     * call this without depending on ContentStudio (RealmControl's structure editor does, by reflection).
+     */
+    public static void requestOpenTable(String lootTableId) {
+        LootNetwork.requestOpenTable(lootTableId);
+    }
+
+    public static void openTable(List<LootEntryInfo> entries, String lootTableId) {
+        KineticGui.openChild(new ChestLootEditorPage(entries, lootTableId));
+    }
+
     // 返回到回包时的当前界面（无界面时回到游戏）/ Back returns to the screen current when the reply arrives (or the game).
     public static void openScreen(int mode, List<LootEntryInfo> entries) {
         KineticGui.openChild(mode == LootEntryInfo.MODE_CHEST

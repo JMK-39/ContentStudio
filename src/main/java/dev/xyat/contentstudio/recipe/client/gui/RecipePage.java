@@ -33,8 +33,6 @@ import net.minecraft.world.item.TooltipFlag;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 
 public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
     private static final KineticTexture CRAFTING_BG = KineticTexture.of("minecraft", "textures/gui/container/crafting_table.png");
@@ -56,7 +54,6 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
     private KineticButton saveButton;
     private int boxX;
     private int boxY;
-    private final Map<String,List<ItemStack>> tagPreviews=new HashMap<>();
 
     public RecipePage(UniversalRecipeMenu menu, Component title) {
         super(menu, title);
@@ -169,20 +166,20 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 
     @Override
     protected void build(KineticUi ui) {
-        tagPreviews.clear();
         if (menu().type == RecipeRegistry.EditorType.SMITHING) {
             this.outputUseNbt = false;
             setTitleLabelPosition(imageWidth() - KineticText.width(title()) - 10, 10);
         }
 
-        int bW = 85;
+        // The side buttons (Back, shaped/shapeless, Save) are one column of Back-width buttons beside the GUI.
+        int bW = 40;
         int bH = 20;
         int sp = 4;
         int x = leftPos() - bW - 6;
         int y = topPos() + 5;
 
         // 原 HighZButton/HighZToggleButton → layer(1) / Former HighZButton/HighZToggleButton → layer(1).
-        ui.button(x, y, bW)
+        ui.button(x, y, 40)
                 .text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back"))
                 .layer(1)
                 .onClick(this::returnFromRecipeEditor)
@@ -202,7 +199,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             y += bH + sp;
         }
 
-        saveButton = ui.button(x, y, bW)
+        saveButton = ui.button(x, y, 40)
                 .text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.save_deferred"))
                 .layer(1)
                 .onClick(this::handleSave)
@@ -244,9 +241,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
         if (selection.isTag()) {
             if (!allowTag) return;
             String tagId = "#" + selection.value();
-            var variants=tagPreview(tagId);
-            if(variants.isEmpty()) {showToast("gui.contentstudio.recipe.recipehud.err.empty_tag",tagId);return;}
-            ItemStack dummy = variants.get(0).copy();
+            ItemStack dummy = new ItemStack(Items.PAPER);
 //? if >=1.21 {
 /*
             ItemData.updateCustomData(dummy, tag -> tag.putString("kt_tag", tagId));
@@ -263,6 +258,8 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
         container.setItem(slotIdx, stack.isEmpty() || stack.is(Items.AIR) ? ItemStack.EMPTY : stack);
     }
 
+    // Tag ingredients keep their paper carrier; the slot shows the tag's real items cycling with a # badge instead.
+    private final java.util.Map<String,List<ItemStack>> tagPreviews=new java.util.HashMap<>();
     private static String ingredientTag(ItemStack stack) {
         if(stack.isEmpty())return "";
         //? if >=1.21 {
@@ -281,11 +278,11 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             for(var slot:menu().slots) {
                 if(slot.container!=menu().inputContainer)continue;
                 String id=ingredientTag(slot.getItem());if(id.isEmpty())continue;
-                int x=leftPos()+slot.x-1,y=topPos()+slot.y-1;
-                // Legacy records may still carry a paper internally. The native slot hides that carrier completely.
-                RecipeSlots.draw(graphics,x,y,18);
                 var frame=NativeRecipeStacks.frame(tagPreview(id),System.currentTimeMillis());
-                if(!frame.isEmpty())graphics.item(frame,x+1,y+1);
+                if(frame.isEmpty())continue;
+                int x=leftPos()+slot.x-1,y=topPos()+slot.y-1;
+                RecipeSlots.draw(graphics,x,y,18);
+                graphics.item(frame,x+1,y+1);
                 RecipeSlots.tagMarker(graphics,x,y,18,slot.getItem().getCount());
             }
         }finally{graphics.pop();}
@@ -353,65 +350,12 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
             }
         }
 
-        // Keep the existing shortcut alongside the explicit context-menu action.
-        if (input.isLeft() && input.hasShift() && editableSlot && hoveredSlot.hasItem() && menu().getCarried().isEmpty()) {
-            editSlotItem(hoveredSlot.getContainerSlot(),hoveredSlot.container);
-            return true;
-        }
-        // 左键槽位：打开物品搜索（输入槽支持返回#tag，输出槽只返回物品）
-        if (input.isLeft() && editableSlot && menu().getCarried().isEmpty()) {
+        // Shift+左键有物品：直接召唤全屏统一 NBT 编辑器
+        if (input.isLeft() && KineticClientRuntime.shiftModifierDown() && hoveredSlot != null && hoveredSlot.hasItem() && menu().getCarried().isEmpty()) {
             if (editableSlot) {
                 int slotIdx = hoveredSlot.getContainerSlot();
                 Container container = hoveredSlot.container;
-                boolean isInput = hoveredSlot.container == menu().inputContainer;
-
-                openItemSelectorForSlot(slotIdx, container, isInput);
-                return true;
-            }
-        }
-
-        if (input.isRight() && editableSlot && menu().getCarried().isEmpty()) {
-            openContextMenu(input.x(),input.y(),slotMenu(hoveredSlot.getContainerSlot(),hoveredSlot.container),184);
-            return true;
-        }
-        return false;
-    }
-
-    // 原 getTooltipFromContainerItem 覆写：仅供本页自绘提示使用；首行取物品原版提示首行（名称）
-    // Former getTooltipFromContainerItem override: only used by this page's own tooltip; the first line is the item's
-    // vanilla tooltip first line (its name).
-    private List<KineticOverlays.MenuItem> slotMenu(int slotIdx,Container container) {
-        var stack=container.getItem(slotIdx);
-        boolean isInput=container==menu().inputContainer;
-        var items=new ArrayList<KineticOverlays.MenuItem>();
-        items.add(KineticOverlays.MenuItem.action(NativeRecipeBrowserPage.tr("choose_slot"),()->openItemSelectorForSlot(slotIdx,container,isInput)));
-        if(!stack.isEmpty() && !isInvalidPlaceholder(stack))
-            items.add(KineticOverlays.MenuItem.action(NativeRecipeBrowserPage.tr("edit_slot"),()->editSlotItem(slotIdx,container)));
-        else items.add(KineticOverlays.MenuItem.disabled(NativeRecipeBrowserPage.tr("edit_slot")));
-        if(!stack.isEmpty() && isInput && ingredientTag(stack).isEmpty() && !isInvalidPlaceholder(stack)) {
-            String[] modes={"none","weak","strong"};
-            for(int mode=0;mode<modes.length;mode++) {
-                int choice=mode;
-                items.add(KineticOverlays.MenuItem.choice(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.status.nbt.colored").copy()
-                        .append(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.mode."+modes[mode]+".colored")),Component.empty(),inputNbtModes[slotIdx]==mode,
-                        ()->inputNbtModes[slotIdx]=choice));
-            }
-        }else if(!stack.isEmpty() && !isInput && menu().type!=RecipeRegistry.EditorType.SMITHING)
-            items.add(KineticOverlays.MenuItem.toggle(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.status.nbt_output.colored"),Component.empty(),outputUseNbt,()->outputUseNbt=!outputUseNbt));
-        if(!stack.isEmpty())items.add(KineticOverlays.MenuItem.danger(NativeRecipeBrowserPage.tr("remove_slot"),()->{
-            container.setItem(slotIdx,ItemStack.EMPTY);
-            if(isInput)inputNbtModes[slotIdx]=0;else outputUseNbt=false;
-        }));
-        else items.add(KineticOverlays.MenuItem.disabled(NativeRecipeBrowserPage.tr("remove_slot")));
-        return List.copyOf(items);
-    }
-    private void editSlotItem(int slotIdx,Container container) {
-        ItemStack stack=container.getItem(slotIdx);
-        if(stack.isEmpty() || isInvalidPlaceholder(stack))return;
-        if(!ingredientTag(stack).isEmpty()) {
-            openItemSelectorForSlot(slotIdx,container,true);
-            return;
-        }
+                ItemStack stack = hoveredSlot.getItem();
 //? if >=1.21 {
 /*
                 String components = ItemData.format(stack);
@@ -446,6 +390,51 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
                 }
 
 //?}
+                return true;
+            }
+        }
+
+        // 左键空槽：打开物品搜索（输入槽支持返回#tag，输出槽只返回物品）
+        if (input.isLeft() && hoveredSlot != null && !hoveredSlot.hasItem() && menu().getCarried().isEmpty()) {
+            if (editableSlot) {
+                int slotIdx = hoveredSlot.getContainerSlot();
+                Container container = hoveredSlot.container;
+                boolean isInput = hoveredSlot.container == menu().inputContainer;
+
+                openItemSelectorForSlot(slotIdx, container, isInput);
+                return true;
+            }
+        }
+
+        // 右键输入槽有物品：切换NBT匹配模式（tag物品不可切换）
+        if (input.isRight() && hoveredSlot != null && hoveredSlot.hasItem()) {
+            if (hoveredSlot.container == menu().inputContainer) {
+                int slotIdx = hoveredSlot.getContainerSlot();
+                ItemStack stack = hoveredSlot.getItem();
+//? if >=1.21 {
+/*
+                if (ItemData.customData(stack).contains("kt_tag")) return true;
+*///?} else {
+                if (stack.getTag() != null && stack.hasTag() && stack.getTag().contains("kt_tag")) return true;
+//?}
+                inputNbtModes[slotIdx] = (inputNbtModes[slotIdx] + 1) % 3;
+                return true;
+            } else if (hoveredSlot.container == menu().outputContainer) {
+                if (menu().type != RecipeRegistry.EditorType.SMITHING) outputUseNbt = !outputUseNbt;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // 原 getTooltipFromContainerItem 覆写：仅供本页自绘提示使用；首行取物品原版提示首行（名称）
+    // Former getTooltipFromContainerItem override: only used by this page's own tooltip; the first line is the item's
+    // vanilla tooltip first line (its name).
+    /** Says whether an editor slot is an input (material) or the output (result), as in the third-party editor. */
+    private static Component slotRole(boolean output) {
+        return KineticI18n.translatable(output ? "gui.contentstudio.recipe.native.slot_role.output" : "gui.contentstudio.recipe.native.slot_role.input").copy()
+                .withStyle(output ? net.minecraft.ChatFormatting.GOLD : net.minecraft.ChatFormatting.AQUA);
     }
 
     private List<Component> editorSlotTooltip(ItemStack stack, Slot hoveredSlot) {
@@ -465,10 +454,8 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
         if (hoveredSlot != null && hoveredSlot.getItem() == stack
                 && (hoveredSlot.container == menu().inputContainer || hoveredSlot.container == menu().outputContainer)) {
             List<Component> cleaned = new ArrayList<>();
-            String ingredientTag=hoveredSlot.container==menu().inputContainer?ingredientTag(stack):"";
-            var shown=ingredientTag.isEmpty()?ItemStack.EMPTY:NativeRecipeStacks.frame(tagPreview(ingredientTag),System.currentTimeMillis());
-            if(!shown.isEmpty())cleaned.add(shown.getHoverName());
-            else if (!original.isEmpty()) cleaned.add(original.get(0));
+            if (!original.isEmpty()) cleaned.add(original.get(0));
+            cleaned.add(slotRole(hoveredSlot.container == menu().outputContainer));
             cleaned.add(Component.empty());
             if (hoveredSlot.container == menu().inputContainer) {
 //? if >=1.21 {
@@ -479,7 +466,6 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 //?}
                     cleaned.add(stack.getHoverName());
                     cleaned.add(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.lclick_remove.tag.colored"));
-                    cleaned.add(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.rclick_toggle.colored"));
                     return cleaned;
                 }
                 int mode = inputNbtModes[hoveredSlot.getContainerSlot()];
@@ -573,6 +559,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 
     @Override
     protected void renderContainerBackground(KineticGraphics g, int mouseX, int mouseY, float partialTick) {
+        KineticTheme.panel(g, 0, 0, width(), height());
         KineticTexture t = switch (menu().type) {
             case CRAFTING -> CRAFTING_BG;
             case SMITHING -> SMITHING_BG;
@@ -608,9 +595,16 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
         }
 
         if (hoveredSlot.hasItem()) {
-            List<Component> custom = editorSlotTooltip(hoveredSlot.getItem(), hoveredSlot);
-            if (custom != null) showTooltip(custom);
-            else showItemTooltip(hoveredSlot.getItem());
+            ItemStack stack = hoveredSlot.getItem();
+            String tag = ingredientTag(stack);
+            ItemStack shown = tag.isEmpty() ? stack : NativeRecipeStacks.frame(tagPreview(tag), System.currentTimeMillis());
+            if (isInvalidPlaceholder(stack) || shown.isEmpty()) {
+                List<Component> custom = editorSlotTooltip(stack, hoveredSlot);
+                if (custom != null) showTooltip(custom);
+            } else {
+                List<Component> custom = editorSlotTooltip(stack, hoveredSlot);
+                showItemTooltip(shown, custom == null || custom.size() < 2 ? List.of() : custom.subList(1, custom.size()));
+            }
             return;
         }
 
@@ -621,6 +615,7 @@ public class RecipePage extends KineticContainerPage<UniversalRecipeMenu> {
 
         List<Component> tooltip = new ArrayList<>();
         tooltip.add(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.empty_slot_title.colored"));
+        tooltip.add(slotRole(hoveredSlot.container == menu().outputContainer));
         tooltip.add(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.lclick_search.colored"));
         showTooltip(tooltip);
     }

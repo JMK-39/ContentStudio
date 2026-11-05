@@ -41,9 +41,10 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     private static final int LIST_Y = SEARCH_Y + 20;
 
     private static final int SPECIAL_X = RIGHT_X + 10;
-    private static final int SPECIAL_Y = RIGHT_Y + 42;
+    // Right under the one-row header and its divider, like the pool list.
+    private static final int SPECIAL_Y = RIGHT_Y + 28;
     private static final int SPECIAL_W = RIGHT_W - 20;
-    private static final int SPECIAL_H = RIGHT_Y + RIGHT_H - SPECIAL_Y - 10;
+    private static final int SPECIAL_H = RIGHT_Y + RIGHT_H - SPECIAL_Y - 4;
 
     private static final int REMOVE_CELL = 18;
     private static final int REMOVE_GAP = 2;
@@ -56,14 +57,16 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     private static final int EXCLUDE_ROW_H = 24;
     private static final int EXCLUDE_VISIBLE_ROWS = SPECIAL_H / EXCLUDE_ROW_H;
     // Match the normal save slot, leaving the rightmost slot for Back.
-    private static final int GLOBAL_REMOVE_SAVE_X = RIGHT_X + RIGHT_W - 97;
-    private static final int GLOBAL_REMOVE_NBT_X = GLOBAL_REMOVE_SAVE_X - 76;
-    private static final int GLOBAL_REMOVE_MODE_X = GLOBAL_REMOVE_NBT_X - 106;
-    private static final int GLOBAL_REMOVE_ADD_X = GLOBAL_REMOVE_MODE_X - 84;
-    private static final int GLOBAL_REMOVE_BUTTON_Y = RIGHT_Y + 10;
-    private static final int COUNT_Y = GLOBAL_REMOVE_BUTTON_Y + CONTROL_HEIGHT + 2;
-    private static final int GLOBAL_REMOVE_MODE_W = 100;
-    private static final int GLOBAL_EXCLUDE_SAVE_X = RIGHT_X + RIGHT_W - 97;
+    // Header buttons only as wide as their labels, 4 px apart, Save at the top right.
+    private static final int GLOBAL_REMOVE_SAVE_X = RIGHT_X + RIGHT_W - 40;
+    private static final int GLOBAL_REMOVE_NBT_W = 64;
+    private static final int GLOBAL_REMOVE_NBT_X = GLOBAL_REMOVE_SAVE_X - 4 - GLOBAL_REMOVE_NBT_W;
+    private static final int GLOBAL_REMOVE_MODE_W = 92;
+    private static final int GLOBAL_REMOVE_MODE_X = GLOBAL_REMOVE_NBT_X - 4 - GLOBAL_REMOVE_MODE_W;
+    private static final int GLOBAL_REMOVE_ADD_W = 64;
+    private static final int GLOBAL_REMOVE_ADD_X = GLOBAL_REMOVE_MODE_X - 4 - GLOBAL_REMOVE_ADD_W;
+    private static final int GLOBAL_REMOVE_BUTTON_Y = SEARCH_Y;
+    private static final int GLOBAL_EXCLUDE_SAVE_X = RIGHT_X + RIGHT_W - 40;
     // Names end inside their row, before the scrollbar/right inset.
     private static final int EXCLUDE_TEXT_W = SPECIAL_W - 10 - 7 - TEXT_GAP;
     private static final int TARGET_TEXT_W = TARGET_WIDTH - 5 - TEXT_GAP;
@@ -129,6 +132,12 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     public ChestLootEditorPage(List<LootEntryInfo> entries) {
         super(LootEntryInfo.MODE_CHEST, entries, "gui.contentstudio.loot.loots.chest.title");
         enableLootDraft();
+    }
+
+    /** The editor with one table selected and the list searched for it. */
+    public ChestLootEditorPage(List<LootEntryInfo> entries, String lootTableId) {
+        this(entries);
+        focusLootTable(lootTableId);
     }
 
     @Override
@@ -197,22 +206,31 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     @Override
     protected void initSpecialWidgets() {
+        bindDeleteAction(() -> isGlobalRemovePanel()
+                        ? globalRemoveSelectedIndex >= 0 && globalRemoveSelectedIndex < globalRemoveRules.size()
+                        : isGlobalExcludePanel() ? globalExcludeSelectedIndex >= 0 && globalExcludeSelectedIndex < globalExcludedLootTableIds.size()
+                        : canDeleteFocusedRow(),
+                () -> {
+                    if (isGlobalRemovePanel()) removeSelectedGlobalItem();
+                    else if (isGlobalExcludePanel()) removeSelectedGlobalExclude();
+                    else deleteFocusedRow();
+                });
         closeContextMenu();
-        globalRemoveAddButton = ui().button(GLOBAL_REMOVE_ADD_X, GLOBAL_REMOVE_BUTTON_Y, 78).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.add")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.add")).onClick(() -> {
+        globalRemoveAddButton = ui().button(GLOBAL_REMOVE_ADD_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_ADD_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.add")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.add")).onClick(() -> {
                     closeContextMenu();
                     openGlobalRemoveItemPicker();
                 }).build();
-        globalRemoveModeButton = ui().button(GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_MODE_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.match_mode")).onClick(this::toggleGlobalRemoveModeMenu).build();
-        globalRemoveNbtButton = ui().button(GLOBAL_REMOVE_NBT_X, GLOBAL_REMOVE_BUTTON_Y, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.edit_nbt")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.edit_nbt")).onClick(() -> {
+        globalRemoveModeButton = ui().button(GLOBAL_REMOVE_MODE_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_MODE_W).expands().text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.match_mode.none")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.match_mode")).onClick(this::toggleGlobalRemoveModeMenu).build();
+        globalRemoveNbtButton = ui().button(GLOBAL_REMOVE_NBT_X, GLOBAL_REMOVE_BUTTON_Y, GLOBAL_REMOVE_NBT_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.edit_nbt")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.edit_nbt")).onClick(() -> {
                     closeContextMenu();
                     openGlobalRemoveNbtEditor();
                 }).build();
-        globalRemoveSaveButton = ui().button(GLOBAL_REMOVE_SAVE_X, GLOBAL_REMOVE_BUTTON_Y, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.save")).onClick(() -> {
+        globalRemoveSaveButton = ui().button(GLOBAL_REMOVE_SAVE_X, GLOBAL_REMOVE_BUTTON_Y, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.tip.save")).onClick(() -> {
                     closeContextMenu();
                     saveGlobalRemove();
                 }).build();
 
-        globalExcludeSaveButton = ui().button(GLOBAL_EXCLUDE_SAVE_X, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save")).onClick(this::saveGlobalExclude).build();
+        globalExcludeSaveButton = ui().button(GLOBAL_EXCLUDE_SAVE_X, SEARCH_Y, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.tip.save")).onClick(this::saveGlobalExclude).build();
         updateSpecialButtons();
     }
 
@@ -227,6 +245,19 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
 
     private boolean isGlobalExcludePanel() {
         return selectedEntry != null && selectedEntry.isGlobalChestExclude();
+    }
+
+    @Override
+    protected boolean showsHeaderTitle() {
+        // The special panels show their count in the header row instead of the title.
+        return !isGlobalRemovePanel() && !isGlobalExcludePanel();
+    }
+
+    /** The count of a special panel in the header row, left of its buttons, and the divider below the row. */
+    private void renderSpecialHeader(KineticGraphics g, Component count) {
+        int right = headerTextRight() - TEXT_GAP;
+        g.scrollingText(count, RIGHT_X + 6, RIGHT_Y + 4, Math.max(0, right - RIGHT_X - 6), 0xFFFFFFFF, false);
+        g.hLine(RIGHT_X, RIGHT_X + RIGHT_W, SPECIAL_Y - 2, KineticTheme.current().accentHover());
     }
 
     @Override
@@ -399,8 +430,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                 "gui.contentstudio.loot.loots.global_remove.count",
                 Component.literal(Integer.toString(globalRemoveRules.size()))
         );
-        // Below the header buttons; the next panel begins at SPECIAL_Y.
-        g.scrollingTextRight(count, RIGHT_X + RIGHT_W - 10, COUNT_Y, RIGHT_W - 20, 0xFFFFFFFF, false);
+        renderSpecialHeader(g, count);
 
         if (globalRemoveRules.isEmpty()) {
             g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.global_remove.empty"), SPECIAL_X + SPECIAL_W / 2, SPECIAL_Y + SPECIAL_H / 2 - 4, SPECIAL_W - 2 * TEXT_GAP, 0xFFFFAA00, true);
@@ -439,7 +469,8 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
     private void renderGlobalRemoveItem(KineticGraphics g, int index, int x, int y, int mx, int my) {
         GlobalRemoveRule rule = globalRemoveRules.get(index);
         ItemStack stack = itemStack(rule);
-        boolean hovered = mx >= x && mx < x + REMOVE_CELL && my >= y && my < y + REMOVE_CELL;
+        boolean hovered = mx >= x && mx < x + REMOVE_CELL && my >= y && my < y + REMOVE_CELL
+                && mx >= SPECIAL_X && mx < SPECIAL_X + SPECIAL_W - 10 && my >= SPECIAL_Y && my < SPECIAL_Y + SPECIAL_H;
         boolean selected = index == globalRemoveSelectedIndex;
 
         LootCheckerboard.draw(g, x, y, REMOVE_CELL, REMOVE_CELL);
@@ -451,6 +482,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         if (hovered) {
             List<Component> tooltip = new ArrayList<>();
             if (!stack.isEmpty()) {
+                deferredItemTooltip = stack;
                 tooltip.add(KineticI18n.styled("gui.contentstudio.loot.style.name", stack.getHoverName()));
             }
             tooltip.add(idComponent(rule.itemId()));
@@ -471,11 +503,11 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                 "gui.contentstudio.loot.loots.global_exclude.count",
                 Component.literal(Integer.toString(globalExcludedLootTableIds.size()))
         );
-        g.scrollingTextRight(count, RIGHT_X + RIGHT_W - 10, COUNT_Y, RIGHT_W - 20, 0xFFFFFFFF, false);
-        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.desc"), SPECIAL_X + 4, SPECIAL_Y + 4, SPECIAL_W - 2 * TEXT_GAP, 0xFFFFFF55, false);
+        renderSpecialHeader(g, count);
 
-        int listY = SPECIAL_Y + 18;
-        int listH = SPECIAL_H - 18;
+        // The list starts at the top of the panel; how to add and remove is in the tooltips.
+        int listY = SPECIAL_Y + 2;
+        int listH = SPECIAL_H - 2;
         if (globalExcludedLootTableIds.isEmpty()) {
             g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.global_exclude.empty"), SPECIAL_X + SPECIAL_W / 2, listY + listH / 2 - 4, SPECIAL_W - 2 * TEXT_GAP, 0xFFFFAA00, true);
         } else {
@@ -607,8 +639,9 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
                 }
             }
         }
-        int listY = SPECIAL_Y + 18;
-        int listH = SPECIAL_H - 18;
+        // The list starts at the top of the panel; how to add and remove is in the tooltips.
+        int listY = SPECIAL_Y + 2;
+        int listH = SPECIAL_H - 2;
         if (globalExcludeScroller.beginDrag(mx, my, MouseButton.of(btn), SPECIAL_X + SPECIAL_W - 6, listY + 2, 4, listH - 4, 18, 3)) {
             return true;
         }
@@ -641,7 +674,7 @@ public class ChestLootEditorPage extends AbstractLootEditorPage {
         if (globalRemoveScroller.drag(my, SPECIAL_Y + 2, SPECIAL_H - 4, 18)) {
             return true;
         }
-        return globalExcludeScroller.drag(my, SPECIAL_Y + 20, SPECIAL_H - 22, 18);
+        return globalExcludeScroller.drag(my, SPECIAL_Y + 4, SPECIAL_H - 6, 18);
     }
 
     @Override

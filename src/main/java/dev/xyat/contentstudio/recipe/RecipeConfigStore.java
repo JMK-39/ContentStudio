@@ -71,7 +71,22 @@ public final class RecipeConfigStore {
         var registries = STACK_REGISTRIES.get();
         return registries == null ? ItemData.compile(id, components) : ItemData.compile(id, components, registries);
     }
-*///?}
+*///?} else {
+    private static final ThreadLocal<net.minecraftforge.common.crafting.conditions.ICondition.IContext> STACK_CONDITIONS = new ThreadLocal<>();
+
+    /** Reads with the reload's own tags: while a world first loads, the registries have no tags bound yet. */
+    public static synchronized Snapshot load(ResourceManager resources,
+                                              net.minecraftforge.common.crafting.conditions.ICondition.IContext conditions) throws IOException {
+        var previousConditions = STACK_CONDITIONS.get();
+        if (conditions != null) STACK_CONDITIONS.set(conditions);
+        try {
+            return load(resources);
+        } finally {
+            if (previousConditions == null) STACK_CONDITIONS.remove();
+            else STACK_CONDITIONS.set(previousConditions);
+        }
+    }
+//?}
     private RecipeConfigStore() {
     }
 
@@ -611,8 +626,10 @@ public final class RecipeConfigStore {
                 throw new IllegalArgumentException("missing or empty item tag " + rawTag);
             }
 *///?} else {
-            Ingredient tagIngredient = Ingredient.of(tagKey);
-            if (tagIngredient.getItems().length == 0) {
+            var conditions = STACK_CONDITIONS.get();
+            boolean hasTag = conditions != null && !conditions.getTag(tagKey).isEmpty()
+                    || Ingredient.of(tagKey).getItems().length > 0;
+            if (!hasTag) {
                 throw new IllegalArgumentException("missing or empty item tag " + rawTag);
             }
 //?}

@@ -3,6 +3,7 @@ package dev.xyat.contentstudio.recipe.client.gui;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
+import dev.xyat.kineticcore.api.client.gui.theme.KineticSizes;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
 import dev.xyat.kineticcore.api.client.gui.ui.KineticUi;
 import dev.xyat.kineticcore.api.client.gui.widget.*;
@@ -15,8 +16,14 @@ import java.util.List;
 
 final class RecipeRemovalPreviewPage extends KineticPage {
     private static final int PAGE_WIDTH = 640;
-    private static final int TEXT_MARGIN = 16;
-    private static final int TEXT_WIDTH = PAGE_WIDTH - TEXT_MARGIN * 2;
+    // Header: Back, title and the three actions on one row; the recipe ID and its status on a small second line.
+    private static final int SAVE_X = 596, TOGGLE_X = SAVE_X - 4 - 60, VIEWER_X = TOGGLE_X - 4 - 60;
+    private static final int INFO_Y = 25, DIVIDER_Y = 36;
+    // The content area below the divider; the recipe is centred in it.
+    private static final int AREA_X = 4, AREA_Y = DIVIDER_Y + 2, AREA_W = 632, AREA_H = 356 - AREA_Y;
+    private static final int TEXT_WIDTH = AREA_W - 8;
+    // Fallback (no viewer layout): standard item slots (KineticSizes).
+    private static final int SLOT = KineticSizes.ITEM_SLOT, PITCH = KineticSizes.ITEM_PITCH, ARROW_W = 28;
     private final RecipeRemovalPage parent;
     private final RecipeJeiBridge.Entry entry;
     private RecipeJeiBridge.Preview preview;
@@ -40,19 +47,19 @@ final class RecipeRemovalPreviewPage extends KineticPage {
     }
 
     @Override protected void build(KineticUi ui) {
-        ui().button(16, 10, 60).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
-        viewerButton = ui().button(432, 328, 60).text(RecipeRemovalPage.tr("open_viewer")).tooltip(RecipeRemovalPage.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing")).onClick(this::openViewerMenu).build();
+        ui().button(4, 4, 40).text(RecipeRemovalPage.tr("back")).onClick(this::close).build();
+        viewerButton = ui().button(VIEWER_X, 4, 60).text(RecipeRemovalPage.tr("open_viewer")).tooltip(RecipeRemovalPage.tr(RecipeJeiBridge.available() ? "viewer_recipe_hint" : "viewer_missing")).onClick(this::openViewerMenu).build();
         viewerButton.setEnabled(RecipeJeiBridge.available());
-        toggle = ui().button(498, 328, 60).text(parent.recipeAction(entry)).onClick(() -> {
+        toggle = ui().button(TOGGLE_X, 4, 60).text(parent.recipeAction(entry)).onClick(() -> {
             parent.toggleRecipe(entry);
             refreshAction();
         }).build();
-        ui().button(564, 328, 60).text(RecipeRemovalPage.tr("save")).tooltip(RecipeRemovalPage.tr("save_hint")).onClick(parent::save).build();
+        ui().button(SAVE_X, 4, 40).text(RecipeRemovalPage.tr("save")).tooltip(RecipeRemovalPage.tr("save_hint")).onClick(parent::save).build();
         refreshAction();
         if (preview != null) {
-            previewScale = Math.min(1, Math.min(580f / Math.max(1, preview.width()), 214f / Math.max(1, preview.height())));
-            previewX = (int) ((640 - preview.width() * previewScale) / 2);
-            previewY = 74 + (int) ((230 - preview.height() * previewScale) / 2);
+            previewScale = Math.min(1, Math.min((AREA_W - 16f) / Math.max(1, preview.width()), (AREA_H - 16f) / Math.max(1, preview.height())));
+            previewX = AREA_X + (int) ((AREA_W - preview.width() * previewScale) / 2);
+            previewY = AREA_Y + (int) ((AREA_H - preview.height() * previewScale) / 2);
         }
     }
 
@@ -73,7 +80,7 @@ final class RecipeRemovalPreviewPage extends KineticPage {
                         () -> openViewer(viewer)
                 ))
                 .toList();
-        openContextMenu(432, 328, items);
+        openContextMenu(VIEWER_X, 22, items);
     }
 
     private void openViewer(RecipeJeiBridge.Viewer viewer) {
@@ -116,13 +123,15 @@ final class RecipeRemovalPreviewPage extends KineticPage {
 
     @Override protected void renderBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
         KineticTheme.panel(graphics, 0, 0, 640, 360);
-        graphics.scrollingText(title(), 82, 16, PAGE_WIDTH - TEXT_MARGIN - 82, KineticTheme.current().text(), true);
+        graphics.scrollingText(title(), 48, 8, VIEWER_X - 4 - 48, KineticTheme.current().text(), false);
         Component id = entry.recipe().id() == null ? RecipeRemovalPage.tr("no_id") : Component.literal(entry.recipe().id().toString());
-        graphics.scrollingTextCentered(id, PAGE_WIDTH / 2, 36, TEXT_WIDTH, KineticTheme.current().mutedText(), true);
-        graphics.scrollingTextCentered(parent.statusLabel(entry), PAGE_WIDTH / 2, 50, TEXT_WIDTH, KineticTheme.current().mutedText(), true);
-        KineticTheme.panelAlt(graphics, 16, 62, 608, 250);
-        if (dataError) graphics.scrollingTextCentered(RecipeRemovalPage.tr("data_error"), PAGE_WIDTH / 2, 170,
-                TEXT_WIDTH - 8, KineticTheme.current().danger(), true);
+        Component status = parent.statusLabel(entry);
+        int statusW = 200;
+        graphics.scrollingText(id, 6, INFO_Y, AREA_W - statusW - 12, KineticTheme.current().mutedText(), false);
+        graphics.scrollingTextRight(status, 634, INFO_Y, statusW, KineticTheme.current().mutedText(), false);
+        graphics.hLine(AREA_X, AREA_X + AREA_W, DIVIDER_Y, KineticTheme.current().accentHover());
+        if (dataError) graphics.scrollingTextCentered(RecipeRemovalPage.tr("data_error"), PAGE_WIDTH / 2, AREA_Y + AREA_H / 2 - 4,
+                TEXT_WIDTH, KineticTheme.current().danger(), false);
         else if (preview != null) drawPreview(graphics, mouseX, mouseY, false);
         else {
             try { renderFallback(graphics); } catch (RuntimeException ignored) { markError(); }
@@ -148,29 +157,47 @@ final class RecipeRemovalPreviewPage extends KineticPage {
         } finally { graphics.pop(); }
     }
 
+    /** The fallback block: the inputs as a grid, an arrow, then the output, centred in the content area. */
+    private record FallbackLayout(int columns, int count, int gridX, int gridY, int arrowX, int outputX, int outputY) { }
+
+    private FallbackLayout fallbackLayout() {
+        var recipe = entry.recipe();
+        int columns = recipe.craftingWidth() > 0 ? Math.min(9, recipe.craftingWidth()) : Math.min(9, Math.max(1, recipe.inputs().size()));
+        int count = Math.min(recipe.inputs().size(), columns * 12);
+        int rows = Math.max(1, (count + columns - 1) / columns);
+        int gridW = columns * PITCH - 2, gridH = rows * PITCH - 2;
+        int blockW = gridW + ARROW_W + SLOT;
+        int gridX = AREA_X + (AREA_W - blockW) / 2;
+        int gridY = AREA_Y + 16 + (AREA_H - 16 - gridH) / 2;
+        int arrowX = gridX + gridW;
+        int outputX = arrowX + ARROW_W;
+        int outputY = gridY + (gridH - SLOT) / 2;
+        return new FallbackLayout(columns, count, gridX, gridY, arrowX, outputX, outputY);
+    }
+
     private void renderFallback(KineticGraphics graphics) {
         var recipe = entry.recipe();
+        FallbackLayout layout = fallbackLayout();
         graphics.scrollingTextCentered(RecipeRemovalPage.tr(dataError ? "data_error" : "fallback_preview"),
-                PAGE_WIDTH / 2, 82, TEXT_WIDTH - 8,
-                dataError ? KineticTheme.current().danger() : KineticTheme.current().mutedText(), true);
-        int columns = recipe.craftingWidth() > 0 ? Math.min(9, recipe.craftingWidth()) : 9;
+                PAGE_WIDTH / 2, layout.gridY() - 14, TEXT_WIDTH,
+                dataError ? KineticTheme.current().danger() : KineticTheme.current().mutedText(), false);
         int cycle = (int) ((System.currentTimeMillis() / 1000) % Integer.MAX_VALUE);
-        for (int i = 0; i < Math.min(recipe.inputs().size(), columns * 6); i++) {
-            int x = 100 + i % columns * 22, y = 118 + i / columns * 22;
-            RecipeSlots.draw(graphics, x, y, 20);
+        for (int i = 0; i < layout.count(); i++) {
+            int x = layout.gridX() + i % layout.columns() * PITCH, y = layout.gridY() + i / layout.columns() * PITCH;
+            RecipeSlots.draw(graphics, x, y, SLOT);
             try {
                 var alternatives = recipe.alternatives(i);
-                if (alternatives.length > 0) KineticTheme.item(graphics, alternatives[cycle % alternatives.length], x, y, 20, 1.0F, false);
+                if (alternatives.length > 0) KineticTheme.item(graphics, alternatives[cycle % alternatives.length], x, y, SLOT, 1.0F, false);
             } catch (RuntimeException ignored) { markError(); }
         }
-        graphics.text("→", 362, 172, KineticTheme.current().text(), false);
-        RecipeSlots.draw(graphics, 412, 164, 20);
-        KineticTheme.item(graphics, recipe.output(), 412, 164, 20, 1.0F, false);
-        graphics.itemDecorations(recipe.output(), 414, 166);
+        graphics.centeredText("\u2192", layout.arrowX() + ARROW_W / 2, layout.outputY() + (SLOT - 8) / 2, KineticTheme.current().text(), false);
+        RecipeSlots.draw(graphics, layout.outputX(), layout.outputY(), SLOT);
+        KineticTheme.item(graphics, recipe.output(), layout.outputX(), layout.outputY(), SLOT, 1.0F, false);
+        graphics.itemDecorations(recipe.output(), layout.outputX() + (SLOT - 16) / 2, layout.outputY() + (SLOT - 16) / 2);
     }
 
     @Override protected void renderTooltips(int mouseX, int mouseY) {
-        if (mouseY >= 32 && mouseY < 62) {
+        if (mouseY >= INFO_Y - 1 && mouseY < DIVIDER_Y) {
             showTooltip(parent.recipeReasonLines(entry), 360);
             return;
         }
@@ -181,12 +208,11 @@ final class RecipeRemovalPreviewPage extends KineticPage {
 
     private ItemStack hoveredFallbackStack(double mouseX, double mouseY) {
         var recipe = entry.recipe();
-        int columns = recipe.craftingWidth() > 0 ? Math.min(9, recipe.craftingWidth()) : 9;
-        int limit = Math.min(recipe.inputs().size(), columns * 6);
+        FallbackLayout layout = fallbackLayout();
         int cycle = (int) ((System.currentTimeMillis() / 1000) % Integer.MAX_VALUE);
-        for (int i = 0; i < limit; i++) {
-            int x = 100 + i % columns * 22, y = 118 + i / columns * 22;
-            if (mouseX >= x && mouseX < x + 20 && mouseY >= y && mouseY < y + 20) {
+        for (int i = 0; i < layout.count(); i++) {
+            int x = layout.gridX() + i % layout.columns() * PITCH, y = layout.gridY() + i / layout.columns() * PITCH;
+            if (mouseX >= x && mouseX < x + SLOT && mouseY >= y && mouseY < y + SLOT) {
                 try {
                     ItemStack[] alternatives = recipe.alternatives(i);
                     if (alternatives.length > 0) return alternatives[cycle % alternatives.length];
@@ -195,7 +221,8 @@ final class RecipeRemovalPreviewPage extends KineticPage {
                 }
             }
         }
-        if (mouseX >= 412 && mouseX < 432 && mouseY >= 164 && mouseY < 184) return recipe.output();
+        if (mouseX >= layout.outputX() && mouseX < layout.outputX() + SLOT
+                && mouseY >= layout.outputY() && mouseY < layout.outputY() + SLOT) return recipe.output();
         return ItemStack.EMPTY;
     }
 

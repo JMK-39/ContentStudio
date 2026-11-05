@@ -46,6 +46,33 @@ public class TooltipClientHandlers {
     }
 
     private static SaveIntent pendingSaveIntent = SaveIntent.NONE;
+    private static boolean editorRequestPending;
+    private static KineticGui.NavigationParent editorRequestParent;
+    private static long editorRequestConnection = -1;
+
+    public static boolean requestEditor() {
+        long connection = KineticClientRuntime.connectionRevision();
+        if (editorRequestPending && editorRequestConnection == connection) return true;
+        editorRequestParent = KineticGui.captureNavigationParent();
+        editorRequestConnection = connection;
+        editorRequestPending = true;
+        try {
+            if (!TooltipNetwork.requestEditor()) {
+                clearEditorRequest();
+                return false;
+            }
+            return true;
+        } catch (RuntimeException exception) {
+            clearEditorRequest();
+            throw exception;
+        }
+    }
+
+    private static void clearEditorRequest() {
+        editorRequestPending = false;
+        editorRequestParent = null;
+        editorRequestConnection = -1;
+    }
 
     private static void sendSave(SaveIntent intent) {
         pendingSaveIntent = intent;
@@ -67,6 +94,7 @@ public class TooltipClientHandlers {
     }
 
     public static void handleOpenFailure(int reason) {
+        clearEditorRequest();
         KineticOverlays.toast(KineticI18n.translatable(
                 reason == 0
                         ? "msg.contentstudio.tooltip.tooltipeditor.permission_denied.colored"
@@ -106,6 +134,10 @@ public class TooltipClientHandlers {
     private static final Pattern COLOR_PATTERN = Pattern.compile("§[0-9a-fk-or]");
 
     public static void openHubScreen(String json) {
+        KineticGui.NavigationParent parent = editorRequestPending
+                && editorRequestConnection == KineticClientRuntime.connectionRevision()
+                ? editorRequestParent : KineticGui.captureNavigationParent();
+        clearEditorRequest();
         try {
             Map<String, List<TooltipManager.TooltipRule>> loaded = TooltipManager.GSON.fromJson(
                     json,
@@ -116,15 +148,16 @@ public class TooltipClientHandlers {
                 return;
             }
             clientData = loaded;
-            // 原代码无父界面打开中心页 / The original opened the hub without a parent screen.
-            KineticGui.open(new TooltipHubPage());
+            KineticGui.openChild(new TooltipHubPage(), parent);
         } catch (RuntimeException exception) {
             KineticOverlays.toast(KineticI18n.translatable("msg.contentstudio.tooltip.tooltipeditor.load_failed.colored"));
         }
     }
 
     public static class TooltipHubPage extends KineticPage {
-        private static final int CELL_SIZE = 36;
+        // Standard item slots (KineticSizes): CELL_SIZE is the pitch, SLOT the drawn slot.
+        private static final int CELL_SIZE = dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_PITCH;
+        private static final int SLOT = dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT;
 
         private final KineticSearch.Model<String> itemModel;
         private final KineticScrollController gridScroll =
@@ -139,7 +172,7 @@ public class TooltipClientHandlers {
 
         private KineticTextField searchBox;
         private String lastSearch = "";
-        // 网格无选中概念：中键跳转目标为最近点击的物品（按 ID 跟踪以适应搜索筛选）/ The grid has no selection: the middle-click target is the last clicked item (tracked by id so search filtering keeps it valid).
+        // Middle-click and Delete use the last clicked item, tracked by id across search filtering.
         private String lastClickedItemId;
 
         public TooltipHubPage() {
@@ -187,31 +220,33 @@ public class TooltipClientHandlers {
 
         @Override
         protected void build(KineticUi ui) {
-            int padding = 20;
-            int topY = 15;
+            int padding = 4;
+            int topY = 4;
+            bindDeleteAction(() -> lastClickedItemId != null && clientData.containsKey(lastClickedItemId), () -> removeItemConfiguration(lastClickedItemId));
 
-            searchBox = ui().textField(padding + 85, topY, 150).placeholder(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.search_hint")).build();
+            searchBox = ui().textField(padding + 44, topY, 190).placeholder(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.search_hint")).build();
 
             searchBox.setTextValue(lastSearch);
             searchBox.onTextChange(this::updateSearch);
 
-            int btnW = 80;
+            // Save at the top right, Add to its left, each as wide as its label.
+            int btnW = 56;
             int backBtnX =
                     padding;
 
-            int addBtnX =
-                    width() - padding - btnW;
-
             int saveBtnX =
-                    addBtnX - btnW - 5;
+                    width() - padding - 40;
 
-            ui().button(saveBtnX, topY, btnW).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.save")).onClick(this::saveChanges).build();
+            int addBtnX =
+                    saveBtnX - 4 - btnW;
+
+            ui().button(saveBtnX, topY, 40).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.save")).onClick(this::saveChanges).build();
 
             ui().button(addBtnX, topY, btnW).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.add")).onClick(this::openAddItemSelector).build();
 
-            ui().button(backBtnX, topY, btnW).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.close")).onClick(this::close).build();
+            ui().button(backBtnX, topY, 40).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.close")).onClick(this::close).build();
 
-            gridY = 50;
+            gridY = topY + CONTROL_HEIGHT + 4;
 
             int availableWidth =
                     width() - padding * 2 - 10;
@@ -271,6 +306,13 @@ public class TooltipClientHandlers {
                     + KineticSearch.pinyin(name);
         }
 
+        private void removeItemConfiguration(String itemId) {
+            if (itemId == null) return;
+            clientData.remove(itemId);
+            if (itemId.equals(lastClickedItemId)) lastClickedItemId = null;
+            updateSearch(searchBox == null ? lastSearch : searchBox.textValue());
+        }
+
         private void saveChanges() {
             for (List<TooltipManager.TooltipRule> rules
                     : clientData.values()) {
@@ -321,11 +363,12 @@ public class TooltipClientHandlers {
                 int mouseY,
                 float partialTick
         ) {
-            KineticTheme.canvasBackground(graphics, width(), height());
+            KineticTheme.panel(graphics, 0, 0, width(), height());
 
-            graphics.scrollingTextCentered(title(), width() / 2, 5, width() - 40, 0xFFFFFF, true);
+            graphics.scrollingTextCentered(title(), width() / 2, 8, Math.max(0, 2 * Math.min(width() / 2 - 238, width() / 2 - 104 - 4)), 0xFFFFAA00, true);
 
-            KineticTheme.panel(graphics, gridX - 2, gridY - 2, gridW + 4, gridH + 4);
+            KineticTheme.surface(graphics, gridX - 2, gridY - 2, gridW + 4, gridH + 4, KineticTheme.Surface.PANEL);
+            graphics.hLine(gridX - 2, gridX + gridW + 2, gridY - 2, KineticTheme.current().accentHover());
         }
 
         @Override
@@ -374,9 +417,9 @@ public class TooltipClientHandlers {
 
                 boolean hovered =
                         mouseX >= x
-                                && mouseX < x + CELL_SIZE
+                                && mouseX < x + SLOT
                                 && mouseY >= y
-                                && mouseY < y + CELL_SIZE;
+                                && mouseY < y + SLOT;
 
                 Item item =
                         KineticRegistries.items().get(
@@ -388,23 +431,9 @@ public class TooltipClientHandlers {
                                 ? new ItemStack(item)
                                 : ItemStack.EMPTY;
 
-                KineticTheme.itemSlot(graphics, x, y, CELL_SIZE, 4, hovered);
-
-                graphics.push();
-                graphics.translate(
-                        x + 6, y + 6);
-
-                graphics.scale(
-                        1.5f, 1.5f);
-
-                graphics.item(
-                        stack,
-                        0,
-                        0
-                );
-
-                graphics.pop();
-
+                KineticTheme.itemSlot(graphics, x, y, SLOT, hovered);
+                KineticTheme.stateOutline(graphics, x, y, SLOT, SLOT, itemId.equals(lastClickedItemId), hovered, false);
+                KineticTheme.item(graphics, stack, x, y, SLOT, 1.0F, false);
                 String countText =
                         String.valueOf(
                                 clientData.get(itemId).size()
@@ -413,9 +442,9 @@ public class TooltipClientHandlers {
                 graphics.push();
                 graphics.translate(
                         x
-                                + CELL_SIZE
+                                + SLOT
                                 - 2
-                                - KineticText.width(countText) * 0.7f, y + CELL_SIZE - 8);
+                                - KineticText.width(countText) * 0.7f, y + SLOT - 7);
 
                 graphics.scale(
                         0.7f, 0.7f);
@@ -424,29 +453,7 @@ public class TooltipClientHandlers {
 
                 graphics.pop();
 
-                boolean deleteHovered =
-                        KineticTheme.hovering(
-                                mouseX,
-                                mouseY,
-                                x + CELL_SIZE - 10,
-                                y + 2,
-                                8,
-                                8
-                        );
-
-                graphics.push();
-                graphics.translate(
-                        x + CELL_SIZE - 8, y + 2);
-
-                graphics.scale(
-                        0.8f, 0.8f);
-
-                graphics.text("x", 0, 0, deleteHovered
-                                ? 0xFFFF5555
-                                : 0xFF888888, false);
-
-                graphics.pop();
-                gridScroll.renderSelectionFlash(graphics, i, x, y, CELL_SIZE, CELL_SIZE);
+                gridScroll.renderSelectionFlash(graphics, i, x, y, SLOT, SLOT);
             }
 
             graphics.endScissor();
@@ -515,27 +522,15 @@ public class TooltipClientHandlers {
             int cellY =
                     gridY + row * CELL_SIZE - visualShift;
 
-            if (KineticTheme.hovering(
-                    scaledMouseX,
-                    scaledMouseY,
-                    cellX + CELL_SIZE - 10,
-                    cellY + 2,
-                    8,
-                    8
-            )) {
-                showTooltip(KineticI18n.translatable(
-                        "gui.contentstudio.tooltip.tooltipeditor.hub.delete"
-                ));
-                return;
-            }
-
+            if (scaledMouseX >= cellX + SLOT || scaledMouseY >= cellY + SLOT) return;
             Item item =
                     KineticRegistries.items().get(
                             KineticResourceIds.parse(items.get(index))
                     );
-
             if (item != null) {
-                showItemTooltip(new ItemStack(item));
+                showItemTooltip(new ItemStack(item), List.of(KineticI18n.translatable(
+                        "gui.contentstudio.tooltip.tooltipeditor.hub.cell_hint")));
+                tooltipAnchor(cellX, cellY, SLOT, SLOT);
             }
         }
 
@@ -604,25 +599,18 @@ public class TooltipClientHandlers {
                                     + row * CELL_SIZE
                                     - visualShift;
 
-                    if (KineticTheme.hovering(
-                            mouseX,
-                            mouseY,
-                            cellX + CELL_SIZE - 10,
-                            cellY + 2,
-                            8,
-                            8
-                    )) {
-                        clientData.remove(itemId);
-
-                        updateSearch(
-                                searchBox.textValue()
-                        );
-
+                    if (mouseX >= cellX + SLOT || mouseY >= cellY + SLOT) return true;
+                    if (input.isRight()) {
+                        openContextMenu(mouseX, mouseY, List.of(
+                                dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem.action(
+                                        KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.edit"), Component.empty(),
+                                        () -> openChild(new TooltipEditPage(this, itemId))),
+                                dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays.MenuItem.action(
+                                        KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.hub.delete"), Component.empty(),
+                                        () -> removeItemConfiguration(itemId))));
                         return true;
                     }
-
                     openChild(new TooltipEditPage(this, itemId));
-
                     return true;
                 }
             }
@@ -667,6 +655,8 @@ public class TooltipClientHandlers {
                         index -> index - this.visibleRows / 2);
 
         private final int ROW_HEIGHT = 28;
+        // The item icon in the header row, a standard item slot.
+        private static final int ICON_Y = 3;
         // Header viewports follow the mode, line, key and text controls below them.
         private static final int MODE_WIDTH = 32, LINE_X = 34, LINE_WIDTH = 24;
         private static final int KEY_X = 60, KEY_WIDTH = 65, TEXT_X = 127;
@@ -708,22 +698,24 @@ public class TooltipClientHandlers {
         @Override
         protected void build(KineticUi ui) {
             widgets.clear();
+            bindDeleteAction(() -> lastClickedRuleIndex >= 0 && lastClickedRuleIndex < rules.size(), () -> removeRule(lastClickedRuleIndex));
 
-            startX = 10;
+            startX = 4;
             listW = this.width() - 35; // 预留右侧独立轨道给滚动条
-            listStartY = 80;
-            infoX = 65;
+            // One header row (Back, the item, the colours, Add and Save), the column titles, then the rules.
+            listStartY = 44;
+            infoX = 48;
 
-            int btnY = 15;
-            int btnW_Save = 85;
-            int btnW_Add = 60;
-            int btnW_Back = 45;
+            int btnY = 4;
+            int btnW_Save = 52;
+            int btnW_Add = 52;
+            int btnW_Back = 40;
 
-            int saveBtnX = this.width() - 15 - btnW_Save;
-            int addBtnX = saveBtnX - btnW_Add - 5;
-            int backBtnX = 15;
+            int saveBtnX = this.width() - 4 - btnW_Save;
+            int addBtnX = saveBtnX - btnW_Add - 4;
+            int backBtnX = 4;
 
-            ui().button(backBtnX, btnY, btnW_Back).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.back")).onClick(() -> {
+            ui().button(backBtnX, btnY, 40).text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.back")).onClick(() -> {
                         saveInputStates();
                         if (rules.isEmpty()) clientData.remove(itemId);
                         navigateBack();
@@ -758,20 +750,19 @@ public class TooltipClientHandlers {
                 widgets.add(w);
             }
 
-            // 16 px swatches 18 px apart (2 px gaps), ending before the right-hand actions.
-            int curX = addBtnX - (8 * SWATCH_PITCH - 2) - 4 - 15 - 4;
-            // The color palette is the first control beside both item information lines.
-            infoTextWidth = curX - (infoX + 30) - HEADER_GAP;
+            // All sixteen colours in one row of 16 px swatches 18 px apart, then R, left of Add and Save.
+            int resetX = addBtnX - 4 - 15;
+            int curX = resetX - 4 - (COLORS.length * SWATCH_PITCH - 2);
+            // The Ctrl-drag hint uses the room between the item icon and the colours.
+            infoTextWidth = curX - (infoX + 26) - HEADER_GAP;
             for (int i = 0; i < COLORS.length; i++) {
                 final String c = "§" + CODES[i];
-                int col = i % 8;
-                int row = i / 8;
-                ui.colorSwatch(curX + col * SWATCH_PITCH, btnY - 2 + row * SWATCH_PITCH, COLORS[i])
+                ui.colorSwatch(curX + i * SWATCH_PITCH, btnY, COLORS[i])
                         .tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.color.insert", c))
                         .onClick(() -> insertCode(c))
                         .build();
             }
-            ui().button(curX + 8 * SWATCH_PITCH - 2 + 4, btnY + 4, 15).text(Component.literal("R")).tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.color.reset")).onClick(() -> insertCode("§r")).build();
+            ui().button(resetX, btnY, 15).text(Component.literal("R")).tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.color.reset")).onClick(() -> insertCode("§r")).build();
 
             updateWidgetPositions();
         }
@@ -783,6 +774,15 @@ public class TooltipClientHandlers {
                 textBox.setTextValue(next);
                 textBox.setCursorIndex(pos + c.length());
             }
+        }
+
+        private void removeRule(int index) {
+            if (index < 0 || index >= rules.size()) return;
+            saveInputStates();
+            rules.remove(index);
+            if (lastClickedRuleIndex == index) lastClickedRuleIndex = -1;
+            else if (lastClickedRuleIndex > index) lastClickedRuleIndex--;
+            rebuild();
         }
 
         private void saveInputStates() {
@@ -801,23 +801,23 @@ public class TooltipClientHandlers {
 
         @Override
         protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
-            KineticTheme.canvasBackground(g, this.width(), this.height());
-            KineticTheme.panel(g, startX - 2, listStartY - 2, listW + 4, listH + 4);
-            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.drag_hint"), startX, listStartY - 30, listW, 0xFFFFFF, true);
+            KineticTheme.panel(g, 0, 0, width(), height());
+            KineticTheme.surface(g, startX - 2, listStartY - 2, listW + 4, listH + 4, KineticTheme.Surface.PANEL);
+            g.hLine(startX - 2, startX + listW + 2, listStartY - 2, KineticTheme.current().accentHover());
+            g.hLine(startX - 2, startX + listW + 2, 27, KineticTheme.current().accentHover());
         }
 
         @Override
         protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
             updateWidgetPositions();
-            boolean hoverIcon = KineticTheme.hovering(mx, my, infoX, 10, 24, 24);
-            KineticTheme.itemSlot(g, infoX, 10, 24, 4, hoverIcon);
+            // The header shows only the item (its name and ID are in its tooltip); click it to swap the item.
+            int slot = dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT;
+            boolean hoverIcon = KineticTheme.hovering(mx, my, infoX, ICON_Y, slot, slot);
+            KineticTheme.itemSlot(g, infoX, ICON_Y, slot, hoverIcon);
+            KineticTheme.item(g, itemStack, infoX, ICON_Y, slot, 1.0F, false);
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.drag_hint"), infoX + slot + 4, 8, infoTextWidth, KineticTheme.current().mutedText(), false);
 
-            KineticTheme.item(g, itemStack, infoX, 10, 24, 1.0F, false);
-
-            g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.title", itemStack.getHoverName()), infoX + 30, 12, infoTextWidth, 0xFFFFFF, true);
-            g.scrollingText(Component.literal(itemId), infoX + 30, 24, infoTextWidth, 0xAAAAAA, true);
-
-            int headerY = listStartY - 15;
+            int headerY = listStartY - 12;
             g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.mode"), startX + 2, headerY, MODE_WIDTH - HEADER_GAP, 0xFFFF55, true);
             g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.line_short"), startX + LINE_X + 1, headerY, LINE_WIDTH - HEADER_GAP, 0xFFFF55, true);
             g.scrollingText(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.header.key"), startX + KEY_X + 10, headerY, KEY_WIDTH - 10 - HEADER_GAP, 0xFFFF55, true);
@@ -827,6 +827,7 @@ public class TooltipClientHandlers {
             if (lastClickedRuleIndex >= 0) {
                 int rowShift = (int) Math.round(scrollPixelOffset());
                 g.scissor(startX - 1, listStartY, startX + listW + 1, listStartY + listH);
+                KineticTheme.stateOutline(g, startX - 1, listStartY + lastClickedRuleIndex * ROW_HEIGHT - rowShift - 2, listW + 2, 20, true, false, false);
                 for (int i = 0; i < rules.size(); i++) {
                     scroller.renderSelectionFlash(g, i, startX - 1, listStartY + i * ROW_HEIGHT - rowShift - 2, listW + 2, 20);
                 }
@@ -889,8 +890,10 @@ public class TooltipClientHandlers {
 
         @Override
         protected void renderTooltips(int smx, int smy) {
-            if (KineticTheme.hovering(smx, smy, infoX, 10, 24, 24)) {
-                showTooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.swap_item"));
+            int slot = dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT;
+            if (KineticTheme.hovering(smx, smy, infoX, ICON_Y, slot, slot)) {
+                if (!itemStack.isEmpty()) showItemTooltip(itemStack, List.of(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.swap_item")));
+                else showTooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.edit.swap_item"));
             }
         }
 
@@ -918,7 +921,7 @@ public class TooltipClientHandlers {
                     }
                 }
             }
-            if (mx >= infoX && mx <= infoX + 24 && my >= 10 && my <= 34) {
+            if (mx >= infoX && mx < infoX + dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT && my >= ICON_Y && my < ICON_Y + dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT) {
                 KineticSelectors.openItemSelector(selection -> {
                     if (!selection.isItem()) return;
                     String cleanId = selectedItemId(selection.stack());
@@ -1061,11 +1064,7 @@ public class TooltipClientHandlers {
                         .text(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.rule.delete.btn"))
                         .tooltip(KineticI18n.translatable("gui.contentstudio.tooltip.tooltipeditor.rule.delete"))
                         .onClick(() -> {
-                            saveInputStates();
-                            rules.remove(index);
-                            if (lastClickedRuleIndex == index) lastClickedRuleIndex = -1;
-                            else if (lastClickedRuleIndex > index) lastClickedRuleIndex--;
-                            TooltipEditPage.this.rebuild();
+                            removeRule(index);
                         })
                         .build();
             }

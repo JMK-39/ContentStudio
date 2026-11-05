@@ -4,7 +4,9 @@
 @net.neoforged.fml.common.Mod("contentstudio_gui_capture")
 public final class GuiCaptureNeoForgeEntry {
     public GuiCaptureNeoForgeEntry() {
-        if (Boolean.getBoolean("contentstudio.nativeRecipeCreation")) {
+        if (Boolean.getBoolean("contentstudio.tooltipNavigation")) {
+            dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> TooltipNavigationValidation::install);
+        } else if (Boolean.getBoolean("contentstudio.nativeRecipeCreation")) {
             dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> NativeRecipeCreationValidation::install);
         } else if (Boolean.getBoolean("contentstudio.jeiEditorValidation")) {
             dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> JeiEditorValidation::install);

@@ -18,14 +18,21 @@ import static dev.xyat.contentstudio.recipe.client.gui.NativeRecipeBrowserPage.t
 
 /** Typed structural fields retain the serializer's original format, including NBT versus components. */
 public final class NativeRecipeFieldsPage extends KineticPage {
-    private static final int PAGE_ROWS=8, ROW_Y=76, ROW_PITCH=28;
+    // Header: Back, title, page arrows and the actions; then the save ID row and a divider.
+    private static final int ACTION_W=48, SAVE_X=636-ACTION_W, RESTORE_X=SAVE_X-4-ACTION_W, ADD_W=56, ADD_X=RESTORE_X-4-ADD_W;
+    private static final int NEXT_X=ADD_X-4-16, PAGE_TEXT_W=28, PAGE_TEXT_X=NEXT_X-4-PAGE_TEXT_W/2, PREV_X=NEXT_X-4-PAGE_TEXT_W-4-16;
+    private static final int DIVIDER_Y=44;
+    // Field rows: label, then the value (an item icon, a short number field, a text field or an expand button).
+    private static final int SLOT=dev.xyat.kineticcore.api.client.gui.theme.KineticSizes.ITEM_SLOT;
+    private static final int ROW_Y=DIVIDER_Y+4, ROW_PITCH=SLOT+2, PAGE_ROWS=(356-ROW_Y)/ROW_PITCH;
+    private static final int LABEL_W=170, VALUE_X=8+LABEL_W+4, DUPLICATE_X=600, REMOVE_X=620;
     private final Map<String,List<ItemStack>> previewCache=new HashMap<>();
     static final class Session {
         NativeRecipeDocument document;
         List<String> viewPath;
         String id, revision, original;
         long catalog;
-        boolean edited,creating,added,vanilla;
+        boolean edited,creating,added,vanilla,removed;
         final Runnable refresh;
         final Map<List<String>,String> invalid=new HashMap<>();
         String target;
@@ -38,6 +45,7 @@ public final class NativeRecipeFieldsPage extends KineticPage {
             revision=body.get("revision").getAsString(); catalog=body.get("catalog").getAsLong();
             edited=body.get("edited").getAsBoolean();this.refresh=refresh;
             creating=body.has("creating")&&body.get("creating").getAsBoolean();added=body.has("added")&&body.get("added").getAsBoolean();
+            removed=body.has("removed")&&body.get("removed").getAsBoolean();
             vanilla=body.has("owner")?body.get("owner").getAsString().equals("minecraft"):NativeRecipeCreation.vanilla(NativeRecipeDocument.serializerId(NativeRecipeView.at(document,viewPath).recipe()));
         }
         void saved(JsonObject body) {
@@ -64,51 +72,82 @@ public final class NativeRecipeFieldsPage extends KineticPage {
         previewCache.clear();
         keys=session.document.children(path);
         page=Math.min(page,Math.max(0,(keys.size()-1)/PAGE_ROWS));
-        ui.textField(90,42,528).enabled(!session.busy).value(session.target).maxLength(256).validator(value -> KineticResourceIds.tryParse(value)!=null)
-                .onChange(value -> session.target=value).build();
-        for(int row=0;row<PAGE_ROWS;row++) {
-            int index=page*PAGE_ROWS+row;if(index>=keys.size()) break;
-            String key=keys.get(index);List<String> field=child(key);JsonElement value=session.document.at(field);
-            int y=ROW_Y+row*ROW_PITCH+2;
-            if(value.isJsonObject() || value.isJsonArray()) {
-                ui.button(208,y,352).enabled(!session.busy).text(tr("open_fields",session.document.children(field).size()))
-                        .onClick(() -> openChild(new NativeRecipeFieldsPage(session,field))).build();
-            } else if(value.isJsonPrimitive()) {
-                var primitive=value.getAsJsonPrimitive();
-                if(primitive.isBoolean()) {
-                    ui.toggle(208,y,352).enabled(!session.busy).value(primitive.getAsBoolean()).labels(Component.literal("true"),Component.literal("false"))
-                            .onChange(enabled -> edit(field,enabled.toString())).build();
-                } else {
-                    ui.textField(208,y,300).enabled(!session.busy).value(session.invalid.getOrDefault(field,primitive.getAsString())).maxLength(NativeRecipeDocument.MAX_CHARS)
-                            .validator(text -> !session.invalid.containsKey(field)).onChange(text -> edit(field,text)).build();
-                    if(primitive.isString() && isItemField(field,primitive.getAsString())) {
-                        ui.button(512,y,48).enabled(!session.busy).text(tr("pick")).onClick(() -> KineticSelectors.openItemSelector(selection -> {
-                            if(selection==null) return;
-                            boolean tag=key.equals("tag") || primitive.getAsString().startsWith("#");
-                            if(tag && selection.isTag()) edit(field,(key.equals("tag")?"":"#")+selection.value());
-                            else if(!tag && selection.isItem()) edit(field,KineticRegistries.items().id(selection.stack().getItem()).toString());
-                        })).build();
-                    }
-                }
-            }
-            if(session.document.at(path).isJsonArray()) {
-                ui.button(584,y,16).enabled(!session.busy).text(Component.literal("+")).tooltip(tr("duplicate")).onClick(() -> mutate(field,true)).build();
-            }
-            if(!field.equals(NativeRecipeLayout.append(session.viewPath,"type"))) ui.button(604,y,16).enabled(!session.busy).text(Component.literal("−")).tooltip(tr("remove"))
-                    .onClick(() -> openDialog(tr("remove"),Component.literal(String.join(" / ",field)),tr("remove"),tr("back"),()->mutate(field,false),()->{})).build();
-        }
-        ui.button(22,18,84).text(tr("back")).onClick(this::close).build();
-        ui.button(114,320,40).text(Component.literal("<")).enabled(page>0).onClick(() -> {page--;rebuild();}).build();
-        ui.button(198,320,40).text(Component.literal(">")).enabled((page+1)*PAGE_ROWS<keys.size()).onClick(() -> {page++;rebuild();}).build();
-        ui.button(246,320,92).enabled(!session.busy).text(tr("add_field")).onClick(() -> {
+        // Header row: Back, the title and every action, all at the top.
+        ui.button(4,4,40).text(tr("back")).onClick(this::close).build();
+        ui.button(PREV_X,4,16).text(Component.literal("<")).enabled(page>0).onClick(() -> {page--;rebuild();}).build();
+        ui.button(NEXT_X,4,16).text(Component.literal(">")).enabled((page+1)*PAGE_ROWS<keys.size()).onClick(() -> {page++;rebuild();}).build();
+        ui.button(ADD_X,4,ADD_W).enabled(!session.busy).text(tr("add_field")).onClick(() -> {
             if(!session.invalid.isEmpty()) {KineticOverlays.toast(tr("invalid"));return;}
             openChild(new NativeRecipeAddFieldPage(session.document,path));
         }).build();
         if(path.equals(session.viewPath) && !session.visualOwner) {
-            ui.button(346,320,132).text(tr(session.added?"delete_recipe":"restore")).enabled(session.edited && !session.busy).onClick(() -> openDialog(tr(session.added?"delete_recipe":"restore"),tr(session.added?"delete_recipe_confirm":"restore_confirm"),tr(session.added?"delete_recipe":"restore"),tr("back"),()->send("restore"),()->{})).build();
-            ui.button(486,320,132).text(tr("save")).enabled(!session.busy).onClick(() -> send("save")).build();
+            ui.button(RESTORE_X,4,ACTION_W).text(tr(session.added?"delete_recipe":"restore")).enabled(session.edited && !session.busy).onClick(() -> openDialog(tr(session.added?"delete_recipe":"restore"),tr(session.added?"delete_recipe_confirm":"restore_confirm"),tr(session.added?"delete_recipe":"restore"),tr("back"),()->send("restore"),()->{})).build();
+            ui.button(SAVE_X,4,ACTION_W).text(tr("save")).enabled(!session.busy).onClick(() -> send("save")).build();
+        }
+        // Second row: the ID the recipe is saved under.
+        ui.textField(48,24,588).enabled(!session.busy).value(session.target).maxLength(256).validator(value -> KineticResourceIds.tryParse(value)!=null)
+                .onChange(value -> session.target=value).build();
+        for(int row=0;row<PAGE_ROWS;row++) {
+            int index=page*PAGE_ROWS+row;if(index>=keys.size()) break;
+            String key=keys.get(index);List<String> field=child(key);JsonElement value=session.document.at(field);
+            int y=ROW_Y+row*ROW_PITCH+3;
+            if(value.isJsonObject() || value.isJsonArray()) {
+                ui.button(VALUE_X,y,120).enabled(!session.busy).text(tr("open_fields",session.document.children(field).size()))
+                        .onClick(() -> openChild(new NativeRecipeFieldsPage(session,field))).build();
+            } else if(value.isJsonPrimitive()) {
+                var primitive=value.getAsJsonPrimitive();
+                if(primitive.isBoolean()) {
+                    ui.toggle(VALUE_X,y,60).enabled(!session.busy).value(primitive.getAsBoolean())
+                            .labels(tr("field.true"),tr("field.false"))
+                            .onChange(enabled -> edit(field,enabled.toString())).build();
+                } else if(!(primitive.isString() && isItemField(field,primitive.getAsString()))) {
+                    // Items are icons (click to change); numbers get a short field, other text a longer one.
+                    int fieldW=primitive.isNumber()?80:300;
+                    ui.textField(VALUE_X,y,fieldW).enabled(!session.busy).value(session.invalid.getOrDefault(field,primitive.getAsString())).maxLength(NativeRecipeDocument.MAX_CHARS)
+                            .validator(text -> !session.invalid.containsKey(field)).onChange(text -> edit(field,text)).build();
+                }
+            }
+            if(session.document.at(path).isJsonArray()) {
+                ui.button(DUPLICATE_X,y,16).enabled(!session.busy).text(Component.literal("+")).tooltip(tr("duplicate")).onClick(() -> mutate(field,true)).build();
+            }
+            if(!field.equals(NativeRecipeLayout.append(session.viewPath,"type"))) ui.button(REMOVE_X,y,16).enabled(!session.busy).text(Component.literal("\u2212")).tooltip(tr("remove"))
+                    .onClick(() -> openDialog(tr("remove"),Component.literal(String.join(" / ",field)),tr("remove"),tr("back"),()->mutate(field,false),()->{})).build();
         }
     }
+
+    /** Picks an item or tag for an item field (the icon of the row). */
+    private void pickItem(List<String> field) {
+        if(session.busy) return;
+        String key=field.get(field.size()-1);
+        String current=session.document.at(field).getAsString();
+        KineticSelectors.openItemSelector(selection -> {
+            if(selection==null) return;
+            boolean tag=key.equals("tag") || current.startsWith("#");
+            try {
+                if(tag && selection.isTag()) edit(field,(key.equals("tag")?"":"#")+selection.value());
+                else if(!tag && selection.isItem()) NativeRecipeItemData.selectField(session.document,field,NativeRecipeStacks.encode(selection.stack()),NativeRecipeItemData.outputField(session.document,field));
+            }catch(IllegalArgumentException invalid){KineticOverlays.toast(tr("invalid"));}
+            rebuild();
+        });
+    }
+
+    private int itemRowAt(double mx,double my) {
+        if(mx<VALUE_X || mx>=VALUE_X+SLOT || my<ROW_Y) return -1;
+        int row=(int)((my-ROW_Y)/ROW_PITCH);
+        if(row>=PAGE_ROWS || my-ROW_Y-row*ROW_PITCH>=SLOT) return -1;
+        int index=page*PAGE_ROWS+row;
+        if(index>=keys.size()) return -1;
+        var field=child(keys.get(index));var value=session.document.at(field);
+        return value.isJsonPrimitive() && value.getAsJsonPrimitive().isString() && isItemField(field,value.getAsString()) ? row : -1;
+    }
+
+    @Override protected boolean onMouseClick(dev.xyat.kineticcore.api.client.gui.input.MouseInput input) {
+        int row=itemRowAt(input.x(),input.y());
+        if(row<0 || !input.isLeft()) return false;
+        pickItem(child(keys.get(page*PAGE_ROWS+row)));
+        return true;
+    }
+
     private void edit(List<String> field,String text) {
         try {session.document.setPrimitive(field,text);session.invalid.remove(field);}
         catch(IllegalArgumentException e) {session.invalid.put(field,text);}
@@ -154,29 +193,58 @@ public final class NativeRecipeFieldsPage extends KineticPage {
         }
         return false;
     }
+    /** The field path in readable labels: "Result / Entry 1" instead of "result / 0". */
+    private Component pathLabel() {
+        if(path.isEmpty()) return Component.literal(session.id);
+        var recipe=NativeRecipeView.at(session.document,session.viewPath).recipe();
+        var label=Component.empty();
+        for(int i=0;i<path.size();i++) {
+            String part=path.get(i);
+            if(i>0) label.append(" / ");
+            label.append(part.chars().allMatch(Character::isDigit)?tr("entry",Integer.parseInt(part)+1):NativeRecipeEditorPage.fieldLabel(recipe,part));
+        }
+        return label;
+    }
+
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
-        KineticTheme.panel(g,14,14,612,332);
-        g.scrollingText(title(),114,24,504,0xFFFFAA00,false);
-        g.scrollingText(tr("id"),22,48,64,0xFFFFFFFF,false);
-        g.scrollingText(Component.literal(path.isEmpty()?session.id:String.join(" / ",path)),22,66,596,0xFFAAAAAA,false);
+        KineticTheme.panel(g,0,0,640,360);
+        Component heading=Component.empty().append(title()).append(" \u00b7 ").append(pathLabel());
+        // Centred on the screen, clear of Back and the pager.
+        g.scrollingTextCentered(heading,320,8,2*Math.min(320-48,PREV_X-4-320),0xFFFFAA00,false);
+        g.scrollingTextCentered(Component.literal((page+1)+"/"+Math.max(1,(keys.size()+PAGE_ROWS-1)/PAGE_ROWS)),PAGE_TEXT_X,8,PAGE_TEXT_W,0xFFFFFFFF,false);
+        g.scrollingText(tr("id"),4,28,40,0xFFFFFFFF,false);
+        g.hLine(4,636,DIVIDER_Y,KineticTheme.current().accentHover());
+        var recipe=NativeRecipeView.at(session.document,session.viewPath).recipe();
         for(int row=0;row<PAGE_ROWS;row++) {
             int index=page*PAGE_ROWS+row;if(index>=keys.size())break;
             int y=ROW_Y+row*ROW_PITCH;
-            g.fill(20,y,622,y+26,row%2==0?0xFF292929:0xFF222222);
-            g.scrollingText(NativeRecipeEditorPage.fieldLabel(NativeRecipeView.at(session.document,session.viewPath).recipe(),keys.get(index)),24,y+8,180,0xFFFFFFFF,false);
+            g.fill(4,y,636,y+ROW_PITCH-2,row%2==0?0xFF292929:0xFF222222);
+            g.scrollingText(NativeRecipeEditorPage.fieldLabel(recipe,keys.get(index)),8,y+(ROW_PITCH-2-8)/2,LABEL_W,0xFFFFFFFF,false);
             var field=child(keys.get(index));var value=session.document.at(field);
-            if(value.isJsonNull()) g.scrollingText(Component.literal("null"),208,y+8,352,0xFFAAAAAA,false);
+            if(value.isJsonNull()) g.scrollingText(Component.literal("null"),VALUE_X,y+(ROW_PITCH-2-8)/2,300,0xFFAAAAAA,false);
             if(value.isJsonPrimitive() && value.getAsJsonPrimitive().isString() && isItemField(field,value.getAsString())) {
                 String text=value.getAsString();boolean tag=field.get(field.size()-1).equals("tag")||text.startsWith("#");
-                String ref=tag&&!text.startsWith("#")?"#"+text:text;
-                var choices=previewCache.computeIfAbsent(ref,key->NativeRecipeStacks.read(new JsonPrimitive(key)));
+                var nativeValue=NativeRecipeItemData.preview(session.document,field);
+                var choices=previewCache.computeIfAbsent(nativeValue.toString(),key->NativeRecipeStacks.read(nativeValue));
+                boolean hovered=mx>=VALUE_X && mx<VALUE_X+SLOT && my>=y && my<y+SLOT;
+                KineticTheme.itemSlot(g,VALUE_X,y,SLOT,hovered);
                 if(!choices.isEmpty()) {
-                    KineticTheme.itemSlot(g,564,y+4,18,false);
-                    g.item(NativeRecipeStacks.frame(choices,System.currentTimeMillis()),565,y+5);
-                    if(tag)RecipeSlots.tagMarker(g,564,y+4,18,1);
+                    KineticTheme.item(g,NativeRecipeStacks.frame(choices,System.currentTimeMillis()),VALUE_X,y,SLOT,1.0F,false);
+                    if(tag)RecipeSlots.tagMarker(g,VALUE_X,y,SLOT,1);
                 }
             }
         }
-        g.scrollingTextCentered(Component.literal((page+1)+"/"+Math.max(1,(keys.size()+PAGE_ROWS-1)/PAGE_ROWS)),176,326,38,0xFFFFFFFF,false);
+    }
+    @Override protected void renderTooltips(int mx,int my) {
+        int row=itemRowAt(mx,my);
+        if(row<0) return;
+        var field=child(keys.get(page*PAGE_ROWS+row));var value=session.document.at(field);
+        String text=value.getAsString();
+        var nativeValue=NativeRecipeItemData.preview(session.document,field);
+        var choices=previewCache.computeIfAbsent(nativeValue.toString(),key->NativeRecipeStacks.read(nativeValue));
+        var lines=List.<Component>of(Component.literal(text).withStyle(net.minecraft.ChatFormatting.GRAY),tr("item_click"));
+        if(!choices.isEmpty())showItemTooltip(NativeRecipeStacks.frame(choices,System.currentTimeMillis()),lines);
+        else showTooltip(lines);
+        tooltipAnchor(VALUE_X,ROW_Y+row*ROW_PITCH,SLOT,SLOT);
     }
 }

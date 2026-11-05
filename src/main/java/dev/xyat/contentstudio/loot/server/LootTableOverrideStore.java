@@ -188,6 +188,14 @@ ResourceLocation lootTable = block.getLootTable();
             } catch (Exception ignored) {
             }
         });
+        // Tables written into KineticCore data packs since the last reload, such as new structure loot.
+        Set<String> listed = new java.util.HashSet<>();
+        result.forEach(entry -> listed.add(entry.lootTableId()));
+        for (ResourceLocation lootTableId : LootTableFiles.all()) {
+            if (listed.add(lootTableId.toString())) {
+                result.add(new LootEntryInfo(LootEntryInfo.MODE_CHEST, lootTableId.toString(), lootTableId.toString(), hasOverride(lootTableId)));
+            }
+        }
     }
 
     public static String readJson(MinecraftServer server, ResourceLocation lootTableId) {
@@ -200,7 +208,27 @@ ResourceLocation lootTable = block.getLootTable();
             return GSON.toJson(override);
         }
 
-        return readResourceJson(server, lootTableId);
+        String file = readFileJson(lootTableId);
+        return file != null ? file : readResourceJson(server, lootTableId);
+    }
+
+    /** A table kept as a file in a KineticCore data pack, read from the file, or {@code null}. */
+    private static String readFileJson(ResourceLocation lootTableId) {
+        Path file = LootTableFiles.find(lootTableId);
+        if (file == null) {
+            return null;
+        }
+        try {
+            return GSON.toJson(LootTableFiles.read(file));
+        } catch (Exception e) {
+            LOGGER.error("{} 读取数据包战利品文件失败 lootTable={} file={} reason={}", LOG_PREFIX, lootTableId, file, exceptionMessage(e), e);
+            return null;
+        }
+    }
+
+    /** Whether saving {@code lootTableId} writes its data pack file instead of an override. */
+    public static boolean isFileBacked(ResourceLocation lootTableId) {
+        return !hasOverride(lootTableId) && LootTableFiles.find(lootTableId) != null;
     }
 
     public static String readResourceJson(MinecraftServer server, ResourceLocation lootTableId) {
@@ -228,6 +256,9 @@ ResourceLocation lootTable = block.getLootTable();
         if (GLOBAL_CHEST_APPEND.equals(lootTableId)) {
             return saveGlobalChestAppend(server, json);
         }
+        if (isFileBacked(lootTableId)) {
+            return saveFile(server, lootTableId, json);
+        }
 
         try {
             JsonElement element = parseAndValidate(server, lootTableId, json);
@@ -239,6 +270,30 @@ ResourceLocation lootTable = block.getLootTable();
         } catch (Exception e) {
             LOGGER.error("{} 保存失败 lootTable={} reason={} json={}", LOG_PREFIX, lootTableId, exceptionMessage(e), json, e);
             return new SaveResult(false, "msg.contentstudio.loot.loots.save_failed", json == null ? "" : json, hasOverride(lootTableId));
+        }
+    }
+
+    /**
+     * Writes a table of a KineticCore data pack back to its file and puts it in effect at once, as a reload would
+     * load it: with the global chest rules applied.
+     */
+    private static SaveResult saveFile(MinecraftServer server, ResourceLocation lootTableId, String json) {
+        try {
+            // Entries of removed mods stay in the file and are left out when it loads, as KineticCore loads it.
+            JsonElement element = JsonParser.parseString(Objects.requireNonNullElse(json, "").trim());
+            JsonElement loaded = parseAndValidate(server, lootTableId, GSON.toJson(LootTableFiles.withoutMissingItems(element)));
+            LootTableFiles.write(LootTableFiles.find(lootTableId), element);
+            LootTable table = deserializeLootTable(server, lootTableId, transformLootTableJson(server.getResourceManager(), lootTableId, loaded));
+//? if >=1.21 {
+/*            replaceLootTable(server.reloadableRegistries(), lootTableId, table);
+*///?} else {
+            replaceLootTable(server.getLootData(), lootTableId, table);
+//?}
+            refreshGlobalRemovalTargetTables(server);
+            return new SaveResult(true, "msg.contentstudio.loot.loots.save_file_success", GSON.toJson(element), false);
+        } catch (Exception e) {
+            LOGGER.error("{} 保存数据包战利品文件失败 lootTable={} reason={}", LOG_PREFIX, lootTableId, exceptionMessage(e), e);
+            return new SaveResult(false, "msg.contentstudio.loot.loots.save_failed", json == null ? "" : json, false);
         }
     }
 
@@ -266,7 +321,8 @@ ResourceLocation lootTable = block.getLootTable();
         if (GLOBAL_CHEST_APPEND.equals(lootTableId)) {
             return GSON.toJson(createEmptyChestTable());
         }
-        return readResourceJson(server, lootTableId);
+        String file = isFileBacked(lootTableId) ? readFileJson(lootTableId) : null;
+        return file != null ? file : readResourceJson(server, lootTableId);
     }
 
     public static SaveResult reset(MinecraftServer server, ResourceLocation lootTableId) {
@@ -281,6 +337,12 @@ ResourceLocation lootTable = block.getLootTable();
                 LOGGER.error("{} 恢复全局箱子追加失败 reason={}", LOG_PREFIX, exceptionMessage(e), e);
                 return new SaveResult(false, "msg.contentstudio.loot.loots.global_append.reset_failed", GSON.toJson(readGlobalChestAppendElement()), hasGlobalChestAppend());
             }
+        }
+
+        if (isFileBacked(lootTableId)) {
+            // The file is the table itself: there is no original to go back to.
+            String file = readFileJson(lootTableId);
+            return new SaveResult(true, "msg.contentstudio.loot.loots.reset_success", file == null ? readResourceJson(server, lootTableId) : file, false);
         }
 
         try {

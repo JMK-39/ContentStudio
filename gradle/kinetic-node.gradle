@@ -203,7 +203,8 @@ ext.kineticConfigureReleaseJar = { TaskProvider<? extends Jar> releaseJar ->
                 destinationDirectory.set(rootProject.layout.buildDirectory.dir('libs'))
             } else {
                 // A relative path such as build/release is relative to the repository root, not to versions/<node>/.
-                destinationDirectory.set(rootProject.file(outputPath))
+                // Each Minecraft version gets its own folder (D:/NEWMODS/1.20.1, .../1.21.1, .../26.1.2).
+                destinationDirectory.set(new File(rootProject.file(outputPath), pMinecraft.toString()))
             }
         } else {
             destinationDirectory.set(rootProject.layout.buildDirectory.dir('libs'))
@@ -324,8 +325,10 @@ if (pLoader in ['forge', 'neoforge']) {
     }
     def captureJar = tasks.register('guiCaptureValidationJar', Jar) {
         dependsOn 'testClasses', writeCaptureMetadata
-        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class', 'dev/xyat/contentstudiovalidation/NativeRecipeValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeMatrixValidation*.class', 'dev/xyat/contentstudiovalidation/JeiEditorValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeCreationValidation*.class' }
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/GuiLongTextValidation*.class', 'dev/xyat/contentstudiovalidation/GuiCaptureForgeEntry.class', 'dev/xyat/contentstudiovalidation/GuiCaptureNeoForgeEntry.class', 'dev/xyat/contentstudiovalidation/NativeRecipeValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeMatrixValidation*.class', 'dev/xyat/contentstudiovalidation/JeiEditorValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeCreationValidation*.class', 'dev/xyat/contentstudiovalidation/NativeRecipeCoverage*.class', 'dev/xyat/contentstudiovalidation/RecipePlaytestValidation*.class' }
         from captureMetadata
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/TooltipNavigationValidation*.class', 'dev/xyat/contentstudiovalidation/RecipeRepairValidation*.class' }
+        from(sourceSets.test.output) { include 'dev/xyat/contentstudiovalidation/LootMigrationValidation*.class', 'dev/xyat/contentstudiovalidation/PackLootMigration*.class' }
         archiveFileName = 'contentstudio-gui-capture.jar'
     }
     if (pLoader == 'forge') afterEvaluate {

@@ -48,7 +48,8 @@ import java.util.*;
 
 /** Item-first removal: browsing never changes recipes; edits are sent only on save. */
 public class RecipeRemovalPage extends KineticPage {
-    private static final int GX = 8, GY = 32, COLS = 11, ROWS = 16, CELL = 20;
+    // Standard 22 px item slots on a 24 px pitch.
+    private static final int GX = 8, GY = 32, COLS = 9, ROWS = 13, CELL = 24;
     private static final int LX = 244, LY = 58, LW = 380, LH = 180, RH = 30;
     private final List<RemovalEntry> allRemovals = new ArrayList<>();
     private List<RemovalEntry> savedRemovals;
@@ -104,38 +105,41 @@ public class RecipeRemovalPage extends KineticPage {
     public void showToast(Component message) { KineticOverlays.toast(message); }
 
     @Override protected void build(KineticUi ui) {
+        bindDeleteAction(() -> rulesView && selectedRule != null, this::toggleSelected);
         RecipeNetworkClient.registerRemovalScreen(this);
-        itemSearch = ui().autoComplete(74, 8, 84, () -> itemDictionary).label(tr("item_search")).placeholder(tr("item_search")).build();
+        itemSearch = ui().autoComplete(48, 4, 112, () -> itemDictionary).label(tr("item_search")).placeholder(tr("item_search")).build();
         itemSearch.limitTextLength(160); itemSearch.setTextValue(itemQuery);
         itemSearch.onTextChange(query -> { itemQuery = query; refreshItems(); itemScroll.setOffset(0); });
-        recipeSearch = ui().autoComplete(244, 34, 380, this::recipeDictionary).label(tr("recipe_search")).placeholder(tr("recipe_search")).build();
+        RecipeManagementTabs.build(ui, 244, 34, 158, RecipeManagementTabs.REMOVED, this);
+        recipeSearch = ui().autoComplete(406, 34, 218, this::recipeDictionary).label(tr("recipe_search")).placeholder(tr("recipe_search")).build();
         recipeSearch.limitTextLength(256); recipeSearch.setTextValue(recipeQuery);
         recipeSearch.onTextChange(query -> { recipeQuery = query; filterRecipes(); recipeScroll.setOffset(0); });
-        outputButton = button("remove_output_all", "remove_output_all_hint", 244, 8, 60, this::toggleOutputForSelected);
-        rulesButton = button("rules", "rules_button_hint", 310, 8, 60, () -> {
+        outputButton = button("remove_output_all", "remove_output_all_hint", 244, 4, 60, this::toggleOutputForSelected);
+        rulesButton = button("rules", "rules_button_hint", 310, 4, 60, () -> {
             rulesView = !rulesView; selectedRule = null; recipeScroll.setOffset(0); filterRecipes();
         });
-        ruleScopeButton = button("all_rules", "rule_filter_hint", 508, 8, 50, () -> {
+        ruleScopeButton = button("all_rules", "rule_filter_hint", 508, 4, 50, () -> {
             if (!rulesView) { openTypeFilterMenu(); return; }
             allRulesView = !allRulesView;
             recipeScroll.setOffset(0);
             filterRecipes();
         });
-        button("reset", "reset_hint", 376, 8, 60, () -> {
+        button("reset", "reset_hint", 376, 4, 60, () -> {
             allRemovals.clear(); allRemovals.addAll(savedRemovals);
             draftEditedItems.clear();
             rebuildEditedMarkers();
             refreshItems(); filterRecipes();
         });
-        saveButton = button("save", "save_hint", 442, 8, 60, this::save);
-        viewerAllButton = button("viewer_all", 564, 8, () -> openViewerMenu(564, 30, null));
-        button("back", 8, 8, this::close);
-        copyButton = button("copy", "context.copy_hint", 432, 334, 60, () -> {
+        saveButton = button("save", "save_hint", 442, 4, 60, this::save);
+        viewerAllButton = button("viewer_all", 564, 4, () -> openViewerMenu(564, 22, null));
+        button("back", 4, 4, this::close);
+        // The selected recipe's actions sit at the top of its detail area.
+        copyButton = button("copy", "context.copy_hint", 432, 242, 60, () -> {
             String value = selectedValue();
             if (value != null) { KineticClientRuntime.setClipboard(value); showToast(tr("copied")); }
         });
-        previewButton = button("preview_one", "preview_one_hint", 498, 334, 60, () -> openRecipePreview(selectedRecipe));
-        toggleButton = button("remove_one", "exact_hint", 564, 334, 60, this::toggleSelected);
+        previewButton = button("preview_one", "preview_one_hint", 498, 242, 60, () -> openRecipePreview(selectedRecipe));
+        toggleButton = button("remove_one", "exact_hint", 564, 242, 60, this::toggleSelected);
         if (KineticItemSearch.ready()) refreshItems();
         else KineticItemSearch.prepare(() -> KineticClientRuntime.execute(this::refreshItems));
         filterRecipes();
@@ -146,7 +150,7 @@ public class RecipeRemovalPage extends KineticPage {
     }
 
     private KineticButton button(String key, String tooltipKey, int x, int y, int width, Runnable action) {
-        return ui().button(x, y, width).text(tr(key)).tooltip(tooltipKey == null ? null : tr(tooltipKey)).onClick(action).build();
+        return ui().button(x, y, (key.equals("back") || key.equals("copy")) ? 40 : width).text(tr(key)).tooltip(tooltipKey == null ? null : tr(tooltipKey)).onClick(action).build();
     }
 
     private void refreshItems() {
@@ -705,8 +709,11 @@ public class RecipeRemovalPage extends KineticPage {
 
     @Override protected void renderBackground(KineticGraphics g, int mx, int my, float partialTick) {
         KineticTheme.panel(g, 0, 0, 640, 360);
-        text(g, tr("item_count", items.size()), 162, 12, 68, KineticTheme.current().mutedText());
-        KineticTheme.panelAlt(g, 6, 30, 232, 324);
+        // Right of the search field (which starts 4 px after Back), on the header row's text line.
+        text(g, tr("item_count", items.size()), 164, 8, 72, KineticTheme.current().mutedText());
+        KineticTheme.surface(g, 6, 30, 232, 324, KineticTheme.Surface.PANEL_ALT);
+        g.vLine(240, 4, 356, KineticTheme.current().accentHover());
+        g.hLine(6, 238, 28, KineticTheme.current().accentHover());
         itemScroll.update((items.size() + COLS - 1) / COLS, ROWS);
         g.scissor(GX, GY, GX + COLS * CELL, GY + ROWS * CELL);
         int start = itemScroll.smoothIndexOffset() * COLS, shift = itemScroll.visualShift(CELL);
@@ -730,7 +737,8 @@ public class RecipeRemovalPage extends KineticPage {
     }
 
     private void renderRecipeList(KineticGraphics g, int mx, int my) {
-        KineticTheme.panelAlt(g, LX, LY, LW, LH);
+        KineticTheme.surface(g, LX, LY, LW, LH, KineticTheme.Surface.PANEL_ALT);
+        g.hLine(LX, LX + LW, LY - 2, KineticTheme.current().accentHover());
         int count = rulesView ? visibleRules.size() : visibleRecipes.size();
         recipeScroll.update(count, LH / RH);
         g.scissor(LX, LY, LX + LW, LY + LH);
@@ -776,7 +784,8 @@ public class RecipeRemovalPage extends KineticPage {
     }
 
     private void renderPreview(KineticGraphics g) {
-        KineticTheme.panelAlt(g, 244, 244, 380, 78);
+        KineticTheme.surface(g, 244, 244, 380, 78, KineticTheme.Surface.PANEL_ALT);
+        g.hLine(244, 624, 242, KineticTheme.current().accentHover());
         if (rulesView) {
             text(g, tr("rules_hint"), 252, 252, 364, KineticTheme.current().mutedText());
             if (selectedRule != null) {
@@ -809,12 +818,12 @@ public class RecipeRemovalPage extends KineticPage {
         RecipeSlots.draw(g, 482, 264, 20);
         drawItem(g, summary.output(), 482, 264, 20, 1.0F);
         g.itemDecorations(summary.output(), 484, 266);
-        text(g, tr("recipe_count", visibleRecipes.size()), 512, 252, 104, KineticTheme.current().mutedText());
-        text(g, statusLabel(selectedRecipe), 512, 270, 104, KineticTheme.current().mutedText());
+        text(g, tr("recipe_count", visibleRecipes.size()), 512, 268, 104, KineticTheme.current().mutedText());
+        text(g, statusLabel(selectedRecipe), 512, 284, 104, KineticTheme.current().mutedText());
         RemovalDisplayState state = displayState(selectedRecipe);
         if (state != null) text(g, tr("reason_count", state.blockingRules().size(), state.matchingRules().size()),
-                512, 288, 104, KineticTheme.current().mutedText());
-        if (errors.contains(selectedItem.getItem())) text(g, tr("data_error"), 512, 306, 104, KineticTheme.current().danger());
+                512, 300, 104, KineticTheme.current().mutedText());
+        if (errors.contains(selectedItem.getItem())) text(g, tr("data_error"), 512, 316, 104, KineticTheme.current().danger());
     }
 
     private void drawItem(KineticGraphics g, ItemStack stack, int x, int y, int slotSize, float scale) {

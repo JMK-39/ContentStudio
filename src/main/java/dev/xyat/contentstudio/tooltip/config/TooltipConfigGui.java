@@ -4,7 +4,7 @@ import dev.xyat.kineticcore.api.text.KineticI18n;
 import dev.xyat.kineticcore.api.config.client.KTConfigApi;
 import dev.xyat.kineticcore.api.config.client.KTConfigPage;
 import dev.xyat.kineticcore.api.config.client.KTConfigScope;
-import dev.xyat.contentstudio.tooltip.TooltipNetwork;
+import dev.xyat.contentstudio.tooltip.TooltipClientHandlers;
 
 public final class TooltipConfigGui {
     public static final String PAGE_ID = "contentstudio:tooltip";
@@ -25,7 +25,7 @@ public final class TooltipConfigGui {
                 .action(
                         "open_editor",
                         KineticI18n.translatable("cfg.contentstudio.tooltip.tooltip.open_editor"),
-                        TooltipNetwork::requestEditor,
+                        TooltipClientHandlers::requestEditor,
                         KineticI18n.translatable("cfg.contentstudio.tooltip.tooltip.open_editor.tooltip")
                 )
                 .build());

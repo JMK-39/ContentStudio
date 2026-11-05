@@ -37,6 +37,34 @@ public final class RecipeRemovalManager {
         return new ArrayList<>(REMOVAL_LIST);
     }
 
+    /** Whether an exact-ID rule currently removes this original recipe. */
+    public static synchronized boolean isRecipeRemoved(net.minecraft.resources.ResourceLocation id) {
+        return snapshot().stream().anyMatch(rule -> rule.mode() == RemovalMode.RECIPE_ID && rule.value().equals(id.toString()));
+    }
+
+    /**
+     * Adds or drops the exact-ID rule for one original recipe and reapplies the datapacks, leaving every other rule
+     * as it is. Completes with {@code true} once the change is saved and applied.
+     */
+    public static synchronized java.util.concurrent.CompletableFuture<Boolean> setRecipeRemoved(ServerPlayer player,
+            net.minecraft.resources.ResourceLocation id, boolean removed) {
+        if (player == null || player.getServer() == null || applyingDraft) return java.util.concurrent.CompletableFuture.completedFuture(false);
+        List<RemovalEntry> draft = snapshot();
+        RemovalEntry rule = new RemovalEntry(RemovalMode.RECIPE_ID, id.toString(), "");
+        draft.removeIf(existing -> existing.key().equals(rule.key()));
+        if (removed) draft.add(rule);
+        applyingDraft = true;
+        var server = player.getServer();
+        return RemovalDraftCommitter.commit(draft, RecipeConfigStore::replaceRemovalsAtomic, () -> RecipeMemoryManager.reloadDatapacks(server))
+                .thenApply(outcome -> {
+                    synchronized (RecipeRemovalManager.class) {
+                        applyingDraft = false;
+                    }
+                    if (outcome.cause() != null) LOGGER.error("Could not apply recipe removal for {} ({})", id, outcome.status(), outcome.cause());
+                    return outcome.status() == RemovalDraftCommitter.Status.APPLIED;
+                });
+    }
+
     public static void syncToPlayer(ServerPlayer player) {
         if (player == null) {
             return;

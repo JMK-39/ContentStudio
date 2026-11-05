@@ -30,6 +30,8 @@ public final class NativeRecipeEditorPage extends KineticPage {
     private List<NativeRecipeVisuals.Icon> nativeIcons=List.of();
     private List<List<String>> fields=List.of();
     private int selected=-1,fieldPage,diagramPage,diagramPages=1;
+    private static final int FIELD_ROWS=12,FIELD_Y=64,FIELD_PITCH=22,FIELD_LABEL_X=424,FIELD_LABEL_W=88,FIELD_CONTROL_X=516,FIELD_CONTROL_W=116;
+    private static final int DIAGRAM_X=8,DIAGRAM_Y=64,DIAGRAM_HEIGHT=262;
     private float scale;
     private int diagramX,diagramY;
     private String stamp="";
@@ -45,19 +47,8 @@ public final class NativeRecipeEditorPage extends KineticPage {
     private final dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController vertical=new dev.xyat.kineticcore.api.client.gui.scroll.KineticScrollController();
     private int slotSize() {return layout.kind().equals("twilight_entities")?34:18;}
     public static KineticPage create(JsonObject body,Runnable refresh) {
-        var draft=new NativeRecipeFieldsPage.Session(body,refresh);
-        if(!draft.vanilla) {
-            if(!RecipeJeiBridge.jeiAvailable()) {
-                KineticOverlays.toast(tr("jei_missing"));return null;
-            }
-            try {
-                if(RecipeJeiBridge.editor(KineticResourceIds.parse(draft.id),NativeRecipeView.at(draft.document,draft.viewPath).recipe())==null) {
-                    KineticOverlays.toast(tr("jei_category_missing"));return new NativeRecipeFieldsPage(body,refresh);
-                }
-            } catch(RuntimeException error) {
-                KineticOverlays.toast(tr("jei_preview_failed"));return new NativeRecipeFieldsPage(body,refresh);
-            }
-        }
+        // Third-party recipes use their JEI display when one exists and the built-in diagram otherwise; either way the
+        // slots and properties are edited visually, never on the raw field page.
         return new NativeRecipeEditorPage(body,refresh);
     }
     public NativeRecipeEditorPage(JsonObject body,Runnable refresh) {
@@ -81,10 +72,9 @@ public final class NativeRecipeEditorPage extends KineticPage {
         if(thirdParty) {
             try {
                 jeiPreview=RecipeJeiBridge.editor(KineticResourceIds.parse(session.target),json);
-                if(jeiPreview==null)previewError=RecipeJeiBridge.jeiAvailable()?"jei_category_missing":"jei_missing";
             } catch(RuntimeException error) {previewError="jei_preview_failed";}
             if(jeiPreview!=null)bindJeiSlots();
-            else {slots=List.of();layout=new NativeRecipeLayout("jei_unavailable",0,0,slots);}
+            else previewError="";
         }
         stacks=slots.stream().map(slot->{
             var value=session.document.at(slot.path());
@@ -108,9 +98,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
         nativeIcons=slots.stream().map(slot->NativeRecipeVisuals.read(session.document.at(slot.path()))).toList();
         ingredientTags=slots.stream().map(slot->NativeRecipeStacks.tagIds(session.document.at(slot.path()))).toList();
         scale=1.0f;
-        horizontal.update(layout.width(),374);vertical.update(layout.height(),166);
-        diagramX=26+Math.max(0,(374-layout.width())/2)-(int)horizontal.smoothOffset();
-        diagramY=100+Math.max(0,(166-layout.height())/2)-(int)vertical.smoothOffset();
+        updateDiagramGeometry();
         if(selected>=slots.size())selected=-1;
     }
     private void bindJeiSlots() {
@@ -118,10 +106,14 @@ public final class NativeRecipeEditorPage extends KineticPage {
         var candidates=new ArrayList<>(view.layout(0).slots());
         if(layout.kind().equals("create_sequence"))for(int page=1;page<diagramPages;page++)
             for(var slot:view.layout(page).slots())if(!candidates.contains(slot))candidates.add(slot);
+        // A shaped layout lists a pattern key once per cell; the recipe has that key once, so keep one entry per path.
+        var seenPaths=new HashSet<List<String>>();candidates.removeIf(slot->!seenPaths.add(slot.path()));
         var tokens=candidates.stream().map(slot->{
             Set<String> values=new LinkedHashSet<>();var value=session.document.at(slot.path());
-            for(var stack:NativeRecipeStacks.read(value))values.add("item:"+KineticRegistries.items().id(stack.getItem()));
+            for(var stack:NativeRecipeStacks.read(value)){values.add("item:"+KineticRegistries.items().id(stack.getItem()));values.add("count:"+stack.getCount());}
             var icon=NativeRecipeVisuals.read(value);if(icon!=null)values.add("resource:"+icon.id());
+            // A mob shown by the viewer is identified by its entity type ID.
+            for(var field:NativeRecipeLayout.fields(session.document,slot.path()))if(isEntity(field))values.add("resource:"+valueAt(field).getAsString());
             return values;
         }).toList();
         var displayed=jeiPreview.slots().stream().filter(RecipeJeiBridge.EditorSlot::editable).toList();
@@ -134,12 +126,34 @@ public final class NativeRecipeEditorPage extends KineticPage {
             mapped.add(new NativeRecipeLayout.Slot(source.path(),visible.x(),visible.y(),source.output()));bounds.add(visible);
         }
         slots=List.copyOf(mapped);jeiSlots=List.copyOf(bounds);
+        if(Boolean.getBoolean("contentstudio.nativeCoverage")&&mapped.size()<displayed.size()) {
+            var log=org.slf4j.LoggerFactory.getLogger(NativeRecipeEditorPage.class);
+            for(int i=0;i<displayed.size();i++)log.info("CONTENT_COVERAGE_SHOWN {} #{} {} bound={} {}",session.id,i,displayed.get(i).role(),binding[i],displayed.get(i).ingredients().stream().limit(4).toList());
+            for(int j=0;j<candidates.size();j++)log.info("CONTENT_COVERAGE_CANDIDATE {} #{} out={} {} {}",session.id,j,candidates.get(j).output(),String.join("/",candidates.get(j).path()),tokens.get(j).stream().limit(4).toList());
+        }
         layout=new NativeRecipeLayout("jei",jeiPreview.width(),jeiPreview.height(),slots);diagramPages=1;
     }
     private List<String> selectedPath() {return selected<0?session.viewPath:slots.get(selected).path();}
+    private int diagramWidth() { return fields.isEmpty()?620:400; }
+    private int diagramRight() { return DIAGRAM_X+diagramWidth(); }
+    private boolean insideDiagram(double x,double y) {
+        return x>=DIAGRAM_X && x<diagramRight() && y>=DIAGRAM_Y && y<DIAGRAM_Y+DIAGRAM_HEIGHT;
+    }
+    private void updateDiagramGeometry() {
+        horizontal.updateContent(layout.width(),diagramWidth(),1);
+        vertical.updateContent(layout.height(),DIAGRAM_HEIGHT,1);
+        positionDiagram();
+    }
+    private void positionDiagram() {
+        diagramX=DIAGRAM_X+Math.max(0,(diagramWidth()-layout.width())/2)-(int)Math.round(horizontal.smoothOffset());
+        diagramY=DIAGRAM_Y+Math.max(0,(DIAGRAM_HEIGHT-layout.height())/2)-(int)Math.round(vertical.smoothOffset());
+    }
     @Override protected void build(KineticUi ui) {
+        bindDeleteAction(() -> !session.busy && (selected >= 0 || session.added && session.edited),
+                () -> { if (selected >= 0) removeSelectedSlot(); else confirmRecipeRestore(); });
+        fieldIcons.clear();
         refreshDiagram();
-        ui.textField(90,42,528).enabled(!session.busy).value(session.target).maxLength(256).onChange(v->session.target=v).build();
+        ui.textField(48,24,232).enabled(!session.busy).value(session.target).maxLength(256).onChange(v->session.target=v).build();
         fields=NativeRecipeLayout.fields(session.document,selectedPath());
         if(selected<0)fields=NativeRecipeLayout.parameters(session.document,session.viewPath);
         else if(slots.get(selected).output()) {
@@ -152,51 +166,121 @@ public final class NativeRecipeEditorPage extends KineticPage {
             }
         }
         fields=fields.stream().distinct().sorted(Comparator.comparingInt(p->switch(p.get(p.size()-1)){case "id","item","tag"->0;case "count","amount"->1;case "chance"->2;default->3;})).toList();
-        fieldPage=Math.min(fieldPage,Math.max(0,(fields.size()-1)/4));
-        for(int row=0;row<4;row++) {
-            int index=fieldPage*4+row;if(index>=fields.size())break;
-            var field=fields.get(index);var value=valueAt(field);int y=112+row*40;
-            boolean picker=isItem(field,value)||isEntity(field);
-            if(value.isBoolean())ui.toggle(426,y,184).enabled(!session.busy).value(value.getAsBoolean()).labels(Component.literal("true"),Component.literal("false"))
-                    .tooltip(fieldTooltip(field)).onChange(v->edit(field,v.toString())).build();
-            else ui.textField(426,y,picker?132:184).enabled(!session.busy).value(session.invalid.getOrDefault(field,value.getAsString())).maxLength(NativeRecipeDocument.MAX_CHARS)
-                    .tooltip(fieldTooltip(field)).validator(v->!session.invalid.containsKey(field)).onChange(v->edit(field,v)).build();
-            if(picker)ui.button(562,y,48).enabled(!session.busy).text(tr("pick")).onClick(()->pick(field)).build();
+        // A single identity already has the same picker on the diagram. Keep quantities and every other property;
+        // the complete slot structure remains available through Slot Fields and Advanced.
+        if(selected>=0 && nativeIcons.get(selected)==null && fields.stream().noneMatch(this::isEntity)) {
+            var identities=fields.stream().filter(field->kind(field,valueAt(field))==FieldKind.ITEM||kind(field,valueAt(field))==FieldKind.TAG).toList();
+            if(identities.size()==1 && identities.get(0).size()<=selectedPath().size()+1 && !session.invalid.containsKey(identities.get(0)))
+                fields=fields.stream().filter(field->!field.equals(identities.get(0))).toList();
         }
-        ui.button(22,286,96).text(tr("parameters")).onClick(()->{selected=-1;fieldPage=0;rebuild();}).build();
-        ui.button(122,286,132).text(tr("slot_fields")).enabled(selected>=0).onClick(()->openChild(new NativeRecipeFieldsPage(session,selectedPath()))).build();
+        updateDiagramGeometry();
+        fieldPage=Math.min(fieldPage,Math.max(0,(fields.size()-1)/FIELD_ROWS));
+        for(int row=0;row<FIELD_ROWS;row++) {
+            int index=fieldPage*FIELD_ROWS+row;if(index>=fields.size())break;
+            buildFieldControl(ui,fields.get(index),FIELD_Y+row*FIELD_PITCH);
+        }
+        // The actions share the ID row at the top, right of the ID field.
+        ui.button(284,24,36).text(tr("parameters")).onClick(()->{selected=-1;fieldPage=0;rebuild();}).build();
+        ui.button(324,24,56).text(tr("slot_fields")).enabled(selected>=0&&!session.busy).onClick(()->{
+            var path=selectedPath();
+            var value=session.document.at(path);
+            if((value.isJsonPrimitive()||value.isJsonNull())&&!path.isEmpty())path=path.subList(0,path.size()-1);
+            openChild(new NativeRecipeFieldsPage(session,path));
+        }).build();
         var root=NativeRecipeView.at(session.document,session.viewPath).recipe();
         if(NativeRecipeDocument.serializerId(root).equals("create:sequenced_assembly"))
-            ui.button(258,286,146).text(tr("sequence")).tooltip(tr("sequence_hint")).onClick(()->openChild(new NativeRecipeSequencePage(session))).build();
-        else if(diagramPages==1)ui.button(258,286,146).text(tr("add_material")).tooltip(tr("add_material_hint")).onClick(this::addMaterial).build();
-        ui.button(426,286,36).text(Component.literal("<")).enabled(fieldPage>0).onClick(()->{fieldPage--;rebuild();}).build();
-        ui.button(574,286,36).text(Component.literal(">")).enabled((fieldPage+1)*4<fields.size()).onClick(()->{fieldPage++;rebuild();}).build();
-        if(diagramPages>1) {
-            ui.button(310,286,40).text(Component.literal("<")).enabled(diagramPage>0).onClick(()->{diagramPage--;selected=-1;rebuild();}).build();
-            ui.button(354,286,40).text(Component.literal(">")).enabled(diagramPage+1<diagramPages).onClick(()->{diagramPage++;selected=-1;rebuild();}).build();
+            ui.button(384,24,56).enabled(!session.busy).text(tr("sequence")).tooltip(tr("sequence_hint")).onClick(()->openChild(new NativeRecipeSequencePage(session))).build();
+        else if(diagramPages==1)ui.button(384,24,56).enabled(!session.busy).text(tr("add_material")).tooltip(tr("add_material_hint")).onClick(this::addMaterial).build();
+        if(fields.size()>FIELD_ROWS) {
+            ui.button(424,334,36).text(Component.literal("<")).enabled(fieldPage>0).onClick(()->{fieldPage--;rebuild();}).build();
+            ui.button(596,334,36).text(Component.literal(">")).enabled((fieldPage+1)*FIELD_ROWS<fields.size()).onClick(()->{fieldPage++;rebuild();}).build();
         }
-        ui.add(new dev.xyat.kineticcore.api.client.gui.widget.KineticCustomControl(24,98,382,174) {
-            @Override protected void render(KineticGraphics g,int mx,int my,float pt) {
-                horizontal.renderHorizontal(g,mx,my,26,268,374,3,20);
-                vertical.render(g,mx,my,402,100,3,166,20);
-            }
-            @Override protected boolean onMouseClick(MouseInput input) {
-                return horizontal.beginHorizontalDrag(input.x(),input.y(),input.button(),26,268,374,3,20)
-                        ||vertical.beginDrag(input.x(),input.y(),input.button(),402,100,3,166,20);
-            }
-            @Override protected boolean onMouseScroll(dev.xyat.kineticcore.api.client.gui.input.ScrollInput input) {
-                boolean changed=vertical.canScroll()?vertical.scroll(input.deltaY(),24):horizontal.scroll(input.deltaY(),24);
-                return changed;
-            }
-            @Override protected boolean onMouseDrag(dev.xyat.kineticcore.api.client.gui.input.MouseDragInput input) {
-                return horizontal.dragHorizontal(input.x(),26,374,20)||vertical.drag(input.y(),100,166,20);
-            }
-            @Override protected boolean onMouseRelease(MouseInput input) {return horizontal.release(input.button())|vertical.release(input.button());}
+        if(diagramPages>1) {
+            ui.button(4,334,40).text(Component.literal("<")).enabled(diagramPage>0).onClick(()->{diagramPage--;selected=-1;rebuild();}).build();
+            ui.button(48,334,40).text(Component.literal(">")).enabled(diagramPage+1<diagramPages).onClick(()->{diagramPage++;selected=-1;rebuild();}).build();
+        }
+        // The scrollbars are controls of their own along the diagram's bottom and right edges. A control over the whole
+        // diagram would hide the slot tooltips (a foreground control without a tooltip hides the ones behind it), so
+        // the wheel over the diagram is handled by the page instead.
+        ui.add(new dev.xyat.kineticcore.api.client.gui.widget.KineticCustomControl(DIAGRAM_X,DIAGRAM_Y+DIAGRAM_HEIGHT,diagramWidth(),6) {
+            @Override protected void render(KineticGraphics g,int mx,int my,float pt) {horizontal.renderHorizontal(g,mx,my,DIAGRAM_X,DIAGRAM_Y+DIAGRAM_HEIGHT+2,diagramWidth(),3,20);}
+            @Override protected boolean onMouseClick(MouseInput input) {return horizontal.beginHorizontalDrag(input.x(),input.y(),input.button(),DIAGRAM_X,DIAGRAM_Y+DIAGRAM_HEIGHT+2,diagramWidth(),3,20);}
+            @Override protected boolean onMouseDrag(dev.xyat.kineticcore.api.client.gui.input.MouseDragInput input) {return horizontal.dragHorizontal(input.x(),DIAGRAM_X,diagramWidth(),20);}
+            @Override protected boolean onMouseRelease(MouseInput input) {return horizontal.release(input.button());}
         });
-        ui.button(22,18,84).text(tr("back")).enabled(!session.busy).onClick(this::close).build();
-        ui.button(114,320,132).text(tr("advanced")).enabled(!session.busy).onClick(()->openChild(new NativeRecipeFieldsPage(session,List.of()))).build();
-        ui.button(354,320,128).text(tr(session.added?"delete_recipe":"restore")).enabled(session.edited&&!session.busy).onClick(()->openDialog(tr(session.added?"delete_recipe":"restore"),tr(session.added?"delete_recipe_confirm":"restore_confirm"),tr(session.added?"delete_recipe":"restore"),tr("back"),()->send("restore"),()->{})).build();
-        ui.button(490,320,128).text(tr("save")).enabled(!session.busy).onClick(()->send("save")).build();
+        ui.add(new dev.xyat.kineticcore.api.client.gui.widget.KineticCustomControl(diagramRight(),DIAGRAM_Y,6,DIAGRAM_HEIGHT) {
+            @Override protected void render(KineticGraphics g,int mx,int my,float pt) {vertical.render(g,mx,my,diagramRight()+2,DIAGRAM_Y,3,DIAGRAM_HEIGHT,20);}
+            @Override protected boolean onMouseClick(MouseInput input) {return vertical.beginDrag(input.x(),input.y(),input.button(),diagramRight()+2,DIAGRAM_Y,3,DIAGRAM_HEIGHT,20);}
+            @Override protected boolean onMouseDrag(dev.xyat.kineticcore.api.client.gui.input.MouseDragInput input) {return vertical.drag(input.y(),DIAGRAM_Y,DIAGRAM_HEIGHT,20);}
+            @Override protected boolean onMouseRelease(MouseInput input) {return vertical.release(input.button());}
+        });
+        ui.button(4,4,40).text(tr("back")).enabled(!session.busy).onClick(this::close).build();
+        ui.button(444,24,36).text(tr("advanced")).enabled(!session.busy).onClick(()->openChild(new NativeRecipeFieldsPage(session,List.of()))).build();
+        // An original recipe can be taken out of the game here, or brought back; recipes added by players use Delete instead.
+        if(!session.added&&!session.creating)ui.button(484,24,56).text(tr(session.removed?"enable_recipe":"disable_recipe")).tooltip(tr(session.removed?"enable_recipe_hint":"disable_recipe_hint"))
+                .enabled(!session.busy).onClick(()->send(session.removed?"enable":"disable")).build();
+        ui.button(544,24,48).text(tr(session.added?"delete_recipe":"restore")).enabled(session.edited&&!session.busy).onClick(this::confirmRecipeRestore).build();
+        ui.button(596,24,40).text(tr("save")).enabled(!session.busy).onClick(()->send("save")).build();
+    }
+    private enum FieldKind {BOOLEAN,INTEGER,DECIMAL,ITEM,TAG,FLUID,EFFECT,ENTITY,CHOICE,TEXT}
+    private record FieldIcon(int x,int y,ItemStack stack) {}
+    private final List<FieldIcon> fieldIcons=new ArrayList<>();
+    // Keys whose numbers are fractions even when the current value happens to be whole.
+    private static final Set<String> DECIMAL_KEYS=Set.of("chance","experience","xp","exp","probability","saturation","saturationModifier","multiplier");
+    private static final Set<String> FLUID_KEYS=Set.of("fluid","fluidName","FluidName","fluid_id");
+    private static final Set<String> EFFECT_KEYS=Set.of("effect","mob_effect","potion_effect");
+    // Closed value sets that players pick from instead of typing.
+    private static final Map<String,List<String>> CHOICES=Map.of("heatRequirement",List.of("none","heated","superheated"));
+    private FieldKind kind(List<String> field,JsonPrimitive value) {
+        String key=field.get(field.size()-1);
+        if(value.isBoolean())return FieldKind.BOOLEAN;
+        if(value.isNumber())return DECIMAL_KEYS.contains(key)||value.getAsString().contains(".")?FieldKind.DECIMAL:FieldKind.INTEGER;
+        if(CHOICES.containsKey(key))return FieldKind.CHOICE;
+        if(isEntity(field))return FieldKind.ENTITY;
+        String text=value.getAsString();
+        if(key.equals("tag")||text.startsWith("#"))return FieldKind.TAG;
+        var id=KineticResourceIds.tryParse(text);
+        if(id!=null&&(FLUID_KEYS.contains(key)||KineticRegistries.fluids().contains(id)&&!KineticRegistries.items().contains(id)))return FieldKind.FLUID;
+        if(id!=null&&EFFECT_KEYS.contains(key)&&KineticRegistries.mobEffects().contains(id))return FieldKind.EFFECT;
+        if(isItem(field,value))return FieldKind.ITEM;
+        return FieldKind.TEXT;
+    }
+    /** One property row's control, chosen from the field's value so nothing needs a typed field name or ID. */
+    private void buildFieldControl(KineticUi ui,List<String> field,int y) {
+        var value=valueAt(field);var tooltip=fieldTooltip(field);boolean enabled=!session.busy;
+        int x=FIELD_CONTROL_X,w=FIELD_CONTROL_W;
+        switch(kind(field,value)) {
+            case BOOLEAN -> ui.toggle(x,y,w).enabled(enabled).value(value.getAsBoolean()).labels(tr("field.true"),tr("field.false"))
+                    .tooltip(tooltip).onChange(v->edit(field,v.toString())).build();
+            case INTEGER,DECIMAL -> ui.numberField(x,y,w,kind(field,value)==FieldKind.INTEGER?dev.xyat.kineticcore.api.client.gui.ui.NumberType.LONG:dev.xyat.kineticcore.api.client.gui.ui.NumberType.DECIMAL)
+                    .enabled(enabled).allowNegative(true).value(value.getAsNumber()).tooltip(tooltip).onChange(v->edit(field,v)).build();
+            case ITEM,TAG -> {
+                var stacks=NativeRecipeStacks.read(NativeRecipeItemData.preview(session.document,field));
+                var icon=stacks.isEmpty()?new ItemStack(net.minecraft.world.item.Items.BARRIER):NativeRecipeStacks.frame(stacks,System.currentTimeMillis());
+                Component name=value.getAsString().startsWith("#")||field.get(field.size()-1).equals("tag")
+                        ?Component.literal("#"+value.getAsString().replaceFirst("^#","")):stacks.isEmpty()?Component.literal(value.getAsString()):icon.getHoverName();
+                // A standard-height button keeps every row the same height; the item icon is drawn in its own slot to the left.
+                fieldIcons.add(new FieldIcon(x,y,icon));
+                ui.button(x+18,y,w-18).enabled(enabled).text(name).tooltip(tooltip.copy().append("\n").append(tr("pick_hint"))).onClick(()->{if(!session.busy)pick(field);}).build();
+            }
+            case FLUID -> ui.button(x,y,w).enabled(enabled).text(idName(NativeRecipeIdPicker.fluids(),value.getAsString())).tooltip(tooltip.copy().append("\n").append(tr("pick_hint")))
+                    .onClick(()->openChild(new NativeRecipeIdPicker(fieldLabel(field),NativeRecipeIdPicker.fluids(),value.getAsString(),id->{edit(field,id);rebuild();}))).build();
+            case EFFECT -> ui.button(x,y,w).enabled(enabled).text(idName(NativeRecipeIdPicker.effects(),value.getAsString())).tooltip(tooltip.copy().append("\n").append(tr("pick_hint")))
+                    .onClick(()->openChild(new NativeRecipeIdPicker(fieldLabel(field),NativeRecipeIdPicker.effects(),value.getAsString(),id->{edit(field,id);rebuild();}))).build();
+            case ENTITY -> ui.button(x,y,w).enabled(enabled).text(entityName(value.getAsString())).tooltip(tooltip.copy().append("\n").append(tr("pick_hint")))
+                    .onClick(()->pick(field)).build();
+            case CHOICE -> {
+                String key=field.get(field.size()-1);
+                var options=CHOICES.get(key).stream().map(choice->new dev.xyat.kineticcore.api.client.gui.widget.KineticDropdown.Option(choice,tr("choice."+key+"."+choice))).toList();
+                ui.dropdown(x,y,w,options).enabled(enabled).selected(value.getAsString()).tooltip(tooltip).onChange(v->edit(field,v)).build();
+            }
+            default -> ui.textField(x,y,w).enabled(enabled).value(session.invalid.getOrDefault(field,value.getAsString())).maxLength(NativeRecipeDocument.MAX_CHARS)
+                    .tooltip(tooltip).validator(v->!session.invalid.containsKey(field)).onChange(v->edit(field,v)).build();
+        }
+    }
+    private static Component idName(List<NativeRecipeIdPicker.Choice> choices,String id) {
+        for(var choice:choices)if(choice.id().equals(id)&&!choice.name().getString().isEmpty())return choice.name();
+        return Component.literal(id);
     }
     private static boolean isItem(List<String> path,JsonPrimitive value) {
         if(!value.isString())return false;String key=path.get(path.size()-1);
@@ -218,23 +302,29 @@ public final class NativeRecipeEditorPage extends KineticPage {
     private JsonPrimitive valueAt(List<String> path) {try{return session.document.at(path).getAsJsonPrimitive();}catch(IllegalArgumentException absent){return new JsonPrimitive(1);}}
     private void pick(List<String> field) {
         if(isEntity(field)) {
-            KineticSelectors.openEntitySelector(fieldLabel(field),List.of(valueAt(field).getAsString()),values->{if(!values.isEmpty())edit(field,values.get(0));});return;
+            KineticSelectors.openEntitySelector(fieldLabel(field),List.of(valueAt(field).getAsString()),values->{if(!values.isEmpty()){edit(field,values.get(0));rebuild();}});return;
         }
         boolean tag=field.get(field.size()-1).equals("tag") || session.document.at(field).getAsString().startsWith("#");
         KineticSelectors.openItemSelector(selection->{
             if(selection==null)return;
-            if(tag && selection.isTag())edit(field,(field.get(field.size()-1).equals("tag")?"":"#")+selection.value());
-            else if(!tag && selection.isItem())edit(field,KineticRegistries.items().id(selection.stack().getItem()).toString());
+            try {
+                if(tag && selection.isTag())edit(field,(field.get(field.size()-1).equals("tag")?"":"#")+selection.value());
+                else if(!tag && selection.isItem())NativeRecipeItemData.selectField(session.document,field,NativeRecipeStacks.encode(selection.stack()),NativeRecipeItemData.outputField(session.document,field));
+            }catch(IllegalArgumentException invalid){KineticOverlays.toast(tr("invalid"));}
+            rebuild();
         });
     }
     @Override protected void onTick() {
         if(!stamp.equals(session.document.json().toString())||!previewTarget.equals(session.target)||previewGeneration!=RecipeJeiBridge.generation())rebuild();
-        diagramX=26+Math.max(0,(374-layout.width())/2)-(int)horizontal.smoothOffset();
-        diagramY=100+Math.max(0,(166-layout.height())/2)-(int)vertical.smoothOffset();
+        positionDiagram();
         if(jeiPreview!=null)try{jeiPreview.tick();}catch(RuntimeException error){previewError="jei_preview_failed";jeiPreview=null;}
     }
+    @Override protected boolean onMouseScroll(dev.xyat.kineticcore.api.client.gui.input.ScrollInput input) {
+        if(!insideDiagram(input.x(),input.y()))return false;
+        return vertical.canScroll()?vertical.scroll(input.deltaY(),24):horizontal.scroll(input.deltaY(),24);
+    }
     @Override protected boolean onMouseClick(MouseInput input) {
-        if(session.busy || !input.isLeft() && !input.isRight() || !input.inside(26,100,374,166))return false;
+        if(session.busy || !input.isLeft() && !input.isRight() || !insideDiagram(input.x(),input.y()))return false;
         for(int i=0;i<slots.size();i++) {
             var slot=slots.get(i);double x=diagramX+slot.x()*scale,y=diagramY+slot.y()*scale;
             int width=jeiPreview==null?slotSize():jeiSlots.get(i).width(),height=jeiPreview==null?slotSize():jeiSlots.get(i).height();
@@ -246,28 +336,50 @@ public final class NativeRecipeEditorPage extends KineticPage {
             }
         }return false;
     }
+    private static final Set<String> ENTITY_KEYS=Set.of("entity","entity_type","entityType","mob");
+    /** A field naming a registered mob; it is chosen in the core's entity selector with model previews. */
     private boolean isEntity(List<String> field) {
-        return NativeRecipeDocument.serializerId(NativeRecipeView.at(session.document,session.viewPath).recipe()).equals("twilightforest:transformation_powder")
-                &&Set.of("from","to").contains(field.get(field.size()-1));
+        JsonPrimitive value;
+        try{value=session.document.at(field).getAsJsonPrimitive();}catch(RuntimeException notPrimitive){return false;}
+        if(!value.isString())return false;
+        var id=KineticResourceIds.tryParse(value.getAsString());
+        if(id==null||!KineticRegistries.entityTypes().contains(id))return false;
+        return ENTITY_KEYS.contains(field.get(field.size()-1))||!KineticRegistries.items().contains(id);
+    }
+    private static Component entityName(String id) {
+        var key=KineticResourceIds.tryParse(id);
+        var type=key==null?null:KineticRegistries.entityTypes().get(key);
+        return type==null?Component.literal(id):type.getDescription();
     }
     private void chooseSelectedSlot() {
         var path=selectedPath();
         boolean output=slots.get(selected).output();
-        if(nativeIcons.get(selected)!=null){openChild(new NativeRecipeFieldsPage(session,path));return;}
+        // A mob slot opens the core entity selector with model previews.
+        for(var field:NativeRecipeLayout.fields(session.document,path))if(isEntity(field)){pick(field);return;}
+        if(nativeIcons.get(selected)!=null) {
+            // A fluid slot opens the fluid list; any other resource slot is edited in the properties panel.
+            for(var field:NativeRecipeLayout.fields(session.document,path))
+                if(kind(field,valueAt(field))==FieldKind.FLUID) {
+                    openChild(new NativeRecipeIdPicker(fieldLabel(field),NativeRecipeIdPicker.fluids(),valueAt(field).getAsString(),id->{edit(field,id);rebuild();}));return;
+                }
+            return;
+        }
         KineticSelectors.openItemSelector(selection->{
             if(selection==null||selection.isMod()||output&&selection.isTag())return;
             String id=selection.isTag()?selection.value():KineticRegistries.items().id(selection.stack().getItem()).toString();
-            NativeRecipeSlotEdits.select(session.document,path,id,selection.isTag());
-            session.invalid.keySet().removeIf(field->field.size()>=path.size()&&field.subList(0,path.size()).equals(path));refreshDiagram();
+            try {
+                if(selection.isTag()) {var tag=new JsonObject();tag.addProperty("tag",id);NativeRecipeItemData.select(session.document,path,tag,false);}
+                else NativeRecipeItemData.select(session.document,path,NativeRecipeStacks.encode(selection.stack()),output);
+            }catch(IllegalArgumentException invalid){KineticOverlays.toast(tr("invalid"));return;}
+            session.invalid.keySet().removeIf(field->field.size()>=path.size()&&field.subList(0,path.size()).equals(path));rebuild();
         });
     }
     private List<KineticOverlays.MenuItem> slotMenu() {
         var path=selectedPath();
-        var editPath=session.document.at(path).isJsonPrimitive()?List.copyOf(path.subList(0,path.size()-1)):path;
         var actions=new ArrayList<KineticOverlays.MenuItem>();
-        actions.add(KineticOverlays.MenuItem.action(tr("edit_slot"),()->openChild(new NativeRecipeFieldsPage(session,editPath))));
+        // The selected slot's quantity, chance and other fields are edited in the properties panel on the right.
         if(!path.isEmpty()&&session.document.at(path.subList(0,path.size()-1)).isJsonArray())
-            actions.add(KineticOverlays.MenuItem.action(tr("duplicate_material"),()->{session.document.duplicate(path);selected=-1;rebuild();}));
+            actions.add(KineticOverlays.MenuItem.action(tr("duplicate_material"),()->{if(!session.invalid.isEmpty()){KineticOverlays.toast(tr("invalid"));return;}session.document.duplicate(path);selected=-1;rebuild();}));
         actions.add(KineticOverlays.MenuItem.danger(tr("remove_slot"),this::removeSelectedSlot));return List.copyOf(actions);
     }
     private void addMaterial() {
@@ -277,7 +389,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
             var parent=slot.path().subList(0,slot.path().size()-1);if(session.document.at(parent).isJsonArray())paths.add(parent);
         }
         if(paths.isEmpty()){openChild(new NativeRecipeFieldsPage(session,session.viewPath));return;}
-        openContextMenu(258,286,paths.stream().map(path->KineticOverlays.MenuItem.action(Component.literal(String.join(" / ",path)),()->{
+        openContextMenu(184,336,paths.stream().map(path->KineticOverlays.MenuItem.action(Component.literal(String.join(" / ",path)),()->{
             var array=session.document.at(path).getAsJsonArray();
             if(array.isEmpty()){openChild(new NativeRecipeFieldsPage(session,path));return;}
             session.document.duplicate(NativeRecipeLayout.append(path,Integer.toString(array.size()-1)));rebuild();
@@ -285,6 +397,11 @@ public final class NativeRecipeEditorPage extends KineticPage {
             openChild(new NativeRecipeFieldsPage(session,session.document.at(added).isJsonPrimitive()?path:added));
         })).toList(),196);
     }
+    private void confirmRecipeRestore() {
+        openDialog(tr(session.added?"delete_recipe":"restore"), tr(session.added?"delete_recipe_confirm":"restore_confirm"),
+                tr(session.added?"delete_recipe":"restore"), tr("back"), () -> send("restore"), () -> {});
+    }
+
     private void removeSelectedSlot() {
         if(session.busy || selected<0)return;
         if(!session.invalid.isEmpty()){KineticOverlays.toast(tr("invalid"));return;}
@@ -294,16 +411,24 @@ public final class NativeRecipeEditorPage extends KineticPage {
         }catch(RuntimeException error){KineticOverlays.toast(tr("error",Component.literal(error.getMessage())));}
     }
     @Override protected void renderBackground(KineticGraphics g,int mx,int my,float pt) {
-        KineticTheme.panel(g,14,14,612,332);
-        g.scrollingText(title(),114,24,504,0xFFFFAA00,false);g.scrollingText(tr("id"),22,48,64,0xFFFFFFFF,false);
-        KineticTheme.panelAlt(g,20,74,390,206);KineticTheme.panelAlt(g,418,74,200,206);
-        g.scrollingText(jeiPreview==null?tr(layout.kind().equals("generic")?"generic_preview":"click_slot"):jeiPreview.category(),24,80,382,0xFFAAAAAA,false);
-        g.scrollingText(selected<0?tr("parameters"):tr(slots.get(selected).output()?"output_slot":"input_slot"),426,82,184,0xFFFFAA00,false);
-        for(int row=0;row<4;row++) {int i=fieldPage*4+row;if(i<fields.size())g.scrollingText(fieldLabel(fields.get(i)),426,100+row*40,184,0xFFFFFFFF,false);}
-        g.scrollingTextCentered(Component.literal((fieldPage+1)+" / "+Math.max(1,(fields.size()+3)/4)),518,292,100,0xFFFFFFFF,false);
-        if(!previewError.isEmpty()) {g.wrappedText(tr(previewError),30,126,366,0xFFAAAAAA);return;}
+        positionDiagram();
+        KineticTheme.panel(g,0,0,640,360);
+        // The workstation is named after its JEI category, so a Create crusher reads "Recipe Editor · Crushing".
+        g.scrollingTextCentered(jeiPreview==null?title():title().copy().append(" · ").append(jeiPreview.category()),320,8,2*(320-48),0xFFFFAA00,false);g.scrollingText(tr("id"),4,28,40,0xFFFFFFFF,false);
+        KineticTheme.surface(g,4,44,fields.isEmpty()?632:412,312,KineticTheme.Surface.PANEL_ALT);
+        if(!fields.isEmpty()) {
+            KineticTheme.surface(g,420,44,216,312,KineticTheme.Surface.PANEL_ALT);
+            g.vLine(418,44,356,KineticTheme.current().accentHover());
+            g.scrollingText(selected<0?tr("parameters"):tr(slots.get(selected).output()?"output_slot":"input_slot"),424,48,208,0xFFFFAA00,false);
+        }
+        g.hLine(4,636,44,KineticTheme.current().accentHover());
+        // Each row: the translated field name on the left, its control on the right, both centred on the row.
+        for(int row=0;row<FIELD_ROWS;row++) {int i=fieldPage*FIELD_ROWS+row;if(i<fields.size())g.scrollingText(fieldLabel(fields.get(i)),FIELD_LABEL_X,FIELD_Y+row*FIELD_PITCH+4,FIELD_LABEL_W,0xFFFFFFFF,false);}
+        for(var icon:fieldIcons){KineticTheme.itemSlot(g,icon.x(),icon.y(),16,4,false);KineticTheme.item(g,icon.stack(),icon.x(),icon.y(),16,0.75F,false);}
+        if(fields.size()>FIELD_ROWS)g.scrollingTextCentered(Component.literal((fieldPage+1)+" / "+Math.max(1,(fields.size()+FIELD_ROWS-1)/FIELD_ROWS)),528,324,128,0xFFFFFFFF,false);
+        if(!previewError.isEmpty()) {g.wrappedText(tr(previewError),DIAGRAM_X,DIAGRAM_Y+16,diagramWidth(),0xFFAAAAAA);return;}
         if(jeiPreview!=null&&previewGeneration==RecipeJeiBridge.generation()) {
-            g.clipped(26,100,400,266,()->{
+            g.clipped(DIAGRAM_X,DIAGRAM_Y,diagramRight(),DIAGRAM_Y+DIAGRAM_HEIGHT,()->{
                 g.push();try {
                     g.translate(diagramX,diagramY);jeiPreview.draw(g,mx-diagramX,my-diagramY);
                     for(int i=0;i<slots.size();i++) {
@@ -314,6 +439,8 @@ public final class NativeRecipeEditorPage extends KineticPage {
                 }catch(RuntimeException error){previewError="jei_preview_failed";jeiPreview=null;}finally{g.pop();}
             });return;
         }
+        g.scissor(DIAGRAM_X,DIAGRAM_Y,diagramRight(),DIAGRAM_Y+DIAGRAM_HEIGHT);
+        try {
         g.push();try {
             g.translate(diagramX,diagramY);g.scale(scale,scale);background(g);
             for(int i=0;i<slots.size();i++) {
@@ -346,6 +473,7 @@ public final class NativeRecipeEditorPage extends KineticPage {
             // Preview clipping uses page coordinates; draw outside the diagram's additional transform.
             if(!entityPreview.render(g,id,session.id+"/"+i,x,y,size,size,false))g.scrollingTextCentered(Component.literal(id.isEmpty()?"?":id),x+size/2,y+size/2,size,0xFF555555,false);
         }
+        } finally {g.endScissor();}
     }
     private static String entityId(JsonElement value) {
         if(value.isJsonPrimitive()&&value.getAsJsonPrimitive().isString())return value.getAsString();
@@ -439,8 +567,29 @@ public final class NativeRecipeEditorPage extends KineticPage {
             case "chance"->"chance";case "cookingtime","cookingTime","processingTime","processing_time","duration","time","timeCost","smeltingTime"->"time";
             case "experience"->"experience";case "loops"->"loops";case "heatRequirement"->"heat";
             case "energy","energyCost"->"energy";case "acceptMirrored"->"mirror";case "keepHeldItem"->"keep_tool";
-            case "from"->"from";case "to"->"to";case "reversible"->"reversible";case "temperature"->"temperature";default->null;};
-        return known==null?Component.literal(key):tr("field."+known);
+            case "from"->"from";case "to"->"to";case "reversible"->"reversible";case "temperature"->"temperature";
+            case "fluid","fluidName","FluidName","fluid_id"->"fluid";case "group"->"group";case "category"->"category";
+            case "show_notification"->"show_notification";case "weight"->"weight";case "level","tier"->"level";
+            case "damage"->"damage";case "mana","source"->"mana";case "sound"->"sound";case "probability"->"chance";
+            case "xp","exp"->"experience";case "cookTime","cooking_time","cook_time","burnTime","burn_time"->"time";
+            case "effect","mob_effect"->"effect";case "entity","entity_type"->"entity";case "block"->"block";
+            case "container","holder","holderItem","holder_item","bowl"->"container";
+            case "saturation","saturationBonus","saturation_bonus","saturationModifier","saturation_modifier","saturationBonusModifier"->"saturation";
+            case "nutrition","hunger","food"->"nutrition";case "capacity","capacityExtra","capacity_extra"->"capacity";
+            case "min","minimum"->"min";case "max","maximum"->"max";case "score"->"score";case "bonus"->"bonus";
+            case "type"->"recipe_type";case "ingredients","ingredient","inputs","input"->"ingredients";
+            case "result","results","output","outputs"->"result";case "key"->"pattern_key";case "pattern"->"pattern";
+            case "base"->"base";case "addition"->"addition";case "template"->"template";case "nbt"->"nbt";
+            case "components"->"components";case "conditions","forge:conditions","neoforge:conditions"->"conditions";
+            default->null;};
+        return known==null?Component.literal(humanize(key)):tr("field."+known);
+    }
+    // An unmapped key reads as words ("processingTime" -> "Processing Time"); the raw key stays in the tooltip.
+    private static String humanize(String key) {
+        var words=key.replaceAll("([a-z0-9])([A-Z])","$1 $2").replace('_',' ').replace('-',' ').trim().split("\\s+");
+        var result=new StringBuilder();
+        for(String word:words)if(!word.isEmpty())result.append(result.length()==0?"":" ").append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        return result.length()==0?key:result.toString();
     }
     private Component fieldTooltip(List<String> path) {
         String key=path.get(path.size()-1);
@@ -454,27 +603,55 @@ public final class NativeRecipeEditorPage extends KineticPage {
             label=label.copy().append("\n").append(tr("goety."+key+".hint"));
         return label;
     }
+    // Every slot says what it is and what clicking does, so input and output slots are never confused.
     @Override protected void renderTooltips(int mx,int my) {
-        if(mx<26||mx>=400||my<100||my>=266)return;
+        for(var icon:fieldIcons)if(mx>=icon.x()&&mx<icon.x()+16&&my>=icon.y()&&my<icon.y()+16) {
+            if(!icon.stack().isEmpty())showItemTooltip(icon.stack());
+            return;
+        }
+        if(!insideDiagram(mx,my))return;
         for(int i=0;i<slots.size();i++) {
             var s=slots.get(i);float x=diagramX+s.x()*scale,y=diagramY+s.y()*scale;
             int width=jeiPreview==null?slotSize():jeiSlots.get(i).width(),height=jeiPreview==null?slotSize():jeiSlots.get(i).height();
             if(mx>=x && mx<x+width*scale && my>=y && my<y+height*scale) {
                 var lines=new ArrayList<Component>();var choices=stacks.get(i);
-                if(!choices.isEmpty())lines.add(NativeRecipeStacks.frame(choices,System.currentTimeMillis()).getHoverName());
                 for(String id:ingredientTags.get(i))lines.add(Component.literal("#"+id).withStyle(net.minecraft.ChatFormatting.GOLD));
-                if(nativeIcons.get(i)!=null)lines.add(Component.literal(nativeIcons.get(i).id()));
-                lines.add(Component.literal(String.join(" / ",s.path())));lines.add(tr("click_slot"));showTooltip(lines,260);return;
+                lines.add(slotRole(s.output()));
+                String mob=null;for(var field:NativeRecipeLayout.fields(session.document,s.path()))if(isEntity(field)){mob=valueAt(field).getAsString();break;}
+                if(mob!=null){lines.add(0,entityName(mob));lines.add(tr("slot_hint.entity"));}
+                else if(nativeIcons.get(i)!=null)lines.add(tr("slot_hint.resource"));
+                else lines.add(tr(s.output()?"slot_hint.output":"slot_hint.input"));
+                lines.add(tr("slot_hint.menu"));
+                if(!choices.isEmpty())showItemTooltip(NativeRecipeStacks.frame(choices,System.currentTimeMillis()),lines);
+                else showTooltip(lines,260);
+                return;
+            }
+        }
+        // A slot the viewer shows but that is not tied to a recipe field can still be changed under Advanced.
+        if(jeiPreview==null)return;
+        for(var slot:jeiPreview.slots()) {
+            if(!slot.editable()||jeiSlots.contains(slot))continue;
+            if(mx>=diagramX+slot.x()&&mx<diagramX+slot.x()+slot.width()&&my>=diagramY+slot.y()&&my<diagramY+slot.y()+slot.height()) {
+                var lines=new ArrayList<Component>();
+                if(!slot.name().isEmpty())lines.add(Component.literal(slot.name()));
+                lines.add(slotRole(slot.output()));lines.add(tr("slot_hint.unbound"));
+                showTooltip(lines,260);return;
             }
         }
     }
+    private static Component slotRole(boolean output) {
+        return tr(output?"slot_role.output":"slot_role.input").copy().withStyle(output?net.minecraft.ChatFormatting.GOLD:net.minecraft.ChatFormatting.AQUA);
+    }
     @Override protected void renderForeground(KineticGraphics g,int mx,int my,float pt) {
-        if(jeiPreview==null||previewGeneration!=RecipeJeiBridge.generation()||mx<26||mx>=400||my<100||my>=266)return;
+        if(jeiPreview==null||previewGeneration!=RecipeJeiBridge.generation()||!insideDiagram(mx,my))return;
         for(int i=0;i<slots.size();i++) {
             var slot=slots.get(i);var bounds=jeiSlots.get(i);
             if(mx>=diagramX+slot.x()&&mx<diagramX+slot.x()+bounds.width()
                     &&my>=diagramY+slot.y()&&my<diagramY+slot.y()+bounds.height())return;
         }
+        // Unbound ingredient slots also get the editor's own tooltip instead of the viewer's.
+        for(var slot:jeiPreview.slots())if(slot.editable()&&mx>=diagramX+slot.x()&&mx<diagramX+slot.x()+slot.width()
+                &&my>=diagramY+slot.y()&&my<diagramY+slot.y()+slot.height())return;
         g.push();try{g.translate(diagramX,diagramY);jeiPreview.drawOverlays(g,mx-diagramX,my-diagramY);}
         catch(RuntimeException error){previewError="jei_preview_failed";jeiPreview=null;}finally{g.pop();}
     }
@@ -486,6 +663,12 @@ public final class NativeRecipeEditorPage extends KineticPage {
     }
     private void accept(NativeRecipeNetwork.Response packet) {
         if(!isAttached())return;session.busy=false;var body=JsonParser.parseString(packet.body()).getAsJsonObject();
+        String action=body.has("action")?body.get("action").getAsString():"";
+        if(packet.success()&&(action.equals("disable")||action.equals("enable"))) {
+            // Only the removal rule changed: keep the draft, take the new catalog version so later saves are not stale.
+            session.removed=body.get("removed").getAsBoolean();session.catalog=body.get("catalog").getAsLong();session.revision=body.get("revision").getAsString();
+            KineticOverlays.toast(tr(session.removed?"disabled":"enabled"));session.refresh.run();rebuild();return;
+        }
         if(packet.success()) {
             KineticOverlays.toast(tr("saved"));session.refresh.run();
             if(body.has("deleted")&&body.get("deleted").getAsBoolean())navigateBack();else {session.saved(body);rebuild();}

@@ -23,8 +23,8 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
         // 原 setParentScreen(新建的配置索引)：v2 容器页无法指定返回目标，返回到打开时的当前界面（见迁移报告）
         // Former setParentScreen(a fresh config index): v2 container pages cannot set a back target, so Back returns
         // to the screen current when the hub opened (see the migration report).
-        // Fixed header, pinned vanilla entry, four scrollable mod rows and the existing session actions.
-        setImageSize(600, 316);
+        // Fixed header and pinned vanilla entry; the remaining canvas belongs to workstation cards.
+        setImageSize(640, 360);
         setTitleLabelPosition(8, 1000);
         setInventoryLabelPosition(8, 1000);
     }
@@ -37,39 +37,37 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
     protected void build(KineticUi ui) {
         RecipePreviewState.returnToPreview = false;
 
-        int x=leftPos()+12, y=topPos()+26;
-        ui.textField(x,y,448).value(stations.query).maxLength(256)
-                .placeholder(NativeRecipeBrowserPage.tr("station_search")).onChange(v->stations.query=v).build();
-        ui.button(x+456,y,120).text(NativeRecipeBrowserPage.tr("search_button")).onClick(stations::search).build();
-        ui.itemButton(x,y+28,NativeRecipeStationMenu.CARD_WIDTH,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CRAFTING_TABLE))
-                .text(NativeRecipeBrowserPage.tr("vanilla")).onClick(()->openChild(new NativeRecipeStationsPage("minecraft","",null))).build();
-        stations.build(ui,x,y+76,576,168);
-        int bottomBtnW = 108;
-        int bottomSpacing = 8;
-        int bottomY = topPos() + imageHeight() - 34;
-        boolean jei=dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable();
-        int totalBottomWidth = bottomBtnW * (jei?4:3) + bottomSpacing * (jei?3:2);
-        int bottomStartX = leftPos() + (imageWidth() - totalBottomWidth) / 2;
+        int x=leftPos()+4, y=topPos()+26;
+        // The cards filter while typing; there is no separate search button.
+        ui.textField(x,y,632).value(stations.query).maxLength(256)
+                .placeholder(NativeRecipeBrowserPage.tr("station_search")).onChange(stations::searchLive).build();
+        ui.itemButton(x,y+28,NativeRecipeStationMenu.cardWidth(632),new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CRAFTING_TABLE))
+                .text(NativeRecipeBrowserPage.tr("vanilla")).onClick(()->openChild(new VanillaRecipeHubPage())).build();
+        stations.build(ui,x,y+70,632,260);
 
-        ui().button(leftPos() + 12, topPos() + 4, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(this::close).build();
-
-        ui().button(bottomStartX + bottomBtnW + bottomSpacing, bottomY, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.btn.hub")).onClick(() -> {
-                    if (KineticClientRuntime.localPlayer() != null) {
-                        KineticItemSearch.prepare(() -> {
-                            this.showToast(KineticI18n.translatable("msg.contentstudio.recipe.recipehud.requesting_data"));
-                            RecipeNetwork.requestOpen();
-                        });
-                    }
-                }).build();
-        if(jei)ui.button(bottomStartX+(bottomBtnW+bottomSpacing)*3,bottomY,bottomBtnW).text(NativeRecipeBrowserPage.tr("new_third_party"))
-                .tooltip(NativeRecipeBrowserPage.tr("new_recipe_hint")).onClick(()->openChild(NativeRecipeStationsPage.creation())).build();
-
-        ui().button(bottomStartX + (bottomBtnW + bottomSpacing) * 2, bottomY, bottomBtnW).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.manage.title")).onClick(() -> {
+        ui().button(leftPos() + 4, topPos() + 4, 40).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(this::close).build();
+        // One management entry; added, removed and changed third-party recipes are its tabs.
+        // Only as wide as its label.
+        int manageW = MANAGE_W;
+        ui().button(leftPos() + imageWidth() - manageW - 4, topPos() + 4, manageW).text(RecipeManagementTabs.label("title"))
+                .tooltip(RecipeManagementTabs.label("title.tooltip")).onClick(() -> {
+                    if (KineticClientRuntime.localPlayer() == null) return;
                     this.showToast(KineticI18n.translatable("msg.contentstudio.recipe.recipehud.requesting_recipes"));
-                    RecipeNetwork.requestRecipeRecords();
+                    RecipeManagementTabs.open(RecipeManagementTabs.ADDED);
                 }).build();
     }
 
+
+    private static final int MANAGE_W = 56;
+
+    /** The vanilla recipe hub and the three management tabs, for screenshot tools. */
+    @Override
+    public java.util.List<ReviewView> reviewViews() {
+        java.util.List<ReviewView> views = new java.util.ArrayList<>();
+        views.add(new ReviewView("vanilla", () -> openChild(new VanillaRecipeHubPage())));
+        views.addAll(RecipeManagementTabs.views());
+        return views;
+    }
 
     @Override
     protected boolean onCloseRequested() {
@@ -79,8 +77,10 @@ public class RecipeHubPage extends KineticContainerPage<RecipeMenu> {
 
     @Override
     protected void renderContainerBackground(KineticGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        KineticTheme.panelAlt(graphics, leftPos(), topPos(), imageWidth(), imageHeight());
-        graphics.scrollingText(title(), leftPos() + 128, topPos() + 10, imageWidth() - 140, KineticTheme.current().text(), false);
+        KineticTheme.panel(graphics, leftPos(), topPos(), imageWidth(), imageHeight());
+        // Centred on the screen, clear of Back and the management button on both sides.
+        graphics.scrollingTextCentered(title(), leftPos() + imageWidth() / 2, topPos() + 8, imageWidth() - 2 * (4 + MANAGE_W + 4),
+                KineticTheme.current().text(), false);
         stations.render(graphics,mouseX,mouseY);
     }
 

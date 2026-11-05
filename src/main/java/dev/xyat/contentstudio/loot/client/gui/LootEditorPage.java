@@ -18,17 +18,22 @@ import java.util.Comparator;
 import java.util.List;
 
 public class LootEditorPage extends AbstractLootEditorPage {
-    private static final int ENTITY_GRID_COLS = 4;
-    private static final int ENTITY_GRID_ROWS = 6;
-    private static final int ENTITY_CELL_SIZE = 48;
-    private static final int BLOCK_CELL_SIZE = 18;
+    private static final int ENTITY_CELL_SIZE = dev.xyat.kineticcore.api.client.gui.layout.KineticLayout.ENTITY_CARD_SIZE;
+    private static final int ENTITY_CELL_GAP = 2;
+    private static final int ENTITY_GRID_COLS = (TARGET_WIDTH + ENTITY_CELL_GAP) / (ENTITY_CELL_SIZE + ENTITY_CELL_GAP);
+    private static final int ENTITY_GRID_ROWS = (TARGET_HEIGHT + ENTITY_CELL_GAP) / (ENTITY_CELL_SIZE + ENTITY_CELL_GAP);
+    // Block cells match the 22 px reward icons on the right: one item size on the whole page.
+    private static final int BLOCK_CELL_SIZE = ICON_CELL;
     private static final int BLOCK_CELL_GAP = 2;
     private static final int BLOCK_GRID_COLS = (TARGET_WIDTH + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
     // Start just below the search field and use the full height inside the panel border.
     private static final int BLOCK_GRID_TOP = SEARCH_Y + 16 + 2;
-    private static final int BLOCK_GRID_ROWS = (RIGHT_Y + RIGHT_H - 2 - BLOCK_GRID_TOP + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
+    // Down to the 4 px canvas margin: one more row than the old 2 px inset left room for.
+    private static final int BLOCK_GRID_ROWS = (V_HEIGHT - 4 - BLOCK_GRID_TOP + BLOCK_CELL_GAP) / (BLOCK_CELL_SIZE + BLOCK_CELL_GAP);
 
     private final KineticEntityPreview entityPreviewRenderer = KineticEntityPreview.create();
+    // Layout-editor regions (per mode, the two modes have different cells): the target grid and the reward pools.
+    private dev.xyat.kineticcore.api.client.gui.layout.KineticLayout.Rect targets, rewards;
 
     // 原带 parentScreen 的重载已移除（由 openChild 决定父界面）/ The former parentScreen overload was removed (openChild decides the parent).
     public LootEditorPage(int mode, List<LootEntryInfo> entries) {
@@ -45,12 +50,90 @@ public class LootEditorPage extends AbstractLootEditorPage {
                 : "gui.contentstudio.loot.loots.block.title";
     }
 
+    @Override
+    protected void build(dev.xyat.kineticcore.api.client.gui.ui.KineticUi ui) {
+        // Two named regions the player can drag in the layout editor; the grid shows as many whole cells as its region
+        // holds and the reward pools fill theirs. Dragging the line between them resizes both.
+        String suffix = mode == LootEntryInfo.MODE_BLOCK ? ".block" : ".entity";
+        targets = null;
+        rewards = null;
+        int rewardsX = LEFT_X + defaultTargetWidth() + 10;
+        var targetRegion = region("targets" + suffix, LEFT_X, defaultTargetY(), defaultTargetWidth(), defaultTargetHeight());
+        var rewardRegion = region("rewards" + suffix, rewardsX, super.groupPanelY(), V_WIDTH - 4 - rewardsX,
+                RIGHT_Y + RIGHT_H - super.groupPanelY() - 4);
+        targets = targetRegion;
+        rewards = rewardRegion;
+        super.build(ui);
+    }
+
+    private int defaultTargetWidth() {
+        return mode == LootEntryInfo.MODE_ENTITY
+                ? ENTITY_GRID_COLS * ENTITY_CELL_SIZE + (ENTITY_GRID_COLS - 1) * ENTITY_CELL_GAP
+                : BLOCK_GRID_COLS * BLOCK_CELL_SIZE + (BLOCK_GRID_COLS - 1) * BLOCK_CELL_GAP;
+    }
+
+    private int defaultTargetY() {
+        return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_TOP : super.targetAreaY();
+    }
+
+    private int defaultTargetHeight() {
+        int rows = mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_ROWS : ENTITY_GRID_ROWS;
+        return rows * cellSize() + (rows - 1) * (cellPitch() - cellSize());
+    }
+
+    @Override
+    protected int targetPanelWidth() {
+        // The divider follows the columns actually shown.
+        return gridCols() * cellSize() + (gridCols() - 1) * (cellPitch() - cellSize());
+    }
+
+    @Override
+    protected int targetPanelX() {
+        return targets != null ? targets.x() : LEFT_X;
+    }
+
+    /** The reward panel starts right after the grid's scrollbar while the two regions are side by side. */
+    private boolean rewardsBesideTargets() {
+        return rewards != null && targets != null && rewards.x() >= targets.x() + targets.width()
+                && rewards.x() <= targets.x() + targets.width() + 12;
+    }
+
+    @Override
+    protected int rightPanelX() {
+        // The grid shows whole cells only, so the part of its region they do not fill goes to the reward panel
+        // instead of opening a gap before the divider.
+        if (rewards == null || rewardsBesideTargets()) return targetPanelX() + targetPanelWidth() + 10;
+        return rewards.x();
+    }
+
+    @Override
+    protected int rightPanelWidth() {
+        return rewards != null ? rewards.x() + rewards.width() - rightPanelX() : super.rightPanelWidth();
+    }
+
+    @Override
+    protected int groupPanelY() {
+        return rewards != null ? rewards.y() : super.groupPanelY();
+    }
+
+    @Override
+    protected int groupPanelHeight() {
+        return rewards != null ? rewards.height() : super.groupPanelHeight();
+    }
+
+    @Override
+    protected int groupedHeaderHeight() {
+        return 24;
+    }
+
     private int gridCols() {
-        return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_COLS : ENTITY_GRID_COLS;
+        if (targets == null) return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_COLS : ENTITY_GRID_COLS;
+        return Math.max(1, (targets.width() + cellPitch() - cellSize()) / cellPitch());
     }
 
     private int gridRows() {
-        return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_ROWS : ENTITY_GRID_ROWS;
+        if (targets == null) return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_ROWS : ENTITY_GRID_ROWS;
+        return Math.max(1, (targets.height() + cellPitch() - cellSize()) / cellPitch());
     }
 
     private int cellSize() {
@@ -58,19 +141,16 @@ public class LootEditorPage extends AbstractLootEditorPage {
     }
 
     private int cellPitch() {
-        return cellSize() + (mode == LootEntryInfo.MODE_BLOCK ? BLOCK_CELL_GAP : 0);
+        return cellSize() + (mode == LootEntryInfo.MODE_BLOCK ? BLOCK_CELL_GAP : ENTITY_CELL_GAP);
     }
 
     @Override
     protected int targetAreaHeight() {
-        if (mode != LootEntryInfo.MODE_BLOCK) {
-            return super.targetAreaHeight();
-        }
-        return gridRows() * BLOCK_CELL_SIZE + (gridRows() - 1) * BLOCK_CELL_GAP;
+        return gridRows() * cellSize() + (gridRows() - 1) * (cellPitch() - cellSize());
     }
 
     @Override protected int targetAreaY() {
-        return mode == LootEntryInfo.MODE_BLOCK ? BLOCK_GRID_TOP : super.targetAreaY();
+        return targets != null ? targets.y() : defaultTargetY();
     }
 
     @Override
@@ -114,15 +194,15 @@ public class LootEditorPage extends AbstractLootEditorPage {
                 displayEntries.size(),
                 start + targetVisibleEntryCount() + cols
         );
-        g.scissor(LEFT_X,
+        g.scissor(targetPanelX(),
                 targetAreaY(),
-                LEFT_X + TARGET_WIDTH,
+                targetPanelX() + targetPanelWidth(),
                 targetAreaY() + targetAreaHeight()
         );
         for (int i = start; i < end; i++) {
             LootEntryInfo entry = displayEntries.get(i);
             int local = i - start;
-            int x = LEFT_X + local % cols * pitch;
+            int x = targetPanelX() + local % cols * pitch;
             int y = targetAreaY() + local / cols * pitch - scrollShift;
             boolean hover = mx >= x && mx < x + cell && my >= y && my < y + cell;
             boolean selected = selectedEntry != null
@@ -130,7 +210,7 @@ public class LootEditorPage extends AbstractLootEditorPage {
                     && selectedEntry.lootTableId().equals(entry.lootTableId());
             boolean changed = isChangedEntry(entry);
             if (mode == LootEntryInfo.MODE_ENTITY) {
-                KineticEntityPreview.drawCheckerboard(g, x + 1, y + 1, cell - 2, cell - 2);
+                KineticTheme.itemSlot(g, x, y, cell, 4, hover);
                 boolean rendered = renderEntity(g, entry.targetId(), x, y, cell, hover);
                 boolean error = hasEntityDataError(entry) || !rendered;
                 renderEntityOutline(g, x, y, cell, selected, hover, changed, error);
@@ -185,13 +265,13 @@ public class LootEditorPage extends AbstractLootEditorPage {
 
     @Override
     protected LootEntryInfo targetEntryAt(double mx, double my) {
-        if (mx < LEFT_X || mx >= LEFT_X + TARGET_WIDTH || my < targetAreaY() || my >= targetAreaY() + targetAreaHeight()) {
+        if (mx < targetPanelX() || mx >= targetPanelX() + targetPanelWidth() || my < targetAreaY() || my >= targetAreaY() + targetAreaHeight()) {
             return null;
         }
         int cell = cellSize();
         int pitch = cellPitch();
         int cols = gridCols();
-        int localX = (int) (mx - LEFT_X);
+        int localX = (int) (mx - targetPanelX());
         double smoothScroll = smoothTargetScroll();
         int smoothRow = (int) Math.floor(smoothScroll + 1.0E-6D);
         int scrollShift = (int) Math.round((smoothScroll - smoothRow) * pitch);
@@ -295,6 +375,8 @@ public class LootEditorPage extends AbstractLootEditorPage {
     ) {
         if (error) {
             KineticTheme.stateOutline(graphics, x, y, size, size, false, false, true);
+        } else if (selected) {
+            KineticTheme.stateOutline(graphics, x, y, size, size, true, hovered, false);
         } else if (hovered) {
             KineticTheme.stateOutline(graphics, x, y, size, size, false, true, false);
         } else if (changed) {

@@ -15,8 +15,12 @@ import dev.xyat.kineticcore.api.client.input.KineticKeyBindings;
 import net.minecraft.network.chat.Component;
 
 final class LootPoolEditPage extends KineticPage {
-    private static final int WIDTH = 440;
-    private static final int HEIGHT = 240;
+    private static final int WIDTH = 400;
+    // Apply and Delete sit in the header row, so the dialog ends 12 px under the preserve note.
+    private static final int HEIGHT = 80;
+    private static final int ACTION_W = 40;
+    private static final int APPLY_X = WIDTH - 4 - ACTION_W;
+    private static final int DELETE_X = APPLY_X - 4 - ACTION_W;
     private static final int PANEL_X = (CANVAS_WIDTH - WIDTH) / 2;
     private static final int PANEL_Y = (CANVAS_HEIGHT - HEIGHT) / 2;
     private static final int FIELD_COLUMN_PITCH = 96;
@@ -39,20 +43,21 @@ final class LootPoolEditPage extends KineticPage {
 
     @Override
     protected void build(KineticUi ui) {
+        bindDeleteAction(() -> true, this::openDeleteConfirm);
         LootJsonEditUtil.Range rolls = LootJsonEditUtil.range(workingPool.get("rolls"), 1);
         LootJsonEditUtil.Range bonus = LootJsonEditUtil.range(workingPool.get("bonus_rolls"), 0);
-        rollsMinBox = numericBox(PANEL_X + 36, format(rolls.min()), LootNumericField.Type.POSITIVE_DECIMAL,
+        rollsMinBox = numericBox(PANEL_X + 4, format(rolls.min()), LootNumericField.Type.POSITIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.rolls_min");
-        rollsMaxBox = numericBox(PANEL_X + 132, format(rolls.max()), LootNumericField.Type.POSITIVE_DECIMAL,
+        rollsMaxBox = numericBox(PANEL_X + 4 + FIELD_COLUMN_PITCH, format(rolls.max()), LootNumericField.Type.POSITIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.rolls_max");
-        bonusMinBox = numericBox(PANEL_X + 228, format(bonus.min()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
+        bonusMinBox = numericBox(PANEL_X + 4 + FIELD_COLUMN_PITCH * 2, format(bonus.min()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_min");
-        bonusMaxBox = numericBox(PANEL_X + 324, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
+        bonusMaxBox = numericBox(PANEL_X + 4 + FIELD_COLUMN_PITCH * 3, format(bonus.max()), LootNumericField.Type.NON_NEGATIVE_DECIMAL,
                 "gui.contentstudio.loot.loots.tip.pool.bonus_max");
 
-        ui().button(PANEL_X + 196, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.apply")).onClick(this::applyChanges).build();
-        ui().button(PANEL_X + 272, PANEL_Y + 194, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.delete")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(this::openDeleteConfirm).build();
-        ui().button(PANEL_X + 24, PANEL_Y + 18, 70).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.cancel")).onClick(this::closeToParent).build();
+        ui().button(PANEL_X + APPLY_X, PANEL_Y + 4, ACTION_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.apply")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.apply")).onClick(this::applyChanges).build();
+        ui().button(PANEL_X + DELETE_X, PANEL_Y + 4, ACTION_W).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.delete")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(this::openDeleteConfirm).build();
+        ui().button(PANEL_X + 4, PANEL_Y + 4, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.cancel")).onClick(this::closeToParent).build();
 
     }
 
@@ -66,7 +71,7 @@ final class LootPoolEditPage extends KineticPage {
         return LootNumericField.add(
                 ui(),
                 x,
-                PANEL_Y + 84,
+                PANEL_Y + 40,
                 76,
                 value,
                 value,
@@ -117,28 +122,18 @@ final class LootPoolEditPage extends KineticPage {
     @Override
     protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
         KineticTheme.panel(g, PANEL_X, PANEL_Y, WIDTH, HEIGHT);
-        KineticTheme.stateSurface(
-                g,
-                PANEL_X + 12,
-                PANEL_Y + 12,
-                WIDTH - 24,
-                HEIGHT - 24,
-                KineticTheme.Surface.PANEL_ALT,
-                true,
-                false,
-                false
-        );
+        KineticTheme.separator(g, PANEL_X + 4, PANEL_Y + 24, WIDTH - 8);
     }
 
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
-        g.scrollingText(title(), PANEL_X + 102, PANEL_Y + 24, WIDTH - 126, 0xFFFFAA00, false);
-        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.pool",
-                Component.literal(String.valueOf(poolIndex + 1))), PANEL_X + 24, PANEL_Y + 42, WIDTH - 48, 0xFFE6E6E6, false);
-        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 36, 0xFF55FFFF);
-        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_max", 132, 0xFF55FFFF);
-        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_min", 228, 0xFFDD77FF);
-        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_max", 324, 0xFFDD77FF);
+        // Title and pool number centred between Back and the Delete and Apply buttons.
+        Component heading = title().copy().append(Component.literal(" " + (poolIndex + 1)).withStyle(net.minecraft.ChatFormatting.YELLOW));
+        g.scrollingTextCentered(heading, PANEL_X + WIDTH / 2, PANEL_Y + 10, WIDTH - 2 * (4 + 2 * ACTION_W + 8), 0xFFFFAA00, false);
+        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_min", 4, 0xFF55FFFF);
+        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.rolls_max", 4 + FIELD_COLUMN_PITCH, 0xFF55FFFF);
+        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_min", 4 + FIELD_COLUMN_PITCH * 2, 0xFFDD77FF);
+        fieldLabel(g, "gui.contentstudio.loot.loots.pool_editor.bonus_max", 4 + FIELD_COLUMN_PITCH * 3, 0xFFDD77FF);
 
         int entries = arraySize(workingPool.get("entries"));
         int conditions = arraySize(workingPool.get("conditions"));
@@ -147,13 +142,12 @@ final class LootPoolEditPage extends KineticPage {
                 Component.literal(String.valueOf(entries)),
                 Component.literal(String.valueOf(conditions)),
                 Component.literal(String.valueOf(functions)));
-        g.scrollingText(summary, PANEL_X + 36, PANEL_Y + 128, WIDTH - 72, 0xFFE6E6E6, false);
-        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.pool_editor.preserve"), PANEL_X + 36, PANEL_Y + 149, WIDTH - 72, 0xFFAAAAAA, false);
+        g.scrollingText(summary, PANEL_X + 4, PANEL_Y + 64, WIDTH - 8, 0xFFE6E6E6, false);
     }
 
     private void fieldLabel(KineticGraphics g, String key, int x, int color) {
-        int columnRight = Math.min(x + FIELD_COLUMN_PITCH, WIDTH - 24);
-        g.scrollingText(KineticI18n.translatable(key), PANEL_X + x, PANEL_Y + 70, columnRight - x - TEXT_GAP, color, false);
+        int columnRight = Math.min(x + FIELD_COLUMN_PITCH, WIDTH - 4);
+        g.scrollingText(KineticI18n.translatable(key), PANEL_X + x, PANEL_Y + 29, columnRight - x - TEXT_GAP, color, false);
     }
 
     private int arraySize(JsonElement element) {

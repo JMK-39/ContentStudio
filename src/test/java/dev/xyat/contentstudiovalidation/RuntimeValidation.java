@@ -11,7 +11,8 @@ public final class RuntimeValidation {
     private void started(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
 *///?}
         //? if >=1.21 {
-        /*if (Boolean.getBoolean("contentstudio.guiValidation")) { GuiLongTextValidation.install(); return; }
+        /*// The native recipe pages need a server preview first, prepared the same way as in the 1.20.1 capture jar.
+        if (Boolean.getBoolean("contentstudio.guiValidation")) { if (Boolean.getBoolean("contentstudio.recipePlaytest")) RecipePlaytestValidation.install(); else if (Boolean.getBoolean("contentstudio.nativeRecipeValidation")) NativeRecipeValidation.install(); else GuiLongTextValidation.install(); return; }
         *///?}
         //? if >=1.21 {
 /*        failures=0;

@@ -13,6 +13,16 @@ final class NativeRecipeStacks {
     static List<ItemStack> read(JsonElement json) {
         var result=new ArrayList<ItemStack>();read(json,result);return List.copyOf(result);
     }
+    static JsonObject encode(ItemStack stack) {
+        //? if >=1.21 {
+        /*return ItemStack.CODEC.encodeStart(dev.xyat.contentstudio.item.ItemData.registries().createSerializationContext(com.mojang.serialization.JsonOps.INSTANCE),stack)
+                .result().orElseThrow(()->new IllegalArgumentException("Cannot encode selected item")).getAsJsonObject();
+        *///?} else {
+        var json=new JsonObject();json.addProperty("item",KineticRegistries.items().id(stack.getItem()).toString());
+        if(stack.hasTag())json.addProperty("nbt",stack.getTag().toString());
+        return json;
+        //?}
+    }
     static ItemStack frame(List<ItemStack> variants,long timeMillis) {
         return variants.isEmpty()?ItemStack.EMPTY:variants.get((int)(Math.floorDiv(timeMillis,1000)%variants.size()));
     }

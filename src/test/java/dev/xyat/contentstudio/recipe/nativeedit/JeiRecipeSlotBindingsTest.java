@@ -18,8 +18,8 @@ class JeiRecipeSlotBindingsTest {
                 List.of(false, false, true),
                 List.of(Set.of("item:gold"), Set.of("item:iron"), Set.of("item:diamond"))));
     }
-    @Test void rejectsAmbiguousDuplicateInputsAndPrefersAnExactAlternativeSet() throws Exception {
-        assertArrayEquals(new int[]{-1, 0, -1}, bind(List.of(false, false, false),
+    @Test void pairsIdenticalInputsInRecipeOrderAndPrefersAnExactAlternativeSet() throws Exception {
+        assertArrayEquals(new int[]{1, 0, 2}, bind(List.of(false, false, false),
                 List.of(Set.of("item:oak"), Set.of("item:oak", "item:birch"), Set.of("item:oak")),
                 List.of(false, false, false),
                 List.of(Set.of("item:oak", "item:birch"), Set.of("item:oak"), Set.of("item:oak"))));
@@ -27,6 +27,31 @@ class JeiRecipeSlotBindingsTest {
     @Test void reorderedSameItemOutputsCannotSilentlyChooseTheFirstJsonPath() throws Exception {
         assertArrayEquals(new int[]{-1,-1},bind(List.of(true,true),List.of(Set.of("item:iron"),Set.of("item:iron")),
                 List.of(true,true),List.of(Set.of("item:iron"),Set.of("item:iron"))));
+    }
+    @Test void shownCountsSeparateSameItemOutputs() throws Exception {
+        assertArrayEquals(new int[]{1, 0}, bind(List.of(true, true),
+                List.of(Set.of("item:shard", "count:1"), Set.of("item:shard", "count:3")),
+                List.of(true, true), List.of(Set.of("item:shard", "count:3"), Set.of("item:shard", "count:1"))));
+    }
+    @Test void sharedCountsNeverPairUnrelatedItems() throws Exception {
+        assertArrayEquals(new int[]{-1}, bind(List.of(false), List.of(Set.of("item:iron", "count:1")),
+                List.of(false), List.of(Set.of("item:gold", "count:1"))));
+    }
+    @Test void patternCellsShareTheirSingleKeyEntry() throws Exception {
+        assertArrayEquals(new int[]{0, 0, 1, 0}, bind(List.of(false, false, false, false),
+                List.of(Set.of("item:andesite", "count:1"), Set.of("item:andesite", "count:1"), Set.of("item:iron", "count:1"), Set.of("item:andesite", "count:1")),
+                List.of(false, false), List.of(Set.of("item:andesite", "count:1"), Set.of("item:iron", "count:1"))));
+    }
+    @Test void tagKeyCellsShowingFewerItemsStillShareTheirKey() throws Exception {
+        assertArrayEquals(new int[]{0, 0, 1}, bind(List.of(false, false, false),
+                List.of(Set.of("item:plate_a", "count:1"), Set.of("item:plate_a", "count:1"), Set.of("item:shaft", "count:1")),
+                List.of(false, false), List.of(Set.of("item:plate_a", "item:plate_b", "count:1"), Set.of("item:shaft", "count:1"))));
+    }
+    @Test void repeatedSequenceMaterialsFollowTheStepOrder() throws Exception {
+        assertArrayEquals(new int[]{0, 1, 2, 3}, bind(List.of(false, false, false, false),
+                List.of(Set.of("item:sheet", "count:1"), Set.of("item:powder", "count:1"), Set.of("item:powder", "count:1"), Set.of("item:sheet", "count:1")),
+                List.of(false, false, false, false),
+                List.of(Set.of("item:sheet", "count:1"), Set.of("item:powder", "count:1"), Set.of("item:powder", "count:1"), Set.of("item:sheet", "count:1"))));
     }
     @Test void renderOnlyAndCatalystRolesAreNotEditable() throws Exception {
         var role=Class.forName("dev.xyat.contentstudio.recipe.nativeedit.JeiRecipeSlotBindings")

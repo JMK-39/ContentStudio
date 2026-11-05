@@ -20,7 +20,13 @@ import static dev.xyat.contentstudio.recipe.client.gui.NativeRecipeBrowserPage.t
 
 /** Workstation cards use the shared viewport, including its clipped rendering and pointer routing. */
 final class NativeRecipeStationMenu {
-    static final int CARD_WIDTH=184;
+    static int cardWidth(int viewportWidth) {return Math.max(1,(viewportWidth-16)/3);}
+    static Component modLabel(String mod) {
+        if(mod.equals("minecraft"))return tr("vanilla");
+        String key="gui.contentstudio.recipe.native.mod."+mod;
+        return dev.xyat.kineticcore.api.text.KineticI18n.hasTranslation(key)
+                ? dev.xyat.kineticcore.api.text.KineticI18n.translatable(key) : Component.literal(KineticPlatform.displayName(mod));
+    }
     private record Card(String key,Component label,ItemStack icon,Component tooltip,Runnable click) { }
     private final Runnable rebuild;
     private final Consumer<KineticPage> open;
@@ -45,8 +51,8 @@ final class NativeRecipeStationMenu {
     private JsonArray snapshot() {var array=new JsonArray();rows.forEach(array::add);return array;}
     void build(KineticUi ui,int x,int y,int w,int h) {
         this.x=x;this.y=y;this.w=w;this.h=h;visibleRows=Math.max(1,h/42);
-        scroll.update((cards.size()+2)/3,visibleRows);
-        int cardWidth=CARD_WIDTH;
+        scroll.updateContent(Math.max(0,(cards.size()+2)/3*42-4),h,42);
+        int cardWidth=cardWidth(w);
         // Container and canvas pages share this API control; no widget rebuild while scrolling or dragging.
         ui.add(new KineticCustomControl(x,y,w,h) {
             @Override protected void render(KineticGraphics g,int mx,int my,float pt) {
@@ -67,7 +73,7 @@ final class NativeRecipeStationMenu {
             @Override protected boolean onMouseClick(MouseInput input) {
                 if(click(input))return true;if(!input.isLeft() || !input.inside(x,y,w-8,h))return false;
                 int col=(int)(input.x()-x)/(cardWidth+4),localX=(int)(input.x()-x)%(cardWidth+4);
-                double contentY=input.y()-y+scroll.smoothOffset()*42;int row=(int)(contentY/42);
+                double contentY=input.y()-y+Math.round(scroll.smoothOffset()*42);int row=(int)(contentY/42);
                 int i=row*3+col;
                 if(col<3 && localX<cardWidth && contentY-row*42<38 && i>=0 && i<cards.size()) {playClickSound();cards.get(i).click().run();return true;}
                 return false;
@@ -79,6 +85,8 @@ final class NativeRecipeStationMenu {
         if(!started) {started=true;request(0);}
     }
     void search() {scroll.setOffset(0);if(ready)filter();rebuild.run();}
+    /** Filters the cards while typing; the card control reads the list every frame, so nothing is rebuilt. */
+    void searchLive(String text) {query=text;scroll.setOffset(0);if(ready)filter();}
     private void request(int page) {NativeRecipeClient.expect(NativeRecipeNetwork.request("stations","","","",page,0,"",""),callback);}
     private void accept(NativeRecipeNetwork.Response packet) {
         if(!attached.getAsBoolean())return;
@@ -100,8 +108,8 @@ final class NativeRecipeStationMenu {
                                 && !candidate.get("icon").getAsString().equals("minecraft:knowledge_book")?candidate:current);
             }
             mods.forEach((mod,row)->{
-                String name=KineticPlatform.displayName(mod);
-                if((mod+" "+name).toLowerCase(Locale.ROOT).contains(q))cards.add(new Card(mod,Component.literal(name),icon(row),Component.literal(mod),
+                Component name=modLabel(mod);
+                if((mod+" "+KineticPlatform.displayName(mod)+" "+name.getString()).toLowerCase(Locale.ROOT).contains(q))cards.add(new Card(mod,name,icon(row),Component.literal(mod),
                         ()->open.accept(new NativeRecipeStationsPage(mod,"",snapshot(),creating))));
             });return;
         }
@@ -109,7 +117,7 @@ final class NativeRecipeStationMenu {
             for(String group:List.of("basic","sequence")) {
                 var row=rows.stream().filter(r->owner(r).equals("create"))
                         .filter(r->r.get("type").getAsString().equals("create:sequenced_assembly")==group.equals("sequence")).findFirst();
-                if(row.isPresent())cards.add(new Card(group,tr("group."+group),icon(row.get()),tr("group."+group),
+                if(row.isPresent()&&(group+" "+tr("group."+group).getString()).toLowerCase(Locale.ROOT).contains(q))cards.add(new Card(group,tr("group."+group),icon(row.get()),tr("group."+group),
                         ()->open.accept(new NativeRecipeStationsPage(namespace,group,snapshot(),creating))));
             }
         } else for(var row:rows) {

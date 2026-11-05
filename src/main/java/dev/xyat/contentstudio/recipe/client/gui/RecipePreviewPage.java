@@ -57,9 +57,7 @@ public class RecipePreviewPage extends KineticPage {
     private KineticButton saveButton;
     private final List<RecipeRecord> displayRecords = new ArrayList<>();
     private final Set<RecipeKey> pendingDeletes = new LinkedHashSet<>();
-    // 网格无选中概念：中键跳转目标为最近点击的配方记录（按键跟踪，记录会随服务端刷新重建）
-    // The grid has no selection: the middle-click target is the last clicked recipe record (tracked by key because
-    // records are rebuilt when the server refreshes them).
+    // Middle-click and Delete use the last clicked recipe, tracked by key across server refreshes.
     private RecipeKey lastClickedKey;
 
     public RecipePreviewPage() {
@@ -159,18 +157,24 @@ public class RecipePreviewPage extends KineticPage {
     }
 
     @Override
+    public List<ReviewView> reviewViews() {
+        return RecipeManagementTabs.views();
+    }
+
+    @Override
     protected void build(KineticUi ui) {
+        bindDeleteAction(() -> lastClickedRecordIndex() >= 0, this::deleteLastClickedRecipe);
         RecipePreviewState.returnToPreview = true;
 
-        int sidePadding = 12;
+        int sidePadding = 4;
 
-        int buttonY = 5;
-        int backWidth = 60;
-        int saveWidth = 60;
+        int buttonY = 4;
+        int backWidth = 40;
+        int saveWidth = 40;
         int refreshWidth = 60;
         int toolbarGap = 6;
 
-        ui().button(sidePadding, buttonY, backWidth).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(() -> {
+        ui().button(sidePadding, buttonY, 40).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.back")).onClick(() -> {
                     if (!isAttached()) {
                         return;
                     }
@@ -188,7 +192,7 @@ public class RecipePreviewPage extends KineticPage {
                         - refreshWidth;
         int saveX = refreshX - toolbarGap - saveWidth;
 
-        saveButton = ui().button(saveX, buttonY, saveWidth).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.save_deferred")).onClick(this::savePendingDeletes).build();
+        saveButton = ui().button(saveX, buttonY, 40).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.save_deferred")).onClick(this::savePendingDeletes).build();
         saveButton.setEnabled(!pendingDeletes.isEmpty());
 
         ui().button(refreshX, buttonY, refreshWidth).text(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.preview.refresh")).onClick(RecipeNetwork::requestRecipeRecords).build();
@@ -197,7 +201,7 @@ public class RecipePreviewPage extends KineticPage {
         int searchX;
         int searchWidth;
 
-        searchY = 5;
+        searchY = 4;
 
         int searchAreaStart =
                 sidePadding
@@ -214,7 +218,7 @@ public class RecipePreviewPage extends KineticPage {
                         searchAreaEnd - searchAreaStart
                 );
 
-        searchWidth = Math.min(320, availableSearchWidth);
+        searchWidth = Math.min(360, availableSearchWidth);
 
         searchX =
                 searchAreaStart
@@ -224,16 +228,15 @@ public class RecipePreviewPage extends KineticPage {
                         );
 
         gridY = 59;
-        ui.button(sidePadding,31,120).text(modFilter.isEmpty()?NativeRecipeBrowserPage.tr("all_mods"):Component.literal(dev.xyat.kineticcore.api.runtime.KineticPlatform.displayName(modFilter)))
+        ui.button(sidePadding,31,120).text(modFilter.isEmpty()?NativeRecipeBrowserPage.tr("all_mods"):NativeRecipeStationMenu.modLabel(modFilter))
                 .onClick(()->{
                     var choices=new ArrayList<KineticOverlays.MenuItem>();
                     choices.add(KineticOverlays.MenuItem.action(NativeRecipeBrowserPage.tr("all_mods"),()->{modFilter="";onSearchUpdate(searchBox.textValue());rebuild();}));
                     var mods=new java.util.TreeSet<String>();for(var record:RecipeDatabase.records)if(!record.output.isEmpty())mods.add(KineticRegistries.items().id(record.output.getItem()).getNamespace());
-                    for(String mod:mods)choices.add(KineticOverlays.MenuItem.action(Component.literal(dev.xyat.kineticcore.api.runtime.KineticPlatform.displayName(mod)),()->{modFilter=mod;onSearchUpdate(searchBox.textValue());rebuild();}));
+                    for(String mod:mods)choices.add(KineticOverlays.MenuItem.action(NativeRecipeStationMenu.modLabel(mod),()->{modFilter=mod;onSearchUpdate(searchBox.textValue());rebuild();}));
                     openContextMenu(sidePadding,51,choices,180);
                 }).build();
-        if(dev.xyat.contentstudio.recipe.client.RecipeJeiBridge.jeiAvailable())ui.button(sidePadding+126,31,180).text(NativeRecipeBrowserPage.tr("saved_third_party"))
-                .onClick(()->openChild(NativeRecipeBrowserPage.saved())).build();
+        RecipeManagementTabs.build(ui,width()-sidePadding-288,31,288,RecipeManagementTabs.ADDED,this);
 
         searchBox = ui().textField(searchX, searchY, searchWidth).placeholder(KineticI18n.translatable("gui.contentstudio.recipe.recipehud.search_hint")).build();
 
@@ -390,27 +393,21 @@ public class RecipePreviewPage extends KineticPage {
             int mouseY,
             float partialTick
     ) {
-        KineticTheme.surface(
-                graphics,
-                0,
-                0,
-                width(),
-                height(),
-                KineticTheme.Surface.PANEL_ALT,
-                0.73F
-        );
+        KineticTheme.panel(graphics, 0, 0, width(), height());
 
         if (gridW <= 0 || gridH <= 0) {
             return;
         }
 
-        KineticTheme.panel(
+        KineticTheme.surface(
                 graphics,
                 gridX - 2,
                 gridY - 2,
                 gridW + 4,
-                gridH + 4
+                gridH + 4,
+                KineticTheme.Surface.PANEL
         );
+        graphics.hLine(gridX - 2, gridX + gridW + 2, gridY - 2, KineticTheme.current().accentHover());
 
         gridScroll.update(
                 totalRows(),
@@ -464,7 +461,7 @@ public class RecipePreviewPage extends KineticPage {
                     displayRecords.get(i);
 
             KineticTheme.itemSlot(graphics, x, y, SLOT_SIZE, false);
-            KineticTheme.stateOutline(graphics, x, y, SLOT_SIZE, SLOT_SIZE, false, hovered, record.invalidConfig);
+            KineticTheme.stateOutline(graphics, x, y, SLOT_SIZE, SLOT_SIZE, keyOf(record).equals(lastClickedKey), hovered, record.invalidConfig);
 
             KineticTheme.item(
                     graphics,
@@ -537,6 +534,14 @@ public class RecipePreviewPage extends KineticPage {
 
         RecipeRecord record =
                 displayRecords.get(index);
+
+        if (!record.invalidConfig && record.output != null && !record.output.isEmpty()) {
+            showItemTooltip(record.output, List.of(
+                    RecipeRegistry.EditorType.valueOf(record.editorType).getTitle(),
+                    KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.left_edit.colored"),
+                    KineticI18n.translatable("gui.contentstudio.recipe.recipehud.tooltip.right_delete.colored")));
+            return;
+        }
 
         RecipeRegistry.EditorType editorType =
                 RecipeRegistry.EditorType.valueOf(
@@ -738,7 +743,14 @@ public class RecipePreviewPage extends KineticPage {
             return true;
         }
 
-        pendingDeletes.add(keyOf(record));
+        deleteLastClickedRecipe();
+        return true;
+    }
+
+    private void deleteLastClickedRecipe() {
+        int index = lastClickedRecordIndex();
+        if (index < 0) return;
+        pendingDeletes.add(keyOf(displayRecords.get(index)));
         displayRecords.remove(index);
         refreshPendingDeleteState();
         gridScroll.update(
@@ -746,7 +758,6 @@ public class RecipePreviewPage extends KineticPage {
                 safeVisibleRows()
         );
 
-        return true;
     }
 
     @Override

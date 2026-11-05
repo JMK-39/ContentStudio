@@ -9,4 +9,11 @@ public final class NativeRecipeTypes {
         String type=registeredType==null||registeredType.isBlank()?NativeRecipeDocument.serializerId(activeRecipe):registeredType;
         return type.split(":",2)[0];
     }
+    /**
+     * Data in the recipe format that players do not craft with: Twilight Forest uncrafting tables and Just Enough
+     * Breeding information. These stay out of the recipe editor entirely.
+     */
+    public static boolean hidden(String serializer) {
+        return serializer.startsWith("justenoughbreeding:") || serializer.equals("twilightforest:uncrafting");
+    }
 }

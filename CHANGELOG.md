@@ -1,3 +1,130 @@
+2026年11月3日 — 26.11.3 — Loot tables kept in data packs / 数据包中的战利品表
+- Loot tables that are files in KineticCore data packs (config/kineticcore/datapack), such as the ones RealmControl's structure editor creates, are edited in their file: Save writes the file and takes effect at once, with no override, so the table travels with its pack. Tables written since the last reload are listed too. Entries whose mod is not installed stay in the file and are left out when it loads.
+- KineticCore 数据包（config/kineticcore/datapack）中以文件形式存在的战利品表（例如 RealmControl 结构编辑器新建的表）直接编辑其文件：保存即写入文件并立即生效，不再生成覆盖记录，表随数据包一起分发。上次重载后新写入的表也会列出。所属模组未安装的条目保留在文件中，加载时去掉。
+- Other mods can open the chest loot editor on one table, and Back returns to where they were; RealmControl's structure editor opens it for a container's table.
+- 其他模组可以打开箱子战利品编辑器并定位到一张表，返回后回到原来的界面；RealmControl 结构编辑器用它编辑容器的战利品表。
+
+2026年11月2日 — 26.11.2 — Quieter recipe loading / 配方加载不再误报
+- 1.20.1: Recipes that use item tags are no longer reported as unusable ("missing or empty item tag") when a world loads.
+- 1.20.1：使用物品标签的配方在进入世界时不再被误报为不可用（“missing or empty item tag”）。
+- 1.20.1: An empty recipe file that a datapack uses to delete a recipe is no longer reported as unreadable.
+- 1.20.1：数据包用来删除配方的空文件不再被报告为无法解析。
+
+2026年10月27日 — 26.10.27 — Recipe item data / 配方物品数据修复
+- Native recipe field icons and item selections retain NBT and components, including TACZ variant IDs. Replacing an item clears its previous item data while retaining recipe quantities and probabilities.
+- 原生配方字段图标与物品选择保留 NBT、组件及 TACZ 型号；更换物品时清除旧物品数据，保留配方数量与概率。
+- Native TACZ output previews use its registered result decoder, including custom NBT. Recipe search includes intermediate items, materials, tags and NBT variants.
+- TACZ 原生产物预览使用其已注册的解析器并保留自定义 NBT；配方搜索支持半成品、材料、标签和 NBT 变体。
+
+2026年10月26日 — 26.10.26 — Clearer editors / 更清晰的编辑界面
+- Titles are centred on the screen in the loot entry, loot pool, follow items, native recipe, workstation, tooltip and ID picker pages.
+- 战利品条目、奖池、诱导物品、原生配方、工作台、提示规则与 ID 选择页面的标题改为屏幕居中。
+- Native recipe editor: the seven bottom buttons moved to the top row beside the ID field, with shorter labels; the diagram and field list use the freed space. The Create sequence page has its pager and Add Step in the header and one step per row.
+- 原生配方编辑：底部 7 个按钮移到顶部 ID 行右侧并缩短文字，图示与字段列表使用腾出的空间；机械动力组装步骤页的翻页与新增步骤放在顶栏，每行一个步骤。
+- Loot pool settings are a compact dialog with Back, Delete and Apply in the header; hint lines that repeated the tooltips are gone (loot entry, pool, global exclude, villager level settings).
+- 奖池设置改为紧凑对话框，返回、删除、应用在顶栏；去掉与悬浮提示重复的说明文字（战利品条目、奖池、全局排除、村民等级设置）。
+- Recipe removal uses standard 22 px item slots and keeps the selected recipe's actions at the top of its details. Removed villager trades are one line each with standard slots; the trade buttons and the source button are shorter and at the top.
+- 配方移除改用 22 像素标准物品格，所选配方的操作按钮放在详情区顶部；被移除的村民交易每条一行并使用标准物品格，交易按钮与“来源”按钮缩短并移到顶部。
+- The workstation search sits in the header; the vanilla recipe cards match the workstation cards; fluid and effect pickers search by ID or name.
+- 工作台搜索框移到顶栏；原版配方卡片与工作台卡片一致；流体与效果选择器按 ID 或名称搜索。
+
+2026年10月24日 — 26.10.24 — Buttons at the top, standard slots / 按钮置顶与统一物品格
+- 配方管理器：“配方管理”按钮缩短为文字所需宽度，标题以屏幕中心居中；村民跟随物品网格的图标批量绘制。
+- Recipe removal, removal impact, recipe preview, recipe types and recipe tags are redesigned: buttons in the header, item icons in standard slots instead of long id rows (right-click for view / remove), the preview centred in the free area.
+- 配方移除、移除影响、配方预览、配方类型与配方标签界面重新排版：按钮全部放在顶栏，物品以标准物品格图标显示而非长 ID 列表（右键查看/移除），预览居中显示。
+- Native recipe browser: search next to Back with live results (no search button), the mod filter beside it, one more row of items. Native recipe fields: all buttons at the top, field names in Chinese, item fields as clickable icons (no id, no Select button), 12 rows per page; the Add Field dialog has its buttons at the top.
+- 原生配方浏览：搜索框紧挨返回、输入即搜（移除搜索按钮），模组筛选在其右，多显示一行物品；原生配方字段：按钮全部置顶，字段名翻译为中文，物品字段直接显示可点击图标（无 ID、无选择按钮），每页 12 行；新增字段弹窗按钮置顶。
+- Tooltip rules: the hub shows items at normal size (right-click Edit/Delete); the editor header holds only the item icon and one row of colour swatches.
+- 提示规则：总览以正常大小显示物品（右键编辑/删除）；编辑页顶部只显示物品图标与一行颜色块。
+- Villager follow items use the standard item slots.
+- 村民跟随物品改用标准物品格。
+
+2026年10月20日 — 26.10.20 — Compact loot and recipe editors / 紧凑战利品与配方编辑
+- Block and entity loot editors: the target grid and the reward pools are layout-editor areas, so the line between them can be dragged; the grid then shows as many whole columns as fit and the reward panel starts right after the grid, so no gap opens before the divider. The block grid uses the full height and shows 14 rows instead of 13. Close and Cancel buttons read Back; the mod picker in the recipe browser and the global-removal mode button show a down triangle.
+- 方块与实体战利品编辑器：左侧目标网格与右侧奖池成为布局编辑区域，可拖动两者之间的分界；网格按能放下的整列显示，奖池面板紧接网格之后开始，分界线前不再留空。方块网格使用全部高度，显示 14 行（原 13 行）。“关闭”“取消”统一为“返回”；配方浏览的模组选择与全局移除模式按钮显示向下三角。
+- Chinese text on 1.21.1 and 26.1.2 no longer puts spaces around 数据组件 (for example 编辑数据组件 instead of 编辑 数据组件).
+- 1.21.1 与 26.1.2 的中文不再在“数据组件”两侧留空格（例如“编辑数据组件”而不是“编辑 数据组件”）。
+- Villager trades: the content starts right under the header and the profession search begins next to Back, using the space between them.
+- 村民交易：内容紧贴顶栏下方开始，职业搜索框紧接返回按钮，利用两者之间的空白。
+- Lure items: Add Item (now shorter) and Save sit in the header row, so the grid shows 17 rows instead of 15.
+- 诱导物品：“添加物品”（已缩短）与保存移到顶栏，物品网格由 15 行增加到 17 行。
+- Loot editors: Apply in the reward editor and Apply / Delete Pool in the pool editor sit in the header row (top-right); the pool dialog is shorter. Block loot shows the same item size on the left and right, the divider follows the column count, and the reward list starts higher, runs 4 px wider and keeps its scrollbar 3 px from the frame.
+- 战利品编辑：奖励编辑的“应用修改”和奖池编辑的“应用设置”“删除奖池”移到顶栏右上角，奖池弹窗更矮；方块战利品左右物品大小一致，分界线按实际列数确定，奖励列表上移、加宽 4 像素，滚动条距边框 3 像素。
+- The tooltip editor colour palette starts on the toolbar line instead of two pixels above it, with the reset button centred on both rows. The villager trade editor leaves four pixels between the Restock toggle and the trade source button.
+- 提示编辑器的颜色色板与工具栏按钮顶部对齐（原先高出 2 像素），重置按钮居中于两行色板；村民交易编辑器的补货开关与交易来源按钮之间保留 4 像素间距。
+- Recipe entry cards fill the available width; management actions move to the top and workstation lists gain visible rows. Recipe mod entries use localized labels and can be searched by localized name, English name or ID.
+- 配方入口卡片向右扩展，管理按钮移到顶部，工作站列表增加可见行；模组入口补充中文译名，并支持按译名、英文名或 ID 搜索。
+- Entity loot keeps four columns of 50 px cards with 2 px gaps, while returning the unused left-column width to the reward editor. Header actions use consistent four-pixel gaps.
+- Entity rewards use a tighter scrollbar gutter and start eight pixels higher, giving the list more width and height. Editors use one white outer frame with plain content backgrounds and gray-white dividers; controls, item cards and interactive row states keep their outlines.
+- The native recipe browser fits 26 columns and 13 complete rows of compact slots. Filters and actions share the top row; saved-recipe tabs retain their own compact row.
+- Returning from a recipe before its browser finishes loading resumes the interrupted batch, retaining loaded recipes, scroll position and search text. Late replies cannot reopen the editor or replace the active batch.
+- Native recipe editors use the four-pixel outer inset and keep quantity, chance and other useful properties. A simple item/tag identity already edited through its diagram slot is omitted from the duplicate sidebar; an empty sidebar gives its width back to the diagram. Slot Fields, Advanced and saving preserve the original recipe data.
+- 实体战利品保留四列 50 像素生物格与 2 像素间距，将左栏多余宽度交还奖励编辑区；页头按钮统一为 4 像素间距。
+- 实体奖励进一步收紧滚动条旁间距，列表上移 8 像素并增加宽高；编辑器仅保留白色外框，内容区使用背景和灰白分隔线，控件、物品格及可交互行状态保留描边。
+- 原生配方浏览器改为 26 列、13 个完整行，筛选与操作控件集中在顶行，已存配方标签保留紧凑的独立行。
+- 浏览器尚未加载完时进入配方再返回，会继续中断的分批加载，保留已有列表、滚动位置与搜索文字；过期回复不会重新打开编辑页或覆盖当前批次。
+- 原生配方编辑器使用 4 像素外边距，保留数量、概率等有效属性；图中槽位已能选择的简单物品或标签不再重复占据右栏，空右栏自动让出预览宽度。槽位字段、高级编辑与保存保持原始配方数据。
+- Native recipe item slots, structural-field icons, sequence icons and follow-item lists use native item tooltips. Item, entity, fluid and effect choices refresh their visible controls as soon as they return.
+- Slot Fields opens the containing object or array for primitive ingredients instead of an empty field page; structural child editors stay disabled while a recipe request is pending.
+- Workstation lists and removed default trades stop at their exact content edge; removed-trade clicks and item tooltips use the same clipped viewport. Invalid recipe fields block sequence reordering and material duplication until corrected. Enter no longer changes the selected villager profession.
+- 原生配方槽位、字段图标、序列图标及跟随物品列表使用原版物品提示；物品、生物、流体和效果选择回填后立即刷新可见控件。
+- 字符串等基础类型材料的“槽位字段”打开所属对象或数组，不再进入空字段页；配方请求等待期间不进入结构编辑子页。
+- 工作站列表与已移除默认交易按实际内容末端滚动，恢复交易点击和物品提示与绘制共用裁剪范围；配方字段存在无效输入时暂不重排序列或复制材料，避免错误下标错位。回车不再切换村民职业。
+
+
+---
+
+2026年10月16日 — Loot editing and entity cards / 战利品编辑与生物格
+
+- Entity loot cards use the shared 50 px slots with 2 px gaps and the item-slot background; the wider search and left column fit four cards per row.
+- Large editors use the standard 640×360 canvas with Back four pixels from the frame; search fields gain forty pixels where space allows.
+- Delete uses the existing selected-row actions for loot pools and rewards, recipe slots and saved recipes, villager offers and follow items, and tooltip items and rules, with the same confirmations and save flow.
+- 生物战利品格统一为核心 50 像素、间距 2 像素并使用物品槽背景；搜索框和左栏加宽，每行可放四格。
+- 大型编辑页统一使用 640×360 画布，返回按钮距边框四像素；搜索框在空间允许时加宽四十像素。
+- Delete 键复用当前选中项的既有删除动作，覆盖战利品池与奖励、配方槽与已存配方、村民交易与跟随物品、Tooltip 物品与规则，并保留原有确认和保存流程。
+
+---
+
+2026年10月13日 — Recipe hub and editors / 配方主页与编辑器
+
+- The Vanilla entry opens the original vanilla workstation editor again, with its familiar clicks: item search on an empty slot, NBT editing with Shift+click and NBT matching with right-click. Tag ingredients show their actual items with a # badge.
+- Recipe Management combines added recipes, removed original recipes and changed third-party recipes as tabs of one page.
+- Third-party recipe properties use translated names and suitable controls: switches, number fields, item, tag, fluid and effect pickers, and choices such as Create's heat level. Fields no longer have to be typed by their JSON names.
+- An original third-party recipe can be removed and restored from its editor. The editor title names the workstation.
+- Recipes listing the same item with different counts, shaped patterns that repeat a key, and categories whose JEI display uses the mod's own objects now bind their slots for editing.
+- The tag selection page has a full panel background.
+- Third-party recipe slots have tooltips stating whether they are inputs or outputs and what left and right clicks do.
+- Iron's Spells alchemist cauldron and Touhou Little Maid altar recipes show their real JEI display in the editor. Recipe types without a JEI display use the built-in diagram and properties panel instead of the raw field page.
+- Slots in recipes that repeat a material or pattern key, such as mechanical crafting, sequenced assembly and rituals, can each be selected and edited.
+- Entity fields and entity slots, such as Twilight Forest transformation powder, open the KineticCore entity selector with model previews and show entity names. Cooking pot results shown twice, and the item ingredients and results of Cuisine Delight plates, bind for editing.
+- The third-party recipe list loads every matching recipe into one grid with a draggable scrollbar instead of showing about three rows per page with page buttons. The count below shows how many recipes match.
+- The third-party recipe list keeps its controls in one top row: mod filter, a shorter search field, the match count, Search and New Recipe; the grid uses the freed space for another row of recipes.
+- In the removal impact preview each row ends with buttons instead of starting with [x] and + text: Recipes/Hide shows the recipes of an item, and the state button switches removal between Remove, Keep and, for partly selected items, Partial.
+- Twilight Forest uncrafting and Just Enough Breeding information are not recipes and no longer appear in the recipe editor.
+- A pack recipe of a type no installed mod provides is logged as one warning line with the reason instead of a full stack trace each time recipes reload, so saving a recipe no longer fills the server log.
+- Hovering a slot in the third-party recipe editor shows its tooltip again: the item, whether the slot is an input (material) or the output (result), and what left and right clicks do. The diagram's scrollbar control covered the slots and hid these tooltips.
+- Slots in the vanilla workstation editor also say whether they are an input (material) or the output (result).
+
+- 原版入口重新打开原有的原版工作台编辑器，操作与以前相同：空槽位点击搜索物品，Shift+点击编辑 NBT，右键切换 NBT 匹配；标签材料显示实际物品与 # 标记。
+- “配方管理”把新增配方、移除的原配方与修改过的第三方配方合并为同一页面的标签页。
+- 第三方配方属性使用汉化名称和合适的控件：开关、数字框，物品、标签、流体与效果选择器，以及机械动力加热等级等选项，无需再手动输入 JSON 字段名。
+- 可在编辑页移除或恢复第三方原配方；编辑页标题显示所属工作台。
+- 同一物品不同数量的产物、重复使用同一键位的有序配方，以及 JEI 显示使用模组自有对象的分类，现在都能绑定槽位进行编辑。
+- 标签选择页使用完整的面板背景。
+- 第三方配方槽位的悬浮提示会说明是输入槽还是输出槽，以及左键、右键的操作。
+- 铁魔法炼金锅与车万女仆祭坛配方在编辑页显示真实的 JEI 界面；没有 JEI 显示的配方改用通用示意图和属性面板编辑，不再进入原始字段页。
+- 动力合成、序列组装、仪式等重复材料或重复键位的配方可以逐个选中槽位编辑。
+- 生物字段与生物槽位（如暮色森林变化之粉）改用核心带模型预览的生物选择器，并显示生物名称；厨锅重复显示的产物，以及 Cuisine Delight 摆盘的具体物品材料与成品，可以绑定编辑。
+- 第三方配方列表把所有匹配的配方载入同一个网格，可拖动滚动条浏览，不再每页只显示约三行并需要翻页；下方显示匹配的配方数量。
+- 第三方配方列表的控件集中在顶部一行：模组筛选、缩短的搜索框、匹配数量、搜索与新建配方；网格利用腾出的空间多显示一行配方。
+- 移除影响预览的每一行末尾改为按钮，不再在开头显示 [x] 和 + 文字：“查看配方/收起”展开物品的配方，状态按钮在“移除”“保留”以及部分选中时的“部分移除”之间切换。
+- 暮色森林反向合成与 Just Enough Breeding 的繁殖信息不属于配方，不再出现在配方编辑中。
+- 整合包中某个配方的类型若没有已安装模组提供，现在只记录一行带原因的警告，不再在每次配方重载时打印完整堆栈；保存配方不会再刷满服务器日志。
+- 第三方配方编辑器中悬停槽位会重新显示提示：物品、该槽位是输入（材料）还是输出（产物），以及左右键的作用。此前配方图的滚动条控件覆盖了槽位，导致提示无法显示。
+- 原版工作台编辑器的槽位提示同样会说明是输入（材料）还是输出（产物）。
+
+---
+
 2026年10月12日 — 26.10.12 — Recipe classification and editing / 配方分类与编辑
 
 - Group recipes by their registered runtime recipe type owner, including active conditional branches. Vanilla workstation types from any mod appear under Vanilla; preserve existing recipe IDs.

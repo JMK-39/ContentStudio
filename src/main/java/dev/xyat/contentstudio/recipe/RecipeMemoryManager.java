@@ -312,7 +312,8 @@ public final class RecipeMemoryManager {
                 LOGGER.warn("Could not evaluate conditions of recipe {}; preserving it", id, conditionError);
                 return Optional.empty();
             }
-            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it", id, e);
+            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it: {}", id, e.getMessage());
+            LOGGER.debug("Recipe {} parse failure", id, e);
             return Optional.of(new OriginalRecipeCatalog.InspectedRecipe(
                     new RemovalCandidate(id, null, null, Set.of()), Optional.empty()));
         }
@@ -853,7 +854,8 @@ public final class RecipeMemoryManager {
                 LOGGER.warn("Could not evaluate conditions of recipe {}; preserving it", id, conditionError);
                 return Optional.empty();
             }
-            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it", id, e);
+            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it: {}", id, e.getMessage());
+            LOGGER.debug("Recipe {} parse failure", id, e);
             return Optional.of(new OriginalRecipeCatalog.InspectedRecipe(
                     new RemovalCandidate(id, null, null, Set.of()), Optional.empty()));
         }
@@ -1269,7 +1271,7 @@ public final class RecipeMemoryManager {
         synchronized (RecipeMemoryManager.class) { NATIVE_OPS.put(manager, conditions); }
         final RecipeConfigStore.Snapshot snapshot;
         try {
-            snapshot = RecipeConfigStore.load(resources);
+            snapshot = RecipeConfigStore.load(resources, conditions);
         } catch (Exception e) {
             LOGGER.error("Cannot read recipe removal rules; leaving original datapack recipes unchanged", e);
             publishCatalog(manager, OriginalRecipeCatalog.empty());
@@ -1315,6 +1317,8 @@ public final class RecipeMemoryManager {
             ResourceLocation id, JsonElement source, ICondition.IContext conditions, RegistryAccess registries) {
         if (!source.isJsonObject()) return Optional.empty();
         JsonObject json = source.getAsJsonObject();
+        // An empty or type-less file is how a datapack deletes a recipe; the recipe loader skips it, so does the catalog.
+        if (!json.has("type")) return Optional.empty();
         try {
             if (!CraftingHelper.processConditions(json, "conditions", conditions)) return Optional.empty();
         } catch (Exception e) {
@@ -1326,7 +1330,8 @@ public final class RecipeMemoryManager {
         try {
             recipe = RecipeManager.fromJson(id, json, conditions);
         } catch (Exception e) {
-            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it", id, e);
+            LOGGER.warn("Could not parse recipe {}; only recipe ID rules can match it: {}", id, e.getMessage());
+            LOGGER.debug("Recipe {} parse failure", id, e);
         }
         return Optional.of(new OriginalRecipeCatalog.InspectedRecipe(
                 recipe == null ? new RemovalCandidate(id, null, null, Set.of()) : candidateOf(recipe, registries),
@@ -1361,7 +1366,11 @@ public final class RecipeMemoryManager {
         @Override
         public void onResourceManagerReload(@Nonnull ResourceManager resourceManager) {
             try {
-                RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager);
+                ICondition.IContext conditions;
+                synchronized (RecipeMemoryManager.class) {
+                    conditions = NATIVE_OPS.get(recipeManager);
+                }
+                RecipeConfigStore.Snapshot snapshot = RecipeConfigStore.load(resourceManager, conditions);
                 applySnapshot(recipeManager, snapshot, resourceManager);
             } catch (Exception e) {
                 LOGGER.error(

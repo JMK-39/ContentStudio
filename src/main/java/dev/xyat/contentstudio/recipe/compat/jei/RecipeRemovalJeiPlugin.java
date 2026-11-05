@@ -73,16 +73,55 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
             for(var factory:ordered) {
                 var result=factory.create(id,json,runtime);if(result!=null)return result;
             }
+            var adapted=adapted(id,serializer,json);
+            if(adapted!=null)return adapted;
+            if(Boolean.getBoolean("contentstudio.nativeCoverage"))
+                org.slf4j.LoggerFactory.getLogger(RecipeRemovalJeiPlugin.class).info("CONTENT_COVERAGE_JEI_MISS id={} serializer={} byId={} bySerializer={} categories={}",
+                        id,serializer,factories.size(),types.getOrDefault(serializer,List.of()).size(),
+                        ordered.stream().map(factory->factory.category().getRecipeType().getUid()+"/"+factory.category().getRecipeType().getRecipeClass().getSimpleName()).toList());
             return null;
         }
 
+        // Categories that show the mod's own display objects: build that object from the draft (see JeiDisplayAdapters).
+        private RecipeJeiBridge.EditorPreview adapted(ResourceLocation id,String serializer,JsonObject json) {
+            var adapter=JeiDisplayAdapters.of(serializer);
+            if(adapter==null)return null;
+            try {
+                Object decoded=JeiDraftRecipes.decode(id,json);
+//? if >=1.21 {
+/*                if(decoded instanceof RecipeHolder<?> holder)decoded=holder.value();
+*///?}
+                if(decoded==null)return null;
+                Object display=adapter.builder().build(decoded);
+                if(display==null)return null;
+                var category=runtime.getRecipeManager().createRecipeCategoryLookup().includeHidden().get()
+                        .filter(candidate->candidate.getRecipeType().getUid().equals(adapter.category())).findFirst().orElse(null);
+                return category==null?null:layout(category,display);
+            } catch(ReflectiveOperationException|RuntimeException|LinkageError unavailable) {
+                return null;
+            }
+        }
+        private <T> RecipeJeiBridge.EditorPreview layout(IRecipeCategory<T> category,Object display) {
+            var recipeClass=category.getRecipeType().getRecipeClass();
+            if(!recipeClass.isInstance(display))return null;
+            return runtime.getRecipeManager().createRecipeLayoutDrawable(category,recipeClass.cast(display),
+                    runtime.getJeiHelpers().getFocusFactory().createFocusGroup(List.of()))
+                    .map(drawable->(RecipeJeiBridge.EditorPreview)new EditorLayout(drawable,runtime)).orElse(null);
+        }
+
         private <T> void index(IRecipeCategory<T> category) {
+            if(Boolean.getBoolean("contentstudio.nativeCoverage"))try {
+                var all=runtime.getRecipeManager().createRecipeLookup(category.getRecipeType()).includeHidden().get().toList();
+                long named=all.stream().filter(recipe->{try{return recipeId(category,recipe)!=null;}catch(RuntimeException e){return false;}}).count();
+                org.slf4j.LoggerFactory.getLogger(RecipeRemovalJeiPlugin.class).info("CONTENT_COVERAGE_JEI_CATEGORY uid={} class={} recipes={} named={}",
+                        category.getRecipeType().getUid(),category.getRecipeType().getRecipeClass().getName(),all.size(),named);
+            }catch(RuntimeException ignored){ }
             try {
                 runtime.getRecipeManager().createRecipeLookup(category.getRecipeType()).includeHidden().get().forEach(recipe -> {
                     try {
                         var id = recipeId(category, recipe);
                         if (id != null) {
-                            var factory=new EditorFactory<>(id,category);editors.computeIfAbsent(id,key->new ArrayList<>()).add(factory);
+                            var factory=new EditorFactory<>(id,category,recipe);editors.computeIfAbsent(id,key->new ArrayList<>()).add(factory);
                             Object nativeRecipe=recipe;
 //? if >=1.21 {
 /*                            if(nativeRecipe instanceof RecipeHolder<?> holder)nativeRecipe=holder.value();
@@ -170,16 +209,20 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
         return id;
     }
 
-    private record EditorFactory<T>(ResourceLocation id, IRecipeCategory<T> category) {
+    private record EditorFactory<T>(ResourceLocation id, IRecipeCategory<T> category, T original) {
         private RecipeJeiBridge.EditorPreview create(ResourceLocation draftId,JsonObject json, IJeiRuntime runtime) {
             Object decoded = JeiDraftRecipes.decode(draftId, json);
             Class<? extends T> recipeClass = category.getRecipeType().getRecipeClass();
 //? if >=1.21 {
 /*            if (!recipeClass.isInstance(decoded) && decoded instanceof RecipeHolder<?> holder) decoded = holder.value();
 *///?}
-            // A category backed by a synthetic display object is view-only unless its native recipe can be decoded.
-            if (!recipeClass.isInstance(decoded)) return null;
-            return runtime.getRecipeManager().createRecipeLayoutDrawable(category, recipeClass.cast(decoded),
+            // A category backed by its own display object cannot redraw an edited draft. For the recipe JEI already
+            // shows, use that object: the slots stay clickable and the preview refreshes after save and reload.
+            T shown;
+            if (recipeClass.isInstance(decoded)) shown = recipeClass.cast(decoded);
+            else if (original != null && id.equals(draftId)) shown = original;
+            else return null;
+            return runtime.getRecipeManager().createRecipeLayoutDrawable(category, shown,
                     runtime.getJeiHelpers().getFocusFactory().createFocusGroup(List.of()))
                     .map(layout -> (RecipeJeiBridge.EditorPreview) new EditorLayout(layout, runtime)).orElse(null);
         }
@@ -205,7 +248,11 @@ public final class RecipeRemovalJeiPlugin implements IModPlugin {
                 //?}
                 Set<String> values = new LinkedHashSet<>();
                 view.getAllIngredients().forEach(ingredient -> {
-                    try { values.add(token(ingredient, runtime)); } catch (RuntimeException ignored) { }
+                    try {
+                        values.add(token(ingredient, runtime));
+                        // The shown count tells same-item outputs apart (3 shards vs 1 shard); see JeiRecipeSlotBindings.
+                        ingredient.getItemStack().ifPresent(stack -> values.add("count:" + stack.getCount()));
+                    } catch (RuntimeException ignored) { }
                 });
                 result.add(new RecipeJeiBridge.EditorSlot(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(),
                         view.getRole().name(), values, view.getSlotName().orElse("")));

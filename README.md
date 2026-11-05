@@ -23,6 +23,8 @@ New saves live in `config/kineticcore/datapack/data/contentstudio/recipe/`, spli
 
 Saving keeps the current editor open for further changes, and returning to the list shows the latest edits. Failed saves retain the draft. Unusable existing entries are preserved without blocking valid edits; saving never replaces an ordinary recipe file with editor settings. Output grids preserve native NBT, components and supported TACZ results, with normal-sized items and lower-right quantities.
 
+Item field icons and selections retain the complete NBT or component variant, while recipe quantities and probabilities stay in place. Recipe search also matches materials, intermediate item IDs and NBT variants.
+
 ## 简体中文
 
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
@@ -45,6 +47,8 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 新保存的配置存放在 `config/kineticcore/datapack/data/contentstudio/recipe/`，按类型所属模组拆成 `minecraft.json`、`create.json`、`tacz.json` 等文件。原生修改保存在各文件的 `overrides` 字段，`minecraft.json` 还保存内置配方与移除规则。现有 ContentStudio 配方文件保持读取兼容并保留原文件，不自动转换 TACZ 工坊旧配方，也不删除旧配方文件。
 
 保存后保持当前编辑页，可继续修改同一配方；返回列表时显示最新修改，保存失败保留草稿。无法使用的旧条目保留原样，不阻塞合法修改；编辑配置不会覆盖同名普通配方文件。产物网格保留原生 NBT、组件与受支持的 TACZ 结果，物品按正常大小显示，数量位于右下角。
+
+物品字段图标与物品选择保留完整 NBT 或组件变体，更换物品时保留配方数量与概率。配方搜索同时匹配材料、半成品 ID 和 NBT 变体。
 
 [GitHub project / 项目仓库](https://github.com/JMK-39/ContentStudio) · [CurseForge](https://www.curseforge.com/minecraft/mc-mods/contentstudio)
 

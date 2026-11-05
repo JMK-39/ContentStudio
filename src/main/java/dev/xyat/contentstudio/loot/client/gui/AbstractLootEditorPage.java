@@ -10,6 +10,7 @@ import dev.xyat.kineticcore.api.client.gui.input.MouseInput;
 import dev.xyat.kineticcore.api.client.gui.text.KineticText;
 import dev.xyat.kineticcore.api.client.gui.overlay.KineticOverlays;
 import dev.xyat.kineticcore.api.client.gui.page.KineticPage;
+import dev.xyat.kineticcore.api.client.gui.layout.KineticLayout.Rect;
 import dev.xyat.kineticcore.api.client.gui.render.KineticGraphics;
 import dev.xyat.kineticcore.api.client.gui.selector.KineticSelectors;
 import dev.xyat.kineticcore.api.client.gui.theme.KineticTheme;
@@ -53,15 +54,15 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     protected static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     protected static final int V_WIDTH = 640;
     protected static final int V_HEIGHT = 360;
-    protected static final int LEFT_X = 10;
-    protected static final int LEFT_Y = 42;
-    protected static final int SEARCH_Y = 16;
-    protected static final int TARGET_WIDTH = 198;
-    protected static final int TARGET_HEIGHT = 288;
-    protected static final int RIGHT_X = 220;
-    protected static final int RIGHT_Y = 14;
-    protected static final int RIGHT_W = 410;
-    protected static final int RIGHT_H = 334;
+    protected static final int LEFT_X = 4;
+    protected static final int SEARCH_Y = 4;
+    protected static final int LEFT_Y = SEARCH_Y + 24;
+    protected static final int TARGET_WIDTH = 238;
+    protected static final int TARGET_HEIGHT = V_HEIGHT - LEFT_Y - 4;
+    protected static final int RIGHT_X = 260;
+    protected static final int RIGHT_Y = 4;
+    protected static final int RIGHT_W = V_WIDTH - RIGHT_X - 4;
+    protected static final int RIGHT_H = V_HEIGHT - RIGHT_Y - 4;
     protected static final int HEADER_H = 32;
     protected static final int EDIT_Y = RIGHT_Y + HEADER_H + 8;
     protected static final int EDIT_H = 74;
@@ -71,26 +72,28 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     protected static final int ICON_CELL = 22;
     protected static final int EDIT_ICON = 20;
     protected static final int TEXT_GAP = 4;
-    private static final int HEADER_POOL_BUTTON_X = RIGHT_X + RIGHT_W - 276;
-    private static final int HEADER_RESET_BUTTON_X = RIGHT_X + RIGHT_W - 148;
-    private static final int GROUP_POOL_ACTION_X = RIGHT_X + RIGHT_W - 141;
-    private static final int GROUP_ENTRY_ACTION_X = RIGHT_X + RIGHT_W - 109;
-    private static final int TARGET_SCROLLBAR_X = LEFT_X + TARGET_WIDTH + 2;
+    private int headerPoolButtonX() { return rightPanelX() + rightPanelWidth() - 208; }
+    private int headerResetButtonX() { return rightPanelX() + rightPanelWidth() - 84; }
+    // Measured from the right panel's actual edge, so they follow it when the layout editor resizes the panel.
+    // Rows run to 4 px from their scrollbar, which sits 3 px inside the frame; row buttons keep their distance to the row edge.
+    private int groupPoolActionX() { return rightPanelX() + rightPanelWidth() - 145; }
+    private int groupEntryActionX() { return rightPanelX() + rightPanelWidth() - 105; }
     private static final int TARGET_SCROLLBAR_WIDTH = 6;
-    private static final int DROP_SCROLLBAR_X = RIGHT_X + RIGHT_W - 13;
-    private static final int GROUP_Y = RIGHT_Y + HEADER_H + 4;
-    private static final int GROUP_H = RIGHT_Y + RIGHT_H - GROUP_Y - 4;
+    private int dropScrollbarX() { return rightPanelX() + rightPanelWidth() - 9; }
     private static final int GROUP_POOL_H = 24;
     private static final int GROUP_ENTRY_H = 30;
     private static final int GROUP_ROW_GAP = 2;
-    private static final int GROUP_BUTTON_SLOTS = 10;
-    private static final int GROUP_SCROLLBAR_X = RIGHT_X + RIGHT_W - 13;
+    private static final int GROUP_PAD = 2;
+    // The compact entity header fits thirteen pool rows, plus a clipped row while scrolling.
+    private static final int GROUP_BUTTON_SLOTS = 14;
+    private int groupScrollbarX() { return rightPanelX() + rightPanelWidth() - 9; }
 
     protected final int mode;
     protected final List<LootEntryInfo> allEntries;
     protected List<LootEntryInfo> displayEntries;
     protected final List<DropVisual> dropVisuals = new ArrayList<>();
     protected List<Component> deferredTooltip = null;
+    protected ItemStack deferredItemTooltip = ItemStack.EMPTY;
 
     private KineticTextField searchBox;
     private KineticTextField itemBox;
@@ -111,6 +114,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     private KineticToggle fireButton;
     private KineticToggle overrideModeButton;
     private String searchQuery = "";
+    /** The table to select when the page is built, set by {@link #focusLootTable}. */
+    private String focusLootTableId;
 
     protected LootEntryInfo selectedEntry;
     protected DropVisual selectedDrop;
@@ -317,14 +322,38 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         this.displayEntries = new ArrayList<>(this.allEntries);
     }
 
+    /** Opens on {@code lootTableId}: the list is searched for it and it is selected. */
+    protected void focusLootTable(String lootTableId) {
+        focusLootTableId = lootTableId;
+        searchQuery = lootTableId == null ? "" : lootTableId;
+    }
+
+    protected int targetPanelX() { return LEFT_X; }
+
+    protected int targetPanelWidth() { return TARGET_WIDTH; }
+
+    protected int rightPanelX() { return RIGHT_X; }
+
+    protected int rightPanelWidth() { return V_WIDTH - rightPanelX() - 4; }
+
+    // One header row (the title and the 16 px buttons), then the divider: no empty band above the pools.
+    protected int groupedHeaderHeight() { return 24; }
+
+    protected int groupPanelY() { return RIGHT_Y + groupedHeaderHeight() + 4; }
+
+    protected int groupPanelHeight() { return RIGHT_Y + RIGHT_H - groupPanelY() - 4; }
+
+    private int targetScrollbarX() { return targetPanelX() + targetPanelWidth() + 2; }
+
     @Override
     protected void build(KineticUi ui) {
-        searchBox = ui().textField(LEFT_X + 49, SEARCH_Y, TARGET_WIDTH - 50).placeholder(KineticI18n.translatable("gui.contentstudio.loot.loots.search_hint")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.search")).build();
+        bindDeleteAction(this::canDeleteFocusedRow, this::deleteFocusedRow);
+        searchBox = ui().textField(LEFT_X + 44, SEARCH_Y, Math.max(40, Math.min(targetPanelX() + targetPanelWidth(), rightPanelX() - 10) - (LEFT_X + 44))).placeholder(KineticI18n.translatable("gui.contentstudio.loot.loots.search_hint")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.search")).build();
         searchBox.limitTextLength(256);
         searchBox.setTextValue(searchQuery);
         searchBox.onTextChange(this::onSearchChanged);
 
-        ui().button(LEFT_X + 1, SEARCH_Y, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.back")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.back")).onClick(this::close).build();
+        ui().button(LEFT_X, SEARCH_Y, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.back")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.back")).onClick(this::close).build();
 
         initEditWidgets();
         if (usesGroupedLayout()) {
@@ -333,7 +362,12 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         initSpecialWidgets();
         sortAllEntries();
         updateSearch(searchQuery, false);
-        if (selectedEntry == null && !displayEntries.isEmpty()) {
+        LootEntryInfo focused = focusLootTableId == null ? null
+                : displayEntries.stream().filter(entry -> entry.lootTableId().equals(focusLootTableId)).findFirst().orElse(null);
+        focusLootTableId = null;
+        if (selectedEntry == null && focused != null) {
+            selectEntry(focused);
+        } else if (selectedEntry == null && !displayEntries.isEmpty()) {
             selectEntry(displayEntries.get(0));
         } else {
             if (selectedDrop != null) {
@@ -352,8 +386,12 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         }
     }
 
+    private int headerControlsY() {
+        return SEARCH_Y;
+    }
+
     private void initEditWidgets() {
-        int x0 = RIGHT_X + 10;
+        int x0 = rightPanelX() + 10;
         itemBox = ui().textField(-1000, -1000, 1).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.item_id")).build();
         itemBox.limitTextLength(256);
 
@@ -374,11 +412,11 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         int actionButtonX = actionButtonX(x0);
         overrideModeButton = ui().toggle(modeButtonX, by, 58).value(overrideMode).labels(KineticI18n.translatable("gui.contentstudio.loot.loots.mode.override"), KineticI18n.translatable("gui.contentstudio.loot.loots.mode.append")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.override_mode")).validator(value -> selectedEntry != null).onChange(value -> toggleOverrideMode()).build();
 
-        applyButton = ui().button(actionButtonX, by, 38).text(KineticI18n.translatable("gui.contentstudio.loot.loots.apply_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.apply_drop")).onClick(this::applyEditToSelected).build();
-        addButton = ui().button(actionButtonX + 42, by, 38).text(KineticI18n.translatable("gui.contentstudio.loot.loots.add_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.add_drop")).onClick(this::addDrop).build();
-        deleteButton = ui().button(actionButtonX + 84, by, 38).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.delete_drop")).onClick(this::deleteSelectedDrop).build();
-        saveButton = ui().button(RIGHT_X + RIGHT_W - 97, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.save")).onClick(this::saveCurrentJson).build();
-        resetButton = ui().button(HEADER_RESET_BUTTON_X, RIGHT_Y + 10, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.reset")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.reset")).onClick(this::openResetConfirmDialog).build();
+        applyButton = ui().button(actionButtonX, by, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.apply_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.apply_drop")).onClick(this::applyEditToSelected).build();
+        addButton = ui().button(actionButtonX + 42, by, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.add_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.add_drop")).onClick(this::addDrop).build();
+        deleteButton = ui().button(actionButtonX + 84, by, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete_drop")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.delete_drop")).onClick(this::deleteSelectedDrop).build();
+        saveButton = ui().button(rightPanelX() + rightPanelWidth() - 40, headerControlsY(), 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.save")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.save")).onClick(this::saveCurrentJson).build();
+        resetButton = ui().button(headerResetButtonX(), headerControlsY(), 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.reset")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.reset")).onClick(this::openResetConfirmDialog).build();
 
         if (!showEntityEditControls()) {
             killedButton.setControlVisible(false);
@@ -390,8 +428,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (usesGroupedLayout()) {
             hideInlineWidgets();
             overrideModeButton.setControlVisible(true);
-            overrideModeButton.moveControlX(RIGHT_X + RIGHT_W - 212);
-            overrideModeButton.moveControlY(RIGHT_Y + 10);
+            overrideModeButton.moveControlX(rightPanelX() + rightPanelWidth() - 146);
+            overrideModeButton.moveControlY(headerControlsY());
         }
     }
 
@@ -417,7 +455,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     private void initGroupedWidgets() {
-        addPoolHeaderButton = ui().button(HEADER_POOL_BUTTON_X, RIGHT_Y + 10, 58).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add")).onClick(this::addGroupedPool).build();
+        addPoolHeaderButton = ui().button(headerPoolButtonX(), headerControlsY(), 58).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add")).onClick(this::addGroupedPool).build();
 
         groupArrowButtons = new KineticButton[GROUP_BUTTON_SLOTS];
         groupAddButtons = new KineticButton[GROUP_BUTTON_SLOTS];
@@ -427,12 +465,12 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         groupEntryEditButtons = new KineticButton[GROUP_BUTTON_SLOTS];
         for (int i = 0; i < GROUP_BUTTON_SLOTS; i++) {
             int slot = i;
-            groupArrowButtons[i] = ui().button(RIGHT_X + 11, -1000, 18).text(KineticI18n.translatable("gui.contentstudio.common.expand_symbol")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.expand")).onClick(() -> toggleGroupedPool(slot)).build();
-            groupAddButtons[i] = ui().button(GROUP_POOL_ACTION_X, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add_reward")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward")).onClick(() -> addGroupedReward(slot)).build();
-            groupPoolEditButtons[i] = ui().button(RIGHT_X + RIGHT_W - 93, -1000, 36).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.edit")).onClick(() -> editGroupedPool(slot)).build();
-            groupPoolDeleteButtons[i] = ui().button(RIGHT_X + RIGHT_W - 53, -1000, 36).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(() -> confirmGroupedPoolDelete(slot)).build();
-            groupEntryEditButtons[i] = ui().button(RIGHT_X + RIGHT_W - 61, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.drop.edit")).onClick(() -> editGroupedEntry(slot)).build();
-            groupEntryDeleteButtons[i] = ui().button(GROUP_ENTRY_ACTION_X, -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.delete")).onClick(() -> deleteGroupedEntry(slot)).build();
+            groupArrowButtons[i] = ui().button(rightPanelX() + GROUP_PAD + 3, -1000, 18).text(KineticI18n.translatable("gui.contentstudio.common.expand_symbol")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.expand")).onClick(() -> toggleGroupedPool(slot)).build();
+            groupAddButtons[i] = ui().button(groupPoolActionX(), -1000, 44).text(KineticI18n.translatable("gui.contentstudio.loot.loots.pool.add_reward")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.add_reward")).onClick(() -> addGroupedReward(slot)).build();
+            groupPoolEditButtons[i] = ui().button(rightPanelX() + rightPanelWidth() - 97, -1000, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.edit")).onClick(() -> editGroupedPool(slot)).build();
+            groupPoolDeleteButtons[i] = ui().button(rightPanelX() + rightPanelWidth() - 53, -1000, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.pool.delete_confirm")).onClick(() -> confirmGroupedPoolDelete(slot)).build();
+            groupEntryEditButtons[i] = ui().button(rightPanelX() + rightPanelWidth() - 57, -1000, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.drop.edit")).onClick(() -> editGroupedEntry(slot)).build();
+            groupEntryDeleteButtons[i] = ui().button(groupEntryActionX(), -1000, 40).text(KineticI18n.translatable("gui.contentstudio.loot.loots.delete.short")).tooltip(KineticI18n.translatable("gui.contentstudio.loot.loots.tip.entry.delete")).onClick(() -> deleteGroupedEntry(slot)).build();
             hideGroupSlot(i);
         }
     }
@@ -643,7 +681,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     protected void renderTargetScrollbar(KineticGraphics g, int mx, int my) {
-        targetScroller.render(g, mx, my, TARGET_SCROLLBAR_X, targetAreaY() + 1, TARGET_SCROLLBAR_WIDTH, targetAreaHeight() - 2, 24);
+        targetScroller.render(g, mx, my, targetScrollbarX(), targetAreaY() + 1, TARGET_SCROLLBAR_WIDTH, targetAreaHeight() - 2, 24);
     }
 
     protected String lootTableType() {
@@ -796,6 +834,33 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         clearEditFields();
         requestSelectedDetail();
         updateButtons();
+    }
+
+    /**
+     * For screenshot tools, in this order: the first loot table, the editor of its first pool and the editor of its
+     * first entry. The editors work on copies and nothing is saved.
+     */
+    @Override
+    public List<ReviewView> reviewViews() {
+        if (displayEntries == null || displayEntries.isEmpty()) return List.of();
+        return List.of(
+                new ReviewView("first-table", () -> selectEntry(displayEntries.get(0))),
+                new ReviewView("pool-editor", () -> {
+                    int slot = firstGroupRow(true);
+                    if (slot >= 0) editGroupedPool(slot);
+                }),
+                new ReviewView("entry-editor", () -> {
+                    int slot = firstGroupRow(false);
+                    if (slot >= 0) editGroupedEntry(slot);
+                }));
+    }
+
+    private int firstGroupRow(boolean pool) {
+        for (int slot = 0; slot < visibleGroupRows.size(); slot++) {
+            GroupRow row = visibleGroupRows.get(slot);
+            if (pool ? row.isPool() : !row.isPool() && row.visual != null) return slot;
+        }
+        return -1;
     }
 
     protected void requestSelectedDetail() {
@@ -2159,7 +2224,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (groupedRows.isEmpty()) {
             return 0;
         }
-        int available = GROUP_H - 12;
+        int available = groupViewport().height();
         int used = 0;
         int start = groupedRows.size() - 1;
         while (start >= 0) {
@@ -2183,8 +2248,9 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         double visualScroll = groupScroller.smoothOffset();
         int firstIndex = Math.max(0, Math.min((int) Math.floor(visualScroll + 1.0E-6D), groupScroller.maxOffset()));
         double fraction = Math.max(0D, visualScroll - firstIndex);
-        int top = GROUP_Y + 6;
-        int bottom = GROUP_Y + GROUP_H - 6;
+        Rect viewport = groupViewport();
+        int top = viewport.y();
+        int bottom = viewport.bottom();
         int firstHeight = firstIndex < groupedRows.size() ? groupedRows.get(firstIndex).height() : 0;
         int y = top - (int) Math.round(fraction * firstHeight);
         for (int i = firstIndex; i < groupedRows.size() && visibleGroupRows.size() < GROUP_BUTTON_SLOTS; i++) {
@@ -2235,6 +2301,20 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         return slot >= 0 && slot < visibleGroupRows.size() ? visibleGroupRows.get(slot) : null;
     }
 
+    private Rect groupViewport() {
+        return new Rect(rightPanelX() + GROUP_PAD, groupPanelY() + GROUP_PAD, rightPanelWidth() - GROUP_PAD * 2, groupPanelHeight() - GROUP_PAD * 2);
+    }
+
+    private Rect groupScrollbar() {
+        Rect viewport = groupViewport();
+        return new Rect(groupScrollbarX() + 2, viewport.y(), 4, viewport.height());
+    }
+
+    private Rect groupRowBounds(GroupRow row) {
+        int left = rightPanelX() + GROUP_PAD + (row.isPool() ? 0 : 2);
+        return new Rect(left, row.y, groupScrollbarX() - 1 - left, row.height() - GROUP_ROW_GAP);
+    }
+
     private void toggleGroupedPool(int slot) {
         GroupRow row = visibleGroupRow(slot);
         if (row == null || !row.isPool()) {
@@ -2265,7 +2345,24 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (row == null || !row.isPool()) {
             return;
         }
-        int poolIndex = row.poolIndex;
+        confirmPoolDelete(row.poolIndex);
+    }
+
+    protected final boolean canDeleteFocusedRow() {
+        return !isSavingBatch() && !isSpecialPanelActive()
+                && (usesGroupedLayout() ? lastClickedGroupRowIndex() >= 0 : selectedDrop != null);
+    }
+
+    protected final void deleteFocusedRow() {
+        if (!usesGroupedLayout()) { deleteSelectedDrop(); return; }
+        int index = lastClickedGroupRowIndex();
+        if (index < 0 || index >= groupedRows.size()) return;
+        GroupRow row = groupedRows.get(index);
+        if (row.isPool()) confirmPoolDelete(row.poolIndex);
+        else if (row.visual != null) deleteEntryFromEditor(row.visual);
+    }
+
+    private void confirmPoolDelete(int poolIndex) {
         openDialog(
                 KineticI18n.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.title"),
                 KineticI18n.translatable("gui.contentstudio.loot.loots.pool.delete_confirm.desc"),
@@ -2467,27 +2564,19 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     @Override
     protected void renderBackground(KineticGraphics g, int mx, int my, float pt) {
         KineticTheme.panel(g, 0, 0, V_WIDTH, V_HEIGHT);
-        drawPanel(g, LEFT_X - 2, RIGHT_Y - 2, TARGET_WIDTH + 14, RIGHT_H + 4);
-        drawPanel(g, RIGHT_X - 2, RIGHT_Y - 2, RIGHT_W + 4, RIGHT_H + 4);
-        if (isSpecialPanelActive()) {
-            drawPanel(g, RIGHT_X + 4, GROUP_Y + 2, RIGHT_W - 8, GROUP_H - 4);
-        } else if (usesGroupedLayout()) {
-            drawPanel(g, RIGHT_X + 4, GROUP_Y + 2, RIGHT_W - 8, GROUP_H - 4);
+        g.vLine((targetScrollbarX() + TARGET_SCROLLBAR_WIDTH + rightPanelX()) / 2,
+                RIGHT_Y, RIGHT_Y + RIGHT_H, KineticTheme.current().accentHover());
+        if (!isSpecialPanelActive() && usesGroupedLayout()) g.hLine(rightPanelX(), rightPanelX() + rightPanelWidth(), groupPanelY() - 2, KineticTheme.current().accentHover());
+        if (!isSpecialPanelActive() && usesGroupedLayout()) {
             updateVisibleGroupedRows();
             renderGroupedRowBackgrounds(g, mx, my);
-        } else {
-            drawPanel(g, RIGHT_X + 4, EDIT_Y + 2, RIGHT_W - 8, EDIT_H);
-            drawPanel(g, RIGHT_X + 4, DROP_Y + 2, RIGHT_W - 8, DROP_H - 4);
         }
-    }
-
-    private void drawPanel(KineticGraphics g, int x, int y, int w, int h) {
-        KineticTheme.stateSurface(g, x, y, w, h, KineticTheme.Surface.PANEL_ALT, true, false, false);
     }
 
     @Override
     protected void renderForeground(KineticGraphics g, int mx, int my, float pt) {
         deferredTooltip = null;
+        deferredItemTooltip = ItemStack.EMPTY;
         updateTargetScrollLimit();
         renderTargets(g, mx, my);
         renderTopInfo(g, mx, my);
@@ -2501,8 +2590,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             renderDropPanel(g, mx, my);
         }
         if (selectedEntry == null) {
-            int centerY = usesGroupedLayout() ? GROUP_Y + GROUP_H / 2 : DROP_Y + DROP_H / 2;
-            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.no_selection"), RIGHT_X + RIGHT_W / 2, centerY, RIGHT_W - 24, 0xFFFFAA00, true);
+            int centerY = usesGroupedLayout() ? groupPanelY() + groupPanelHeight() / 2 : DROP_Y + DROP_H / 2;
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.no_selection"), rightPanelX() + rightPanelWidth() / 2, centerY, rightPanelWidth() - 24, 0xFFFFAA00, true);
         }
     }
 
@@ -2514,19 +2603,25 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     // The title/loading region stops before the first visible header action.
     protected int headerTextRight() {
-        return usesGroupedLayout() ? HEADER_POOL_BUTTON_X : HEADER_RESET_BUTTON_X;
+        return usesGroupedLayout() ? headerPoolButtonX() : headerResetButtonX();
+    }
+
+    /** Whether the header row shows the page title (a special panel uses the row for its own status). */
+    protected boolean showsHeaderTitle() {
+        return true;
     }
 
     private void renderTopInfo(KineticGraphics g, int mx, int my) {
-        int maxWidth = headerTextRight() - (RIGHT_X + 6) - TEXT_GAP;
-        g.scrollingText(title(), RIGHT_X + 6, RIGHT_Y + 6, maxWidth, 0xFFFFAA00, false);
+        int maxWidth = headerTextRight() - (rightPanelX() + 6) - TEXT_GAP;
+        if (showsHeaderTitle()) g.scrollingText(title(), rightPanelX() + 6, RIGHT_Y + 4, maxWidth, 0xFFFFAA00, false);
         if (detailLoading) {
-            g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.loading"), RIGHT_X + 6, RIGHT_Y + 25, maxWidth, 0xFFFFD75F, false);
+            int loadingY = usesGroupedLayout() ? RIGHT_Y + groupedHeaderHeight() - 6 : RIGHT_Y + 25;
+            g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.loading"), rightPanelX() + 6, loadingY, maxWidth, 0xFFFFD75F, false);
         }
     }
 
     private void renderEditLabels(KineticGraphics g, int mx, int my) {
-        int x0 = RIGHT_X + 10;
+        int x0 = rightPanelX() + 10;
         int y = EDIT_Y + 10;
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.item"), x0, y, 48 - TEXT_GAP, 0xFFFFAA00, false);
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.chance"), x0 + 48, y, 44 - TEXT_GAP, 0xFFFFAA00, false);
@@ -2553,7 +2648,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     protected void renderModeEditLabels(KineticGraphics g, int x0, int y) {
         g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.looting_min"), x0 + 268, y, 44 - TEXT_GAP, 0xFFFFAA00, false);
-        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.looting_max"), x0 + 312, y, RIGHT_X + RIGHT_W - 10 - (x0 + 312) - TEXT_GAP, 0xFFFFAA00, false);
+        g.scrollingText(KineticI18n.translatable("gui.contentstudio.loot.loots.edit.looting_max"), x0 + 312, y, rightPanelX() + rightPanelWidth() - 10 - (x0 + 312) - TEXT_GAP, 0xFFFFAA00, false);
     }
 
     protected String modeLabelTooltipKey(int mx, int x0) {
@@ -2567,7 +2662,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     private void renderEditorItemPreview(KineticGraphics g, int mx, int my) {
-        int x = RIGHT_X + 18;
+        int x = rightPanelX() + 18;
         int y = EDIT_Y + 25;
         ItemStack stack = editorPreviewStack();
         boolean hovered = mx >= x && mx <= x + EDIT_ICON && my >= y && my <= y + EDIT_ICON;
@@ -2578,6 +2673,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         }
         if (hovered) {
             if (!stack.isEmpty()) {
+                deferredItemTooltip = stack;
                 deferredTooltip = List.of(
                         KineticI18n.styled("gui.contentstudio.loot.style.name", stack.getHoverName()),
                         idComponent(itemBox == null ? "" : itemBox.textValue())
@@ -2625,49 +2721,39 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             return;
         }
         if (groupedRows.isEmpty()) {
-            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, GROUP_Y + GROUP_H / 2, RIGHT_W - 24, 0xFFFFAA00, true);
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.no_drops"), rightPanelX() + rightPanelWidth() / 2, groupPanelY() + groupPanelHeight() / 2, rightPanelWidth() - 24, 0xFFFFAA00, true);
             return;
         }
-        g.scissor(RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
+        Rect viewport = groupViewport();
+        g.scissor(viewport.x(), viewport.y(), viewport.right(), viewport.bottom());
         try {
             for (GroupRow row : visibleGroupRows) {
                 if (row.isPool()) {
                     renderGroupedPoolRow(g, row, mx, my);
-                    groupScroller.renderSelectionFlash(g, groupedRows.indexOf(row), RIGHT_X + 8, row.y, RIGHT_W - 22, GROUP_POOL_H - GROUP_ROW_GAP);
                 } else {
                     renderGroupedEntryRow(g, row, mx, my);
-                    groupScroller.renderSelectionFlash(g, groupedRows.indexOf(row), RIGHT_X + 10, row.y, RIGHT_W - 24, GROUP_ENTRY_H - GROUP_ROW_GAP);
                 }
+                Rect bounds = groupRowBounds(row);
+                groupScroller.renderSelectionFlash(g, groupedRows.indexOf(row), bounds.x(), bounds.y(), bounds.width(), bounds.height());
             }
         } finally {
             g.endScissor();
         }
-        groupScroller.render(g, mx, my, GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, GROUP_H - 12, 18);
+        Rect scrollbar = groupScrollbar();
+        groupScroller.render(g, mx, my, scrollbar.x(), scrollbar.y(), scrollbar.width(), scrollbar.height(), 18);
     }
 
     private void renderGroupedRowBackgrounds(KineticGraphics g, int mx, int my) {
-        g.scissor(RIGHT_X + 4, GROUP_Y + 6, RIGHT_X + RIGHT_W - 8, GROUP_Y + GROUP_H - 6);
+        Rect viewport = groupViewport();
+        g.scissor(viewport.x(), viewport.y(), viewport.right(), viewport.bottom());
         try {
             for (GroupRow row : visibleGroupRows) {
-                if (row.isPool()) {
-                int x = RIGHT_X + 8;
-                int width = RIGHT_W - 22;
-                boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
-                int drawHeight = GROUP_POOL_H - GROUP_ROW_GAP;
+                Rect bounds = groupRowBounds(row);
+                boolean hover = viewport.contains(mx, my) && bounds.contains(mx, my);
                 KineticTheme.stateSurface(
-                        g, x, row.y, width, drawHeight,
-                        KineticTheme.Surface.PANEL_ALT, false, hover, false
+                        g, bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                        KineticTheme.Surface.PANEL_ALT, false, hover, row.visual != null && row.visual.loadError
                 );
-            } else {
-                int x = RIGHT_X + 10;
-                int width = RIGHT_W - 24;
-                int drawHeight = GROUP_ENTRY_H - GROUP_ROW_GAP;
-                boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + drawHeight;
-                KineticTheme.stateSurface(
-                        g, x, row.y, width, drawHeight,
-                        KineticTheme.Surface.PANEL_ALT, false, hover, row.visual.loadError
-                );
-                }
             }
         } finally {
             g.endScissor();
@@ -2675,9 +2761,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
     }
 
     private void renderGroupedPoolRow(KineticGraphics g, GroupRow row, int mx, int my) {
-        int x = RIGHT_X + 8;
-        int width = RIGHT_W - 22;
-        boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + GROUP_POOL_H;
+        boolean hover = groupViewport().contains(mx, my) && groupRowBounds(row).contains(mx, my);
         JsonObject pool = groupedPool(row.poolIndex);
         int entryCount = 0;
         for (DropVisual visual : dropVisuals) {
@@ -2687,27 +2771,27 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                         numberComponent(row.poolIndex + 1),
                         numberComponent(readRollsForEditor(pool)),
                         numberComponent(entryCount)));
-        g.scissor(RIGHT_X + 34,
+        int textX = rightPanelX() + GROUP_PAD + 26;
+        g.scissor(textX,
                 row.y + 1,
-                GROUP_POOL_ACTION_X - TEXT_GAP,
+                groupPoolActionX() - TEXT_GAP,
                 row.y + GROUP_POOL_H - 2
         );
-        g.scrollingText(line, RIGHT_X + 34, row.y + 8, GROUP_POOL_ACTION_X - TEXT_GAP - (RIGHT_X + 34), 0xFFFFFFFF, false);
+        g.scrollingText(line, textX, row.y + 8, groupPoolActionX() - TEXT_GAP - textX, 0xFFFFFFFF, false);
         g.endScissor();
-        if (hover && mx >= RIGHT_X + 32 && mx < RIGHT_X + RIGHT_W - 145) {
+        if (hover && mx >= textX && mx < groupPoolActionX() - TEXT_GAP) {
             deferredTooltip = groupedPoolTooltip(row.poolIndex);
         }
     }
 
     private void renderGroupedEntryRow(KineticGraphics g, GroupRow row, int mx, int my) {
         DropVisual visual = row.visual;
-        int x = RIGHT_X + 10;
-        int width = RIGHT_W - 24;
+        Rect bounds = groupRowBounds(row);
         int drawHeight = GROUP_ENTRY_H - GROUP_ROW_GAP;
-        boolean hover = mx >= x && mx < x + width && my >= row.y && my < row.y + drawHeight;
+        boolean hover = groupViewport().contains(mx, my) && bounds.contains(mx, my);
         renderDropIcon(g, visual, row.y, hover);
-        int textX = RIGHT_X + 39;
-        int textRight = GROUP_ENTRY_ACTION_X - TEXT_GAP;
+        int textX = rightPanelX() + GROUP_PAD + 31;
+        int textRight = groupEntryActionX() - TEXT_GAP;
         Component firstLine = visual.loadError
                 ? visual.name
                 : Component.empty()
@@ -2723,8 +2807,9 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         g.scrollingText(firstLine, textX, row.y + 4, textRight - textX, 0xFFFFFFFF, false);
         g.scrollingText(secondLine, textX, row.y + 16, textRight - textX, 0xFFFFFFFF, false);
         g.endScissor();
-        if (hover && mx < RIGHT_X + RIGHT_W - 112) {
+        if (hover && mx < textRight) {
             deferredTooltip = buildGroupedDropTooltip(visual);
+            deferDropIconTooltip(visual, row.y, mx, my);
         }
     }
 
@@ -2770,7 +2855,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     private void renderDropPanel(KineticGraphics g, int mx, int my) {
         if (dropVisuals.isEmpty()) {
-            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.no_drops"), RIGHT_X + RIGHT_W / 2, DROP_Y + DROP_H / 2, RIGHT_W - 24, 0xFFFFAA00, true);
+            g.scrollingTextCentered(KineticI18n.translatable("gui.contentstudio.loot.loots.no_drops"), rightPanelX() + rightPanelWidth() / 2, DROP_Y + DROP_H / 2, rightPanelWidth() - 24, 0xFFFFAA00, true);
             return;
         }
         int startY = dropListStartY();
@@ -2782,21 +2867,21 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                 (smoothDropScroll - smoothDropRow) * DROP_ROW_H
         );
         int end = Math.min(dropVisuals.size(), smoothDropRow + visible + 1);
-        g.scissor(RIGHT_X + 8,
+        g.scissor(rightPanelX() + 8,
                 startY,
-                RIGHT_X + RIGHT_W - 8,
+                rightPanelX() + rightPanelWidth() - 8,
                 startY + listH
         );
         for (int i = smoothDropRow; i < end; i++) {
             DropVisual visual = dropVisuals.get(i);
             int rowY = startY + (i - smoothDropRow) * DROP_ROW_H - dropShift;
-            boolean hover = mx >= RIGHT_X + 10 && mx <= RIGHT_X + RIGHT_W - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4;
+            boolean hover = mx >= rightPanelX() + 10 && mx <= rightPanelX() + rightPanelWidth() - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4;
             boolean selected = selectedDrop == visual;
             KineticTheme.stateSurface(
                     g,
-                    RIGHT_X + 10,
+                    rightPanelX() + 10,
                     rowY,
-                    RIGHT_W - 26,
+                    rightPanelWidth() - 26,
                     DROP_ROW_H - 4,
                     KineticTheme.Surface.PANEL_ALT,
                     selected,
@@ -2804,7 +2889,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                     visual.loadError
             );
             renderDropIcon(g, visual, rowY, hover);
-            int textX = RIGHT_X + 44;
+            int textX = rightPanelX() + 44;
             int lineOneY = rowY + 7;
             int lineTwoY = rowY + 20;
             Component firstLine = visual.loadError
@@ -2816,23 +2901,24 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             Component secondLine = visual.loadError ? loadErrorIdComponent(visual) : buildDropSecondLine(visual);
             g.scissor(textX,
                     rowY + 2,
-                    DROP_SCROLLBAR_X - TEXT_GAP,
+                    dropScrollbarX() - TEXT_GAP,
                     rowY + DROP_ROW_H - 5
             );
-            g.scrollingText(firstLine, textX, lineOneY, DROP_SCROLLBAR_X - TEXT_GAP - textX, 0xFFFFFFFF, false);
-            g.scrollingText(secondLine, textX, lineTwoY, DROP_SCROLLBAR_X - TEXT_GAP - textX, 0xFFFFFFFF, false);
+            g.scrollingText(firstLine, textX, lineOneY, dropScrollbarX() - TEXT_GAP - textX, 0xFFFFFFFF, false);
+            g.scrollingText(secondLine, textX, lineTwoY, dropScrollbarX() - TEXT_GAP - textX, 0xFFFFFFFF, false);
             g.endScissor();
             if (hover) {
                 deferredTooltip = buildDropTooltip(visual);
+                deferDropIconTooltip(visual, rowY, mx, my);
             }
-            dropScroller.renderSelectionFlash(g, i, RIGHT_X + 10, rowY, RIGHT_W - 26, DROP_ROW_H - 4);
+            dropScroller.renderSelectionFlash(g, i, rightPanelX() + 10, rowY, rightPanelWidth() - 26, DROP_ROW_H - 4);
         }
         g.endScissor();
-        dropScroller.render(g, mx, my, DROP_SCROLLBAR_X, startY + 1, 4, listH - 2, 18);
+        dropScroller.render(g, mx, my, dropScrollbarX(), startY + 1, 4, listH - 2, 18);
     }
 
     private void renderDropIcon(KineticGraphics g, DropVisual visual, int rowY, boolean hovered) {
-        int x = RIGHT_X + 13;
+        int x = usesGroupedLayout() ? rightPanelX() + GROUP_PAD + 5 : rightPanelX() + 13;
         int y = rowY + (GROUP_ENTRY_H - GROUP_ROW_GAP - ICON_CELL) / 2;
         ItemStack stack = visual.stack == null ? ItemStack.EMPTY : visual.stack;
         LootCheckerboard.draw(g, x, y, ICON_CELL, ICON_CELL);
@@ -2840,6 +2926,13 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (!stack.isEmpty()) {
             renderLargeItem(g, stack, x + 3, y + 3, ICON_CELL - 6);
         }
+    }
+
+    private void deferDropIconTooltip(DropVisual visual, int rowY, int mx, int my) {
+        int x = usesGroupedLayout() ? rightPanelX() + GROUP_PAD + 5 : rightPanelX() + 13;
+        int y = rowY + (GROUP_ENTRY_H - GROUP_ROW_GAP - ICON_CELL) / 2;
+        if (mx >= x && mx < x + ICON_CELL && my >= y && my < y + ICON_CELL
+                && !visual.loadError && visual.stack != null && !visual.stack.isEmpty()) deferredItemTooltip = visual.stack;
     }
 
     protected void drawCheckerboard(KineticGraphics g, int x, int y, int w, int h) {
@@ -2947,10 +3040,9 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         updateTargetScrollLimit();
         // 分组行上的点击多由行内按钮处理，这里只记录中键跳转目标，不消费点击 / Grouped-row clicks are mostly handled by row buttons; only record the middle-click target here without consuming the click.
         if (usesGroupedLayout() && !isSpecialPanelActive()
-                && input.x() >= RIGHT_X + 4 && input.x() < RIGHT_X + RIGHT_W - 8
-                && input.y() >= GROUP_Y + 6 && input.y() < GROUP_Y + GROUP_H - 6) {
+                && groupViewport().contains(input.x(), input.y())) {
             for (GroupRow row : visibleGroupRows) {
-                if (input.y() >= row.y && input.y() < row.y + row.height()) {
+                if (groupRowBounds(row).contains(input.x(), input.y())) {
                     lastClickedGroupPool = row.poolIndex;
                     lastClickedGroupVisual = row.visual;
                     break;
@@ -2977,20 +3069,21 @@ public abstract class AbstractLootEditorPage extends KineticPage {
                 selectEntry(targetEntry);
                 return true;
             }
-            if (targetScroller.beginDrag(mx, my, input.button(), TARGET_SCROLLBAR_X, targetAreaY() + 1, TARGET_SCROLLBAR_WIDTH, targetAreaHeight() - 2, 24)) {
+            if (targetScroller.beginDrag(mx, my, input.button(), targetScrollbarX(), targetAreaY() + 1, TARGET_SCROLLBAR_WIDTH, targetAreaHeight() - 2, 24)) {
                 return true;
             }
             if (isSpecialPanelActive()) {
                 return handleSpecialPanelClick(mx, my, btn);
             }
             if (usesGroupedLayout()) {
-                if (groupScroller.beginDrag(mx, my, input.button(), GROUP_SCROLLBAR_X + 2, GROUP_Y + 6, 4, GROUP_H - 12, 18, 2)) {
+                Rect scrollbar = groupScrollbar();
+                if (groupScroller.beginDrag(mx, my, input.button(), scrollbar.x(), scrollbar.y(), scrollbar.width(), scrollbar.height(), 18, 2)) {
                     updateVisibleGroupedRows();
                     return true;
                 }
                 return false;
             }
-            int editIconX = RIGHT_X + 18;
+            int editIconX = rightPanelX() + 18;
             int editIconY = EDIT_Y + 25;
             if (mx >= editIconX && mx <= editIconX + EDIT_ICON && my >= editIconY && my <= editIconY + EDIT_ICON) {
                 openItemPicker();
@@ -2998,7 +3091,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             }
             int dropStartY = dropListStartY();
             int dropListH = dropListHeight();
-            if (dropScroller.beginDrag(mx, my, input.button(), DROP_SCROLLBAR_X, dropStartY + 1, 4, dropListH - 2, 18)) {
+            if (dropScroller.beginDrag(mx, my, input.button(), dropScrollbarX(), dropStartY + 1, 4, dropListH - 2, 18)) {
                 return true;
             }
             int visible = visibleDropRows();
@@ -3010,7 +3103,7 @@ public abstract class AbstractLootEditorPage extends KineticPage {
             int endDrop = Math.min(dropVisuals.size(), smoothDropRow + visible + 1);
             for (int i = smoothDropRow; i < endDrop; i++) {
                 int rowY = dropStartY + (i - smoothDropRow) * DROP_ROW_H - dropShift;
-                if (mx >= RIGHT_X + 10 && mx <= RIGHT_X + RIGHT_W - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4) {
+                if (mx >= rightPanelX() + 10 && mx <= rightPanelX() + rightPanelWidth() - 16 && my >= rowY && my <= rowY + DROP_ROW_H - 4) {
                     if (failsToCommitSelectedDropEditorChanges()) {
                         return true;
                     }
@@ -3039,7 +3132,8 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         if (dropScroller.drag(my, dropListStartY() + 1, dropListHeight() - 2, 18)) {
             return true;
         }
-        if (groupScroller.drag(my, GROUP_Y + 6, GROUP_H - 12, 18)) {
+        Rect scrollbar = groupScrollbar();
+        if (groupScroller.drag(my, scrollbar.y(), scrollbar.height(), 18)) {
             updateVisibleGroupedRows();
             return true;
         }
@@ -3066,20 +3160,19 @@ public abstract class AbstractLootEditorPage extends KineticPage {
         double my = input.y();
         double delta = input.deltaY();
         updateTargetScrollLimit();
-        if (mx >= LEFT_X && mx <= LEFT_X + TARGET_WIDTH + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && targetScroller.canScroll()) {
+        if (mx >= targetPanelX() && mx <= targetPanelX() + targetPanelWidth() + 10 && my >= targetAreaY() && my <= targetAreaY() + targetAreaHeight() && targetScroller.canScroll()) {
             targetScroller.scroll(delta);
             return true;
         }
         if (isSpecialPanelActive() && handleSpecialPanelScrolled(mx, my, delta)) {
             return true;
         }
-        if (!isSpecialPanelActive() && usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W
-                && my >= GROUP_Y && my <= GROUP_Y + GROUP_H && groupScroller.canScroll()) {
+        if (!isSpecialPanelActive() && usesGroupedLayout() && groupViewport().contains(mx, my) && groupScroller.canScroll()) {
             groupScroller.scroll(delta);
             updateVisibleGroupedRows();
             return true;
         }
-        if (!usesGroupedLayout() && mx >= RIGHT_X && mx <= RIGHT_X + RIGHT_W && my >= DROP_Y && my <= DROP_Y + DROP_H && dropScroller.canScroll()) {
+        if (!usesGroupedLayout() && mx >= rightPanelX() && mx <= rightPanelX() + rightPanelWidth() && my >= DROP_Y && my <= DROP_Y + DROP_H && dropScroller.canScroll()) {
             dropScroller.scroll(delta);
             return true;
         }
@@ -3106,6 +3199,10 @@ public abstract class AbstractLootEditorPage extends KineticPage {
 
     @Override
     protected void renderTooltips(int smx, int smy) {
+        if (!deferredItemTooltip.isEmpty()) {
+            showItemTooltip(deferredItemTooltip);
+            return;
+        }
         if (deferredTooltip != null && !deferredTooltip.isEmpty()) {
             showTooltip(deferredTooltip);
         }
