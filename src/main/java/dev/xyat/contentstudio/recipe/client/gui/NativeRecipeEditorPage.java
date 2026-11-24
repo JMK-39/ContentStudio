@@ -667,10 +667,13 @@ public final class NativeRecipeEditorPage extends KineticPage {
         if(packet.success()&&(action.equals("disable")||action.equals("enable"))) {
             // Only the removal rule changed: keep the draft, take the new catalog version so later saves are not stale.
             session.removed=body.get("removed").getAsBoolean();session.catalog=body.get("catalog").getAsLong();session.revision=body.get("revision").getAsString();
+            RecipeEditSessionState.markPendingRecipeApply();
             KineticOverlays.toast(tr(session.removed?"disabled":"enabled"));session.refresh.run();rebuild();return;
         }
         if(packet.success()) {
-            KineticOverlays.toast(tr("saved"));session.refresh.run();
+            // Saves are applied together when the recipe pages are left; "pending" says a datapack reload is among them.
+            RecipeEditSessionState.markPendingRecipeApply();
+            KineticOverlays.toast(tr(body.has("pending")&&body.get("pending").getAsBoolean()?"saved_pending":"saved"));session.refresh.run();
             if(body.has("deleted")&&body.get("deleted").getAsBoolean())navigateBack();else {session.saved(body);rebuild();}
         }else {NativeRecipeBrowserPage.notifyError(body);rebuild();}
     }

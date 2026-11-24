@@ -94,8 +94,10 @@ public final class RecipeNetwork {
                 () -> registered = allPacketsRegistered()
         );
         if (registered) {
-            KineticServerEvents.onPlayerLogout(KineticEventPriority.NORMAL, player ->
-                    PENDING_DRAFTS.remove(player.getUUID()));
+            KineticServerEvents.onPlayerLogout(KineticEventPriority.NORMAL, player -> {
+                PENDING_DRAFTS.remove(player.getUUID());
+                RecipeSaveManager.playerLeft(player);
+            });
         }
     }
 

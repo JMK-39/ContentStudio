@@ -203,9 +203,10 @@ public final class NativeRecipeMatrixValidation {
             if(!packet.success())throw new AssertionError("Server rejected "+current.type()+": "+body);
             switch(phase++) {
                 case 0 -> send("save",body);
-                case 1 -> onServer(()->require(live(current.id()).equals(current.after()),"changed native recipe installed"),()->send("open",null));
+                // Saves are applied when the recipe editor is left.
+                case 1 -> PendingRecipes.applyThen(()->onServer(()->require(live(current.id()).equals(current.after()),"changed native recipe installed"),()->send("open",null)));
                 case 2 -> {require(body.getAsJsonObject("recipe").equals(current.draft()),"unmodified fields retained on disk");send("restore",body);}
-                case 3 -> onServer(()->{
+                case 3 -> PendingRecipes.applyThen(()->onServer(()->{
                     String actual=live(current.id());
                     if(!actual.equals(current.before())) {
                         var source=RecipeMemoryManager.originalCatalog(server.getRecipeManager()).sources().get(KineticResourceIds.parse(current.id()));
@@ -216,7 +217,7 @@ public final class NativeRecipeMatrixValidation {
                 },()->{
                     record(current.type(),current.id(),"PASS",String.join(" / ",current.path())+" = "+current.value());
                     LOG.info("CONTENT_MATRIX_CASE_PASS type={} id={} field={} value={}",current.type(),current.id(),current.path(),current.value());index++;next();
-                });
+                }));
                 default -> throw new AssertionError("Invalid matrix stage");
             }
         }catch(Throwable error){fail(error);}

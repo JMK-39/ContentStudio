@@ -34,6 +34,8 @@ public final class NativeRecipeValidation {
             onServer(()->{
                 var directory=NativeRecipeStore.file().getParent();
                 try {
+                    // Put back byte for byte at the end: this also runs in real packs.
+                    RecipeFiles.snapshot();
                     for(var base:List.of(directory.getParent(),directory))
                         for(var name:List.of("recipe_overrides.json","recipe_bundle.json")) {
                             var path=base.resolve(name);
@@ -42,10 +44,11 @@ public final class NativeRecipeValidation {
                 }catch(java.io.IOException error){throw new AssertionError(error);}
                 var server=mc.getSingleplayerServer();
                 var player=server.getPlayerList().getPlayers().get(0);
+                // The owner of a world with cheats may edit already; opping writes ops.json into the game folder.
                 //? if >=26.1 {
-                /*server.getPlayerList().op(new net.minecraft.server.players.NameAndId(player.getGameProfile()));
+                /*if(!player.hasPermissions(2))server.getPlayerList().op(new net.minecraft.server.players.NameAndId(player.getGameProfile()));
                 *///?} else {
-                server.getPlayerList().op(player.getGameProfile());
+                if(!player.hasPermissions(2))server.getPlayerList().op(player.getGameProfile());
                 //?}
                 require(player.hasPermissions(2),"owned validation world grants editor permission");
             },()->send("list","","",null,""));
@@ -83,8 +86,8 @@ public final class NativeRecipeValidation {
                     send("save",id,COPY,body,document.json().toString());
                 }
                 case 2 -> {
-                    require(packet.success(),"copy and reload");
-                    onServer(()->{
+                    require(packet.success() && body.get("pending").getAsBoolean(),"copy saved, applied when the editor is left");
+                    onServer(()->require(!RecipeMemoryManager.containsRuntimeRecipe(Minecraft.getInstance().getSingleplayerServer().getRecipeManager(),KineticResourceIds.parse(COPY)),"saving runs no datapack reload"),()->applyThen(()->onServer(()->{
                         var manager=Minecraft.getInstance().getSingleplayerServer().getRecipeManager();
                         require(RecipeMemoryManager.containsRuntimeRecipe(manager,KineticResourceIds.parse(COPY)),"copy exists after reload");
                         var file=NativeRecipeStore.file();
@@ -107,7 +110,7 @@ public final class NativeRecipeValidation {
                         boolean rejected=false;
                         try {RecipeMemoryManager.decodeNative(manager,KineticResourceIds.parse(COPY),inactive);}catch(RuntimeException expected){rejected=true;}
                         require(rejected,"inactive native conditions rejected");
-                    },()->send("open",COPY,"",null,""));
+                    },()->send("open",COPY,"",null,""))));
                 }
                 case 3 -> {
                     require(packet.success(),"reimport saved copy");copied=body.deepCopy();
@@ -136,7 +139,7 @@ public final class NativeRecipeValidation {
                 }
                 case 9 -> {
                     require(packet.success(),"restore copied recipe");
-                    onServer(()->require(!RecipeMemoryManager.containsRuntimeRecipe(Minecraft.getInstance().getSingleplayerServer().getRecipeManager(),KineticResourceIds.parse(COPY)),"removed override disappears"),()->send("open",id,"",null,""));
+                    applyThen(()->onServer(()->require(!RecipeMemoryManager.containsRuntimeRecipe(Minecraft.getInstance().getSingleplayerServer().getRecipeManager(),KineticResourceIds.parse(COPY)),"removed override disappears"),()->send("open",id,"",null,"")));
                 }
                 case 10 -> {
                     require(packet.success() && body.get("recipe").toString().equals(originalJson),"source unchanged");
@@ -152,13 +155,13 @@ public final class NativeRecipeValidation {
                     changedOriginal=document.json().toString();send("save",id,id,body,changedOriginal);
                 }
                 case 11 -> {
-                    require(packet.success(),"replace original ID and reload");send("open",id,"",null,"");
+                    require(packet.success(),"replace original ID and reload");applyThen(()->send("open",id,"",null,""));
                 }
                 case 12 -> {
                     require(packet.success() && body.get("recipe").toString().equals(changedOriginal),"modified original survives reimport");
                     copied=body;onServer(()->checkQuantity(3),()->send("restore",id,id,copied,""));
                 }
-                case 13 -> { require(packet.success(),"restore original ID and reload");send("open",id,"",null,""); }
+                case 13 -> { require(packet.success(),"restore original ID and reload");applyThen(()->send("open",id,"",null,"")); }
                 case 14 -> {
                     require(packet.success() && body.get("recipe").toString().equals(originalJson),"restore original fields");
                     preview=body;
@@ -179,8 +182,14 @@ public final class NativeRecipeValidation {
             }
         } catch(Throwable error) {fail(error);}
     }
+    /** Leaves the recipe editor as a player does: the saved changes are applied by one datapack reload, then {@code next} runs. */
+    private static void applyThen(Runnable next) {
+        deadline=System.currentTimeMillis()+300_000;
+        PendingRecipes.applyThen(next);
+    }
     private static void finishNative() {
         checkLegacyFilesUnchanged();
+        try {RecipeFiles.restore();}catch(java.io.IOException error){throw new AssertionError(error);}
         finished=true;LOG.info("CONTENT_NATIVE_PASS stages={} thirdParty={} recipe={}",stage,Boolean.getBoolean("contentstudio.nativeRecipeValidation.thirdParty"),id);
         if(Boolean.getBoolean("contentstudio.nativeRecipeValidation.thenMatrixCaptureOnly"))NativeRecipeMatrixValidation.install();
         else if(Boolean.getBoolean("contentstudio.nativeRecipeValidation.thenJei"))JeiEditorValidation.install();
@@ -237,5 +246,5 @@ public final class NativeRecipeValidation {
         });
     }
     private static void require(boolean value,String message) {if(!value)throw new AssertionError(message);LOG.info("CONTENT_NATIVE_CHECK_PASS {}",message);}
-    private static void fail(Throwable error) {finished=true;LOG.error("CONTENT_NATIVE_FAIL stage="+stage,error);dev.xyat.kineticcore.api.runtime.KineticClientRuntime.stopClient();}
+    private static void fail(Throwable error) {finished=true;try {RecipeFiles.restore();}catch(Throwable restore){error.addSuppressed(restore);}LOG.error("CONTENT_NATIVE_FAIL stage="+stage,error);dev.xyat.kineticcore.api.runtime.KineticClientRuntime.stopClient();}
 }

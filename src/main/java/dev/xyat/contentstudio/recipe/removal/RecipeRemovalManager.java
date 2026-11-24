@@ -43,8 +43,9 @@ public final class RecipeRemovalManager {
     }
 
     /**
-     * Adds or drops the exact-ID rule for one original recipe and reapplies the datapacks, leaving every other rule
-     * as it is. Completes with {@code true} once the change is saved and applied.
+     * Adds or drops the exact-ID rule for one original recipe, leaving every other rule as it is. The rule is saved at
+     * once and applied by the one datapack reload that runs when the player leaves the recipe editor. Completes with
+     * {@code true} once the change is saved.
      */
     public static synchronized java.util.concurrent.CompletableFuture<Boolean> setRecipeRemoved(ServerPlayer player,
             net.minecraft.resources.ResourceLocation id, boolean removed) {
@@ -54,8 +55,11 @@ public final class RecipeRemovalManager {
         draft.removeIf(existing -> existing.key().equals(rule.key()));
         if (removed) draft.add(rule);
         applyingDraft = true;
-        var server = player.getServer();
-        return RemovalDraftCommitter.commit(draft, RecipeConfigStore::replaceRemovalsAtomic, () -> RecipeMemoryManager.reloadDatapacks(server))
+        return RemovalDraftCommitter.commit(draft, RecipeConfigStore::replaceRemovalsAtomic, () -> {
+                    reloadData();
+                    dev.xyat.contentstudio.recipe.RecipeSaveManager.markPending(player, true);
+                    return java.util.concurrent.CompletableFuture.completedFuture(null);
+                })
                 .thenApply(outcome -> {
                     synchronized (RecipeRemovalManager.class) {
                         applyingDraft = false;

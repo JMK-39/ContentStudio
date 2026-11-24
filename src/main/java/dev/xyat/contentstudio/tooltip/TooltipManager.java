@@ -32,7 +32,7 @@ public final class TooltipManager {
     private static final int MAX_TOTAL_RULES = 32768;
     private static final int MAX_TEXT_LENGTH = 32767;
     private static final Type RULE_MAP_TYPE = new TypeToken<Map<String, List<TooltipRule>>>() {}.getType();
-    private static final Path CONFIG_FILE = KineticPaths.configFile("kineticcore/contentstudio_tooltips.json");
+    private static final Path CONFIG_FILE = KineticPaths.configFile("kineticcore/contentstudio/item_tooltips.json");
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public static final Gson GSON = new GsonBuilder().create();
@@ -58,6 +58,7 @@ public final class TooltipManager {
     }
 
     private static boolean loadInternal() {
+        KineticPaths.migrateConfigFile("kineticcore/contentstudio_tooltips.json", "kineticcore/contentstudio/item_tooltips.json");
         if (!Files.exists(CONFIG_FILE)) {
             tooltipData = new HashMap<>();
             return true;

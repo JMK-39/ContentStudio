@@ -90,7 +90,7 @@ public final class NativeRecipeCreationValidation {
                 if(phase++==0) {
                     require(NativeRecipeEditorPage.create(body,()->{})==null,"third-party editor hidden without JEI");
                     send("restore",body.get("catalog").getAsLong(),body.get("revision").getAsString());
-                }else onServer(()->require(!RecipeMemoryManager.containsRuntimeRecipe(server.getRecipeManager(),KineticResourceIds.parse(id)),"created recipe removed"),()->{index++;next();});
+                }else PendingRecipes.applyThen(()->onServer(()->require(!RecipeMemoryManager.containsRuntimeRecipe(server.getRecipeManager(),KineticResourceIds.parse(id)),"created recipe removed"),()->{index++;next();}));
                 return;
             }
             if(phase==3) {
@@ -132,9 +132,10 @@ public final class NativeRecipeCreationValidation {
                         send("create",body.get("catalog").getAsLong(),body.get("revision").getAsString());
                     });
                 }
-                case 1 -> onServer(()->{
+                // Saves are applied when the recipe editor is left.
+                case 1 -> PendingRecipes.applyThen(()->onServer(()->{
                     require(live(id).equals(expected),"new native recipe installed");require(live(samples.get(index).source()).equals(samples.get(index).fingerprint()),"template unchanged");
-                },()->send("open",0,""));
+                },()->send("open",0,"")));
                 case 2 -> {
                     require(body.getAsJsonObject("recipe").equals(draft.getAsJsonObject("recipe")),"new recipe persisted without field loss");
                     require(body.get("added").getAsBoolean(),"new recipe marked for deletion rather than restoring a template");

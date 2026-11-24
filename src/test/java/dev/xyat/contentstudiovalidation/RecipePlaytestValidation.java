@@ -55,6 +55,8 @@ public final class RecipePlaytestValidation {
         if (finished) return;
         var mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null || mc.getOverlay() != null) return;
+        // Put back byte for byte at the end: this also runs in real packs.
+        try { RecipeFiles.snapshot(); } catch (java.io.IOException unreadable) { finish(unreadable); return; }
         if (++wait < 6) return;
         Step step = steps.get(index);
         try {
@@ -172,15 +174,24 @@ public final class RecipePlaytestValidation {
             passes.add(type + " " + recipeId + ": Restore brought the original recipe back");
             return true;
         }));
-        steps.add(new Step("remove", () -> !busy() && tryClickLabel("disable_recipe")));
+        // Removing is a rule that takes effect when the recipe pages are closed, so the rule is what is checked here.
+        // A recipe a player added has Delete instead of Remove, and deleting it has already left the editor.
+        steps.add(new Step("remove", () -> {
+            if (busy()) return false;
+            removable = KineticGui.currentPage() instanceof NativeRecipeEditorPage page && !(boolean) field(field(page, "session"), "added");
+            return !removable || tryClickLabel("disable_recipe");
+        }));
         steps.add(new Step("removed", () -> {
-            if (busy() || exists(recipeId)) return false;
+            if (!removable) return true;
+            if (busy() || !removedByRule(recipeId)) return false;
             return tryClickLabel("enable_recipe");
         }));
         steps.add(new Step("re-enabled", () -> {
-            if (busy() || !exists(recipeId)) return false;
-            passes.add(type + " " + recipeId + ": Remove took the recipe out and Enable put it back");
-            clickLabel("back");
+            if (removable) {
+                if (busy() || removedByRule(recipeId)) return false;
+                passes.add(type + " " + recipeId + ": Remove added the removal rule and Enable took it away");
+            }
+            if (KineticGui.currentPage() instanceof NativeRecipeEditorPage) clickLabel("back");
             return true;
         }));
         // New recipe from a template of the same type.
@@ -530,11 +541,21 @@ public final class RecipePlaytestValidation {
     }
 
     // ------------------------------------------------------------------ server checks
-    // The live recipe in the server's recipe manager, never the editor's draft: what the player would craft with.
+    // The recipe as it is saved, never the editor's draft: its stored override, read by the game's own serializer,
+    // else the live recipe. Saves are applied when the recipe editor is left, and this test stays in the editor.
 
     private static Recipe<?> recipe(String id) throws Exception {
         var server = Minecraft.getInstance().getSingleplayerServer();
         ResourceLocation key = KineticResourceIds.parse(id);
+        var saved = dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.local();
+        if (saved.has(id)) {
+            var json = saved.getAsJsonObject(id).deepCopy();
+            //? if >=1.21 {
+            /*return server.submit(() -> (Recipe<?>) dev.xyat.contentstudio.recipe.RecipeMemoryManager.decodeNative(server.getRecipeManager(), key, json).value()).get();
+            *///?} else {
+            return server.submit(() -> (Recipe<?>) dev.xyat.contentstudio.recipe.RecipeMemoryManager.decodeNative(server.getRecipeManager(), key, json)).get();
+            //?}
+        }
         //? if >=26.1 {
         /*return server.submit(() -> server.getRecipeManager().byKey(net.minecraft.resources.ResourceKey.create(
                 net.minecraft.core.registries.Registries.RECIPE, key)).map(holder -> (Recipe<?>) holder.value()).orElse(null)).get();
@@ -557,6 +578,15 @@ public final class RecipePlaytestValidation {
     }
 
     private static boolean exists(String id) throws Exception { return recipe(id) != null; }
+
+    private static boolean removable;
+
+    /** Whether an exact-ID removal rule is saved for the recipe. */
+    private static boolean removedByRule(String id) throws Exception {
+        var server = Minecraft.getInstance().getSingleplayerServer();
+        ResourceLocation key = KineticResourceIds.parse(id);
+        return server.submit(() -> dev.xyat.contentstudio.recipe.removal.RecipeRemovalManager.isRecipeRemoved(key)).get();
+    }
 
     //? if >=1.21 {
     /*/^* The live recipe written back with its own codec: the same shape as its datapack JSON, for any mod's type. ^/
@@ -602,6 +632,7 @@ public final class RecipePlaytestValidation {
 
     private static void finish(Throwable failure) {
         finished = true;
+        try { RecipeFiles.restore(); } catch (Throwable restoreFailure) { LOG.error("RECIPE_PLAYTEST_FILES_RESTORE_FAIL", restoreFailure); }
         if (mouseX != null) try {
             var mouse = Minecraft.getInstance().mouseHandler;
             mouseX.setDouble(mouse, originalMouseX);

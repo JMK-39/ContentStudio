@@ -3,6 +3,7 @@ package dev.xyat.contentstudio.villager.config;
 import dev.xyat.kineticcore.api.resource.KineticResourceIds;
 import dev.xyat.kineticcore.api.registry.KineticRegistries;
 import dev.xyat.kineticcore.api.runtime.KineticPlatform;
+import dev.xyat.kineticcore.api.runtime.KineticPaths;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.core.io.WritingMode;
 import dev.xyat.contentstudio.villager.VillagerModule;
@@ -30,7 +31,7 @@ import java.util.Set;
 public class VillagerConfig {
     public static final String WANDERING_TRADER_ID = "minecraft:wandering_trader";
 
-    private static final Path CONFIG_PATH = KineticPlatform.configDirectory().resolve("kineticcore/villager.toml");
+    private static final Path CONFIG_PATH = KineticPlatform.configDirectory().resolve("kineticcore/contentstudio/villager.toml");
     private static CommentedFileConfig configData;
 
     public static int villagerTickInterval = 100;
@@ -52,8 +53,9 @@ public class VillagerConfig {
     private static final Map<String, VanillaTradeOverride> VANILLA_OVERRIDE_CACHE = new HashMap<>();
 
     public static void load() {
-
+        KineticPaths.migrateConfigFile("kineticcore/villager.toml", "kineticcore/contentstudio/villager.toml");
         try {
+            KineticPaths.ensureConfigDirectory("kineticcore/contentstudio");
             if (configData != null) {
                 configData.close();
             }

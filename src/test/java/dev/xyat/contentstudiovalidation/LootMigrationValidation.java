@@ -55,7 +55,7 @@ public final class LootMigrationValidation {
         Path plan=Path.of(System.getProperty("contentstudio.lootMigration.input"));
         var candidate=JsonParser.parseString(Files.readString(plan.resolve("candidate.json"))).getAsJsonObject();
         var entities=JsonParser.parseString(Files.readString(plan.resolve("entities.json"))).getAsJsonObject();
-        Path persisted=KineticPlatform.configDirectory().resolve("kineticcore/loot_overrides.json");
+        Path persisted=KineticPlatform.configDirectory().resolve("kineticcore/contentstudio/loot_overrides.json");
         byte[] before=Files.readAllBytes(persisted);
         require(candidate.equals(JsonParser.parseString(new String(before,StandardCharsets.UTF_8))),"persisted config equals the native-only candidate");
         for(String forbidden:List.of("contentstudio:"+"stage_chance","contentstudio_"+"complete_snapshot"))

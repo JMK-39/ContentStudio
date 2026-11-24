@@ -12,8 +12,30 @@ import java.util.ArrayList;
 public final class RecipeSaveManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static boolean pendingRecipeReload;
+    // Recipes already changed in the running recipe manager that the players have not been sent yet.
+    private static boolean pendingRecipeSync;
+    // Who made the changes that wait; they are applied when that player leaves the recipe editor or the game.
+    @javax.annotation.Nullable private static java.util.UUID pendingBy;
 
     private RecipeSaveManager() {
+    }
+
+    /**
+     * A saved change waits until the recipe editor is left: for one datapack reload ({@code needsReload}), or, when it
+     * is already in the running recipe manager, only for the recipes to be sent to the players. Saving ten recipes
+     * then reloads once, not ten times.
+     */
+    public static synchronized void markPending(ServerPlayer player, boolean needsReload) {
+        if (needsReload) pendingRecipeReload = true;
+        else pendingRecipeSync = true;
+        if (player != null) pendingBy = player.getUUID();
+    }
+
+    /** Applies what waits when the player who made the changes leaves the game without closing the editor. */
+    public static synchronized void playerLeft(ServerPlayer player) {
+        if (player == null || !player.getUUID().equals(pendingBy)) return;
+        // In a single-player world the host leaving closes the world; the saved changes load with it next time.
+        if (player.getServer() != null && player.getServer().isDedicatedServer()) applyPending(player);
     }
 
     public static synchronized void saveOnly(ServerPlayer player, RecipeNetwork.RecipeChangePacket packet) {
@@ -42,7 +64,7 @@ public final class RecipeSaveManager {
             }
 
             RecipeDatabase.reloadDatabase();
-            pendingRecipeReload = true;
+            markPending(player, true);
             RecipeNetwork.syncRecipeRecords(player);
             RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.msg.saved_pending"));
         } catch (Exception e) {
@@ -63,7 +85,7 @@ public final class RecipeSaveManager {
             }
 
             RecipeDatabase.reloadDatabase();
-            pendingRecipeReload = true;
+            markPending(player, true);
             RecipeNetwork.syncRecipeRecords(player);
             RecipeNetwork.sendToast(player, KineticI18n.translatable("gui.contentstudio.recipe.recipehud.msg.deleted_pending"));
         } catch (Exception e) {
@@ -91,11 +113,21 @@ public final class RecipeSaveManager {
     }
 
     public static synchronized void applyPending(ServerPlayer player) {
-        if (player == null || player.getServer() == null || !pendingRecipeReload) {
+        if (player == null || player.getServer() == null) {
             return;
         }
-        pendingRecipeReload = false;
         var server = player.getServer();
+        pendingBy = null;
+        if (!pendingRecipeReload) {
+            if (pendingRecipeSync) {
+                pendingRecipeSync = false;
+                RecipeMemoryManager.syncRecipes(server);
+            }
+            return;
+        }
+        // A reload sends the recipes too.
+        pendingRecipeReload = false;
+        pendingRecipeSync = false;
         RecipeMemoryManager.reloadDatapacks(server).whenComplete((unused, error) -> {
             if (error == null) {
                 return;
@@ -112,5 +144,7 @@ public final class RecipeSaveManager {
 
     public static synchronized void markApplied() {
         pendingRecipeReload = false;
+        pendingRecipeSync = false;
+        pendingBy = null;
     }
 }

@@ -1,3 +1,17 @@
+2026年11月24日 — 26.11.24 — Configuration directory / 配置目录
+- Tooltip, loot override and villager configuration files now live under `config/kineticcore/contentstudio/`, with automatic migration that preserves existing destinations. Shared data-pack paths are unchanged. Requires KineticCore 26.11.24.
+- 物品提示、战利品覆盖与村民配置归档至 `config/kineticcore/contentstudio/`，自动迁移旧文件并保留已有目标文件；共享数据包路径保持不变，需要 KineticCore 26.11.24。
+
+2026年11月14日 — 26.11.14 — TaCZ 1.2.0 compatibility / TaCZ 1.2.0 兼容
+- Verified native gunsmith recipe editing with TaCZ 1.2.0 on Forge 1.20.1. Saves and restores update the server immediately without a datapack reload; closing the editor synchronizes recipes to clients. Result groups and output item metadata are preserved through saving, reopening and synchronization.
+- 在 Forge 1.20.1 上验证 TaCZ 1.2.0 原生工作台配方编辑。保存与恢复立即在服务端生效，无需重载数据包；关闭编辑器后同步给客户端。保存、重新打开和同步时保留产物分组及物品数据。
+
+2026年11月11日 — 26.11.11 — Recipe saves without a reload each / 保存配方不再逐次重载
+- Saving, creating, restoring, removing or bringing back a recipe in the native recipe editor no longer reloads every datapack each time. The change is stored at once, and everything saved is applied by one reload when the recipe pages are closed (or when the editing player leaves a dedicated server). Ten saves used to mean ten reloads, each freezing a large pack for tens of seconds; now it is one.
+- 在原生配方编辑器中保存、新建、恢复、移除或恢复被移除的配方时，不再每次都重载全部数据包。修改立即写入，所有修改在关闭配方界面时统一重载一次（专用服务器上编辑的玩家退出时也会应用）。原来保存十次就重载十次，大型整合包里每次都要卡几十秒，现在只重载一次。
+- On 1.20.1, TACZ gunsmith table recipes need no reload at all: the saved recipe is put straight into the running recipe manager, exactly as a reload would load it, so it works at the table at once; players are sent the recipes when the recipe pages are closed.
+- 1.20.1 上，TACZ 枪械工作台配方完全不需要重载：保存的配方直接放进运行中的配方表，与重载后的结果完全一致，立刻可以在工作台使用；关闭配方界面时再把配方同步给玩家。
+
 2026年11月3日 — 26.11.3 — Loot tables kept in data packs / 数据包中的战利品表
 - Loot tables that are files in KineticCore data packs (config/kineticcore/datapack), such as the ones RealmControl's structure editor creates, are edited in their file: Save writes the file and takes effect at once, with no override, so the table travels with its pack. Tables written since the last reload are listed too. Entries whose mod is not installed stay in the file and are left out when it loads.
 - KineticCore 数据包（config/kineticcore/datapack）中以文件形式存在的战利品表（例如 RealmControl 结构编辑器新建的表）直接编辑其文件：保存即写入文件并立即生效，不再生成覆盖记录，表随数据包一起分发。上次重载后新写入的表也会列出。所属模组未安装的条目保留在文件中，加载时去掉。

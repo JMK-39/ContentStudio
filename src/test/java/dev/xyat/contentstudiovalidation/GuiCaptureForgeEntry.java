@@ -5,7 +5,9 @@ package dev.xyat.contentstudiovalidation;
 @net.minecraftforge.fml.common.Mod("contentstudio_gui_capture")
 public final class GuiCaptureForgeEntry {
     public GuiCaptureForgeEntry() {
-        if (Boolean.getBoolean("contentstudio.recipeRepairValidation")) {
+        if (Boolean.getBoolean("contentstudiotacz.guiValidation")) {
+            dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> TaczRecipeSaveValidation::install);
+        } else if (Boolean.getBoolean("contentstudio.recipeRepairValidation")) {
             dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> RecipeRepairValidation::install);
         } else if (Boolean.getBoolean("contentstudio.lootMigration")) {
             dev.xyat.kineticcore.api.runtime.KineticPlatform.runOnClient(() -> LootMigrationValidation::install);

@@ -188,14 +188,16 @@ public final class NativeRecipeNetwork {
                     } else if (!local.has(id.toString())) throw new IllegalArgumentException("No saved override to restore");
                     NativeRecipeStore.update(target, draft, packet.revision);
                     var server=player.getServer();
-                    RELOADING.add(server);
-                    try { RecipeMemoryManager.reloadDatapacks(server).whenComplete((unused, error) -> {
-                            RELOADING.remove(server);
-                            server.execute(() -> {
+                    // No datapack reload per save: a recipe type the game looks up directly is put into the running
+                    // recipe manager now, any other waits for the one reload that runs when the editor is left.
+                    boolean applied=RecipeMemoryManager.applyNativeInMemory(manager, target, draft);
+                    dev.xyat.contentstudio.recipe.RecipeSaveManager.markPending(player, !applied);
+                    {
+                            {
                                 JsonObject result = new JsonObject(); result.addProperty("action", packet.action);
                                 result.addProperty("id", target.toString());
-                                result.addProperty("message", error == null ? "saved" : "reload_failed");
-                                if(error==null)try {
+                                result.addProperty("message", "saved");result.addProperty("pending", !applied);
+                                try {
                                     var saved=NativeRecipeStore.local();var reloaded=server.getRecipeManager();
                                     result.addProperty("catalog",RecipeMemoryManager.catalogVersion(reloaded));result.addProperty("revision",NativeRecipeStore.revision(saved));
                                     var original=RecipeMemoryManager.originalCatalog(reloaded).sources();
@@ -212,10 +214,9 @@ public final class NativeRecipeNetwork {
                                 }catch(Exception hydrationError) {
                                     result.addProperty("message",Objects.toString(hydrationError.getMessage(),"reload_failed"));reply(player,packet.sequence,false,result);return;
                                 }
-                                reply(player, packet.sequence, error == null, result);
-                            });
-                        });
-                    } catch(RuntimeException error) {RELOADING.remove(server);throw error;}
+                                reply(player, packet.sequence, true, result);
+                            }
+                    }
                     return;
                 }
                 case "disable", "enable" -> {

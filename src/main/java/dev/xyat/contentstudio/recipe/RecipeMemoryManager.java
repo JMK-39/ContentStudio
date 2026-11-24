@@ -160,6 +160,14 @@ public final class RecipeMemoryManager {
         return server.reloadResources(List.copyOf(server.getPackRepository().getSelectedIds()));
     }
 
+    // Saved recipes are put into the running recipe manager only on 1.20.1; here every change waits for a reload.
+    public static boolean applyNativeInMemory(RecipeManager manager, ResourceLocation id, JsonObject json) {
+        return false;
+    }
+
+    public static void syncRecipes(MinecraftServer server) {
+    }
+
     private static void applySnapshot(
             RecipeManager recipeManager,
             RecipeConfigStore.Snapshot snapshot, ResourceManager resources
@@ -706,6 +714,14 @@ public final class RecipeMemoryManager {
         return server.reloadResources(List.copyOf(server.getPackRepository().getSelectedIds()));
     }
 
+    // Saved recipes are put into the running recipe manager only on 1.20.1; here every change waits for a reload.
+    public static boolean applyNativeInMemory(RecipeManager manager, ResourceLocation id, JsonObject json) {
+        return false;
+    }
+
+    public static void syncRecipes(MinecraftServer server) {
+    }
+
     private static void applySnapshot(
             RecipeManager recipeManager,
             RecipeConfigStore.Snapshot snapshot, ResourceManager resources
@@ -1130,6 +1146,7 @@ public final class RecipeMemoryManager {
     private static final Map<RecipeManager, RegistryAccess> RELOAD_REGISTRIES = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, Long> CATALOG_VERSIONS = new java.util.WeakHashMap<>();
     private static final Map<RecipeManager, ICondition.IContext> NATIVE_OPS = new java.util.WeakHashMap<>();
+    private static final Map<RecipeManager, Layers> LAYERS = new java.util.WeakHashMap<>();
     private static long nextCatalogVersion;
     private static boolean registered;
 
@@ -1192,18 +1209,74 @@ public final class RecipeMemoryManager {
         return server.reloadResources(List.copyOf(server.getPackRepository().getSelectedIds()));
     }
 
+    /**
+     * Recipe types the game looks up in the recipe manager every time they are used, so a changed recipe works at
+     * once without any reload listener running: TACZ's gunsmith table. Other mods may keep lists of their recipes
+     * that only a datapack reload clears.
+     */
+    public static boolean lookedUpDirectly(ResourceLocation recipeType) {
+        return recipeType != null && recipeType.getNamespace().equals("tacz");
+    }
+
+    /**
+     * Puts one saved native recipe into the running recipe manager, or takes its override out again ({@code json}
+     * {@code null}), without reloading the datapacks; the result is what a reload would load. Players are sent the
+     * recipes by {@link #syncRecipes}. Returns {@code false}, changing nothing, unless the recipe before and after
+     * the change is of a type {@link #lookedUpDirectly looked up directly}.
+     */
+    public static synchronized boolean applyNativeInMemory(RecipeManager manager, ResourceLocation id,
+                                                           @javax.annotation.Nullable JsonObject json) {
+        Layers layers = LAYERS.get(manager);
+        if (layers == null) return false;
+        Recipe<?> after = json == null ? null : decodeNative(manager, id, json.deepCopy());
+        Recipe<?> below = layers.records.containsKey(id) ? layers.records.get(id) : layers.baseline.get(id);
+        for (Recipe<?> recipe : new Recipe<?>[] {layers.natives.get(id), below, after}) {
+            if (recipe != null && !lookedUpDirectly(KineticRegistries.recipeTypes().id(recipe.getType()))) return false;
+        }
+        if (after == null) layers.natives.remove(id);
+        else layers.natives.put(id, after);
+        manager.replaceRecipes(layers.recipes());
+        return true;
+    }
+
+    /** Sends the recipes to every player, as after a datapack reload. */
+    public static void syncRecipes(MinecraftServer server) {
+        var packet = new net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket(server.getRecipeManager().getRecipes());
+        for (net.minecraft.server.level.ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.connection.send(packet);
+            player.getRecipeBook().sendInitialRecipeBook(player);
+        }
+    }
+
+    /**
+     * What the running recipe manager holds, in the order it is put together: the recipes Minecraft and scripts
+     * loaded, the recipes made in the recipe editor, then the saved native recipes.
+     */
+    private static final class Layers {
+        final Map<ResourceLocation, Recipe<?>> baseline = new LinkedHashMap<>();
+        final Map<ResourceLocation, Recipe<?>> records = new LinkedHashMap<>();
+        final Map<ResourceLocation, Recipe<?>> natives = new LinkedHashMap<>();
+
+        List<Recipe<?>> recipes() {
+            Map<ResourceLocation, Recipe<?>> recipes = new LinkedHashMap<>(baseline);
+            recipes.putAll(records);
+            recipes.putAll(natives);
+            return new ArrayList<>(recipes.values());
+        }
+    }
+
     private static void applySnapshot(
             RecipeManager recipeManager,
             RecipeConfigStore.Snapshot snapshot, ResourceManager resources
     ) {
-        Map<ResourceLocation, Recipe<?>> configuredRecipes = new LinkedHashMap<>();
+        Layers layers = new Layers();
         int added = 0;
         int skippedConfigured = 0;
         for (RecipeRecord record : snapshot.recipes()) {
             try {
                 Recipe<?> recipe = buildRecipe(record);
                 if (recipe != null) {
-                    configuredRecipes.put(recipe.getId(), recipe);
+                    layers.records.put(recipe.getId(), recipe);
                     added++;
                 } else {
                     skippedConfigured++;
@@ -1220,7 +1293,7 @@ public final class RecipeMemoryManager {
                 try {
                     var recipe = decodeNative(recipeManager, entry.getKey(), entry.getValue());
                     dev.xyat.contentstudio.recipe.nativeedit.NativeRecipeStore.recordType(entry.getKey(), KineticRegistries.recipeTypes().id(recipe.getType()));
-                    configuredRecipes.put(recipe.getId(), recipe);
+                    layers.natives.put(recipe.getId(), recipe);
                     added++;
                 } catch (Exception e) {
                     skippedConfigured++;
@@ -1231,7 +1304,6 @@ public final class RecipeMemoryManager {
         } catch (Exception e) {
             LOGGER.error("Could not read native recipe overrides; preserving other recipes", e);
         }
-        Map<ResourceLocation, Recipe<?>> recipes = new LinkedHashMap<>();
         int skippedBaseline = 0;
 
         List<Recipe<?>> baseline = new ArrayList<>(recipeManager.getRecipes());
@@ -1241,12 +1313,14 @@ public final class RecipeMemoryManager {
             }
         }
         for (Recipe<?> recipe : baseline) {
-            if (recipe != null) recipes.put(recipe.getId(), recipe);
+            if (recipe != null) layers.baseline.put(recipe.getId(), recipe);
         }
-        recipes.putAll(configuredRecipes);
 
-        List<Recipe<?>> finalRecipes = new ArrayList<>(recipes.values());
+        List<Recipe<?>> finalRecipes = layers.recipes();
         recipeManager.replaceRecipes(finalRecipes);
+        synchronized (RecipeMemoryManager.class) {
+            LAYERS.put(recipeManager, layers);
+        }
         OriginalRecipeCatalog catalog = originalCatalog(recipeManager);
         RecipeDatabase.reloadDatabase();
         RecipeRemovalManager.reloadData();
