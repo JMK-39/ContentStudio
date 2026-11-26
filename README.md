@@ -8,14 +8,10 @@ Content Studio gives pack authors and server administrators in-game editors for 
 
 Open a Create milling recipe and click its output slot. Keep the same item, change the quantity from one to three and save. Decoding the stored recipe override with the game’s recipe serializer verifies that its configured quantity is three.
 
-![Opening a Create milling recipe, editing its output quantity from one to three and saving it in the visual editor](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/tutorials-20261126/en.gif)
+![Opening a Create milling recipe, editing its output quantity from one to three and saving it in the visual editor](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/bilingual-editors/ContentStudio/en.gif)
 
-<details>
-<summary>Full walkthrough with Mandarin narration</summary>
+[Watch with English narration](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/bilingual-editors/ContentStudio/en.mp4) · [Download English subtitles](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/bilingual-editors/ContentStudio/en.srt)
 
-https://github.com/user-attachments/assets/47be71be-d660-4317-8a7b-acd2230dfbbe
-
-</details>
 
 [Editor guide](https://github.com/JMK-39/ContentStudio/wiki/Recipes)
 
@@ -50,14 +46,10 @@ Content Studio 面向整合包作者与服务器管理员，提供配方、战�
 
 打开一条机械动力研磨配方，点工作台布局上的产物格。保留同一个物品，把产物数量从 1 改到 3 并保存。用游戏的配方解析器读回覆盖文件，确认其中记录的产物数量为 3。
 
-![打开机械动力研磨配方，在可视化编辑器将产量从 1 改为 3 并保存的实录](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/tutorials-20261126/zh.gif)
+![打开机械动力研磨配方，在可视化编辑器将产量从 1 改为 3 并保存的实录](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/bilingual-editors/ContentStudio/zh.gif)
 
-<details>
-<summary>播放完整普通话讲解</summary>
+[观看中文配音版](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/bilingual-editors/ContentStudio/zh.mp4) · [下载中文字幕](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/bilingual-editors/ContentStudio/zh.srt)
 
-https://github.com/user-attachments/assets/47be71be-d660-4317-8a7b-acd2230dfbbe
-
-</details>
 
 [编辑器使用指南](https://github.com/JMK-39/ContentStudio/wiki/%E6%96%B0%E5%A2%9E%E4%B8%8E%E7%A7%BB%E9%99%A4%E9%85%8D%E6%96%B9)
 
