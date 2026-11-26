@@ -44,6 +44,8 @@ Item field icons and selections retain the complete NBT or component variant, wh
 
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
 
+<a name="zh-walkthrough"></a>
+
 ### 在可视化工位里修改机械动力研磨配方
 
 打开一条机械动力研磨配方，点工作台布局上的产物格。保留同一个物品，把产物数量从 1 改到 3 并保存。用游戏的配方解析器读回覆盖文件，确认其中记录的产物数量为 3。
