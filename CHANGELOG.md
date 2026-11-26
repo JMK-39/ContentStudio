@@ -1,3 +1,7 @@
+2026年11月26日 — 26.11.26 — Empty loot fallback / 空战利品回退
+- Explicit air and unavailable item IDs resolve to empty loot entries, preserving their roll weights and conditions. Invalid tables yield no items. Explicit vanilla barrier rewards still work, and the source JSON is preserved.
+- 明确配置的空气和缺失物品在运行时变为空战利品条目，保留抽取权重和条件。无法解析的整张战利品表不再产出物品。正常配置的原版屏障仍可掉落，原始 JSON 不会被改写。
+
 2026年11月24日 — 26.11.24 — Configuration directory / 配置目录
 - Tooltip, loot override and villager configuration files now live under `config/kineticcore/contentstudio/`, with automatic migration that preserves existing destinations. Shared data-pack paths are unchanged. Requires KineticCore 26.11.24.
 - 物品提示、战利品覆盖与村民配置归档至 `config/kineticcore/contentstudio/`，自动迁移旧文件并保留已有目标文件；共享数据包路径保持不变，需要 KineticCore 26.11.24。

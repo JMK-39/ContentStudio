@@ -44,6 +44,7 @@ public final class RuntimeValidation {
             require(!dev.xyat.contentstudio.villager.config.VillagerConfig.areValidTradeLists(java.util.List.of(),java.util.List.of(good.toConfigLine().replace("diamond_sword","stone")),java.util.List.of()),"stackable stone rejects max damage");
         });
         run("loot-runtime-registry-and-generation",()-> RuntimeLootServices.check(event.getServer()));
+        run("loot-runtime-empty-fallback", () -> LootRuntimeFallbackChecks.check(event.getServer()));
         run("original-recipe-catalog-output",()->originalCatalogOutput(event.getServer()));
         run("trade-previews-for-clients",RuntimeValidation::tradePreviewsForClients);
         run("recipes-encode-for-clients",()->recipesEncodeForClients(event.getServer()));

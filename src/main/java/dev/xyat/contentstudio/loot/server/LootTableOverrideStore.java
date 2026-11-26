@@ -69,6 +69,7 @@ public class LootTableOverrideStore {
     private static final Path ROOT = KineticPlatform.configDirectory().resolve("kineticcore/contentstudio");
     private static final Path OVERRIDES_FILE = ROOT.resolve("loot_overrides.json");
     private static final ResourceLocation GLOBAL_CHEST_APPEND = KineticResourceIds.parse(LootEntryInfo.GLOBAL_CHEST_APPEND_ID);
+    private static final ResourceLocation AIR_ID = KineticResourceIds.parse("minecraft:air");
     private static final Object STORAGE_LOCK = new Object();
     private static final Object LOOT_REFERENCE_LOCK = new Object();
     private static final String GLOBAL_POOL_NAME_PREFIX = "contentstudio_global_append#";
@@ -778,11 +779,11 @@ ResourceLocation lootTable = block.getLootTable();
                     }
                     return parsed.get();
                 }
-                LOGGER.error("{} Invalid loot table {}, using barrier fallback", LOG_PREFIX, id);
+                LOGGER.error("{} Invalid loot table {}, using empty fallback", LOG_PREFIX, id);
             } catch (RuntimeException failure) {
-                LOGGER.error("{} Invalid loot table {}, using barrier fallback", LOG_PREFIX, id, failure);
+                LOGGER.error("{} Invalid loot table {}, using empty fallback", LOG_PREFIX, id, failure);
             }
-            return parseLootTable(id, ops, createBarrierFallbackTable())
+            return parseLootTable(id, ops, createEmptyFallbackTable())
                     .orElseThrow(() -> new IllegalStateException("Cannot create safe loot table: " + id));
         } finally { LOAD_EVENT_BYPASS.set(previous); }
     }
@@ -808,15 +809,15 @@ ResourceLocation lootTable = block.getLootTable();
                 if (parsed.isPresent()) {
                     return parsed.get();
                 }
-                LOGGER.error("{} 战利品表运行时解析失败，已使用屏障安全表 lootTable={}", LOG_PREFIX, lootTableId);
+                LOGGER.error("{} 战利品表运行时解析失败，已使用空战利品表 lootTable={}", LOG_PREFIX, lootTableId);
             } catch (Exception e) {
-                LOGGER.error("{} 战利品表运行时解析异常，已使用屏障安全表 lootTable={} reason={}",
+                LOGGER.error("{} 战利品表运行时解析异常，已使用空战利品表 lootTable={} reason={}",
                         LOG_PREFIX, lootTableId, exceptionMessage(e), e);
             }
 //? if >=1.21 {
-/*            return LootDataType.TABLE.deserialize(lootTableId, ItemData.registries().createSerializationContext(JsonOps.INSTANCE), createBarrierFallbackTable())
+/*            return LootDataType.TABLE.deserialize(lootTableId, ItemData.registries().createSerializationContext(JsonOps.INSTANCE), createEmptyFallbackTable())
 *///?} else {
-            return LootDataType.TABLE.deserialize(lootTableId, createBarrierFallbackTable(), resourceManager)
+            return LootDataType.TABLE.deserialize(lootTableId, createEmptyFallbackTable(), resourceManager)
 //?}
 
                     .orElseThrow(() -> new IllegalStateException("Cannot create safe loot table: " + lootTableId));
@@ -829,31 +830,23 @@ ResourceLocation lootTable = block.getLootTable();
 //?}
     private static JsonElement sanitizeRuntimeLootTable(ResourceLocation lootTableId, JsonElement json) {
         if (json == null || json.isJsonNull()) {
-            LOGGER.error("{} 战利品表为空，已使用屏障安全表 lootTable={}", LOG_PREFIX, lootTableId);
-            return createBarrierFallbackTable();
+            LOGGER.error("{} 战利品表为空，已使用空战利品表 lootTable={}", LOG_PREFIX, lootTableId);
+            return createEmptyFallbackTable();
         }
         JsonElement safe = json.deepCopy();
-        int replaced = replaceInvalidItemEntries(safe, lootTableId);
-        if (replaced > 0) {
-            LOGGER.error("{} 检测到无效战利品物品，运行时已替换为屏障 lootTable={} count={}",
-                    LOG_PREFIX, lootTableId, replaced);
-        }
+        replaceEmptyItemEntries(safe, lootTableId);
         return safe;
     }
 
-    private static int replaceInvalidItemEntries(JsonElement element, ResourceLocation lootTableId) {
-        if (element == null || element.isJsonNull()) {
-            return 0;
-        }
-        int replaced = 0;
+    private static void replaceEmptyItemEntries(JsonElement element, ResourceLocation lootTableId) {
         if (element.isJsonArray()) {
             for (JsonElement child : element.getAsJsonArray()) {
-                replaced += replaceInvalidItemEntries(child, lootTableId);
+                replaceEmptyItemEntries(child, lootTableId);
             }
-            return replaced;
+            return;
         }
         if (!element.isJsonObject()) {
-            return 0;
+            return;
         }
 
         JsonObject object = element.getAsJsonObject();
@@ -861,47 +854,29 @@ ResourceLocation lootTable = block.getLootTable();
                 ? object.get("type").getAsString()
                 : "";
         if (("minecraft:item".equals(type) || "item".equals(type)) && object.has("name")) {
-            String itemId = object.get("name").isJsonPrimitive() ? object.get("name").getAsString() : "";
-            if (isUnregisteredItem(itemId)) {
-                LOGGER.error("{} 无效战利品物品已安全替换 lootTable={} item={}", LOG_PREFIX, lootTableId, itemId);
-                object.addProperty("name", "minecraft:barrier");
-                replaced++;
+            JsonElement name = object.get("name");
+            String rawId = name.isJsonPrimitive() ? name.getAsString() : "";
+            ResourceLocation itemId = KineticResourceIds.tryParse(rawId);
+            if (AIR_ID.equals(itemId) || itemId == null || !KineticRegistries.items().contains(itemId)) {
+                if (!AIR_ID.equals(itemId)) {
+                    LOGGER.warn("{} Missing loot item {} in {}, using an empty entry", LOG_PREFIX, rawId, lootTableId);
+                }
+                // Keep the roll's weight and conditions, including when this entry is nested.
+                object.addProperty("type", "minecraft:empty");
+                object.remove("name");
+                object.remove("functions");
             }
         }
 
-        for (Map.Entry<String, JsonElement> child : new ArrayList<>(object.entrySet())) {
-            replaced += replaceInvalidItemEntries(child.getValue(), lootTableId);
-        }
-        return replaced;
-    }
-
-    private static boolean isUnregisteredItem(String itemId) {
-        if (itemId == null || itemId.isBlank()) {
-            return true;
-        }
-        try {
-            ResourceLocation id = KineticResourceIds.parse(itemId);
-            var item = KineticRegistries.items().get(id);
-            return item == null || item == net.minecraft.world.item.Items.AIR;
-        } catch (Exception ignored) {
-            return true;
+        for (Map.Entry<String, JsonElement> child : object.entrySet()) {
+            replaceEmptyItemEntries(child.getValue(), lootTableId);
         }
     }
 
-    private static JsonObject createBarrierFallbackTable() {
+    private static JsonObject createEmptyFallbackTable() {
         JsonObject root = new JsonObject();
         root.addProperty("type", "minecraft:generic");
-        JsonArray pools = new JsonArray();
-        JsonObject pool = new JsonObject();
-        pool.addProperty("rolls", 1);
-        JsonArray entries = new JsonArray();
-        JsonObject entry = new JsonObject();
-        entry.addProperty("type", "minecraft:item");
-        entry.addProperty("name", "minecraft:barrier");
-        entries.add(entry);
-        pool.add("entries", entries);
-        pools.add(pool);
-        root.add("pools", pools);
+        root.add("pools", new JsonArray());
         return root;
     }
 
