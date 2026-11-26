@@ -4,9 +4,20 @@
 
 Content Studio gives pack authors and server administrators in-game editors for recipes, loot tables, villager trades, and item tooltips.
 
-With Create and JEI installed, inspect the native milling layout and edit a draft ingredient. [Recipe editor guide](https://github.com/JMK-39/ContentStudio/wiki/Recipes)
+### Change a Create milling recipe’s output in its visual layout
 
-<img src="https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/showcase-20261126/en/content-recipes.gif" alt="Captured steps for opening a Create milling recipe and editing an unsaved ingredient" width="640">
+Open a Create milling recipe and click its output slot. Keep the same item, change the quantity from one to three and save. Decoding the stored recipe override with the game’s recipe serializer verifies that its configured quantity is three.
+
+![Opening a Create milling recipe, editing its output quantity from one to three and saving it in the visual editor](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/tutorials-20261126/en.gif)
+
+<details>
+<summary>Full walkthrough with Mandarin narration</summary>
+
+https://github.com/user-attachments/assets/47be71be-d660-4317-8a7b-acd2230dfbbe
+
+</details>
+
+[Editor guide](https://github.com/JMK-39/ContentStudio/wiki/Recipes)
 
 - Recipe creation, removal rules, previews, and an impact list.
 - Search mod/workstation entries and edit third-party recipes directly on their JEI layouts, preserving native data. Without JEI, Vanilla remains visual, third-party editing entries are hidden, and saved recipes keep loading.
@@ -33,9 +44,20 @@ Item field icons and selections retain the complete NBT or component variant, wh
 
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
 
-安装机械动力和 JEI 后，可以查看研磨配方的原生布局，并编辑材料草稿。 [配方编辑指南](https://github.com/JMK-39/ContentStudio/wiki/%E6%96%B0%E5%A2%9E%E4%B8%8E%E7%A7%BB%E9%99%A4%E9%85%8D%E6%96%B9)
+### 在可视化工位里修改机械动力研磨配方
 
-<img src="https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/showcase-20261126/zh/content-recipes.gif" alt="查看机械动力研磨配方并编辑未保存材料的实拍步骤" width="640">
+打开一条机械动力研磨配方，点工作台布局上的产物格。保留同一个物品，把产物数量从 1 改到 3 并保存。用游戏的配方解析器读回覆盖文件，确认其中记录的产物数量为 3。
+
+![打开机械动力研磨配方，在可视化编辑器将产量从 1 改为 3 并保存的实录](https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/tutorials-20261126/zh.gif)
+
+<details>
+<summary>播放完整普通话讲解</summary>
+
+https://github.com/user-attachments/assets/47be71be-d660-4317-8a7b-acd2230dfbbe
+
+</details>
+
+[编辑器使用指南](https://github.com/JMK-39/ContentStudio/wiki/%E6%96%B0%E5%A2%9E%E4%B8%8E%E7%A7%BB%E9%99%A4%E9%85%8D%E6%96%B9)
 
 - 配方创建、移除规则、预览与影响列表。
 - 按模组与工作台搜索入口，在 JEI 原生布局上直接编辑第三方配方并保留专有字段。未安装 JEI 时，原版仍可视化编辑，隐藏第三方编辑入口，已保存配方继续加载。
