@@ -4,6 +4,10 @@
 
 Content Studio gives pack authors and server administrators in-game editors for recipes, loot tables, villager trades, and item tooltips.
 
+With Create and JEI installed, inspect the native milling layout and edit a draft ingredient. [Recipe editor guide](https://github.com/JMK-39/ContentStudio/wiki/Recipes)
+
+<img src="https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/showcase-20261126/en/content-recipes.gif" alt="Captured steps for opening a Create milling recipe and editing an unsaved ingredient" width="640">
+
 - Recipe creation, removal rules, previews, and an impact list.
 - Search mod/workstation entries and edit third-party recipes directly on their JEI layouts, preserving native data. Without JEI, Vanilla remains visual, third-party editing entries are hidden, and saved recipes keep loading.
 - Choose a registered third-party type and a template to create an independent recipe under a new ID; filter saved recipes by mod.
@@ -28,6 +32,10 @@ Item field icons and selections retain the complete NBT or component variant, wh
 ## 简体中文
 
 Content Studio 面向整合包作者与服务器管理员，提供配方、战利品表、村民交易和物品提示的游戏内编辑器。
+
+安装机械动力和 JEI 后，可以查看研磨配方的原生布局，并编辑材料草稿。 [配方编辑指南](https://github.com/JMK-39/ContentStudio/wiki/%E6%96%B0%E5%A2%9E%E4%B8%8E%E7%A7%BB%E9%99%A4%E9%85%8D%E6%96%B9)
+
+<img src="https://raw.githubusercontent.com/wiki/JMK-39/ContentStudio/media/showcase-20261126/zh/content-recipes.gif" alt="查看机械动力研磨配方并编辑未保存材料的实拍步骤" width="640">
 
 - 配方创建、移除规则、预览与影响列表。
 - 按模组与工作台搜索入口，在 JEI 原生布局上直接编辑第三方配方并保留专有字段。未安装 JEI 时，原版仍可视化编辑，隐藏第三方编辑入口，已保存配方继续加载。
